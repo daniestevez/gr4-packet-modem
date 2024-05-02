@@ -1,0 +1,3 @@
+[submodule "graph-prototype"]
+	path = graph-prototype
+	url = git@github.com:fair-acc/graph-prototype.git
