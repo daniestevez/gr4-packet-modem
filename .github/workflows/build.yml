@@ -1,0 +1,29 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/fair-acc/gr4-build-container:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Configure
+        if: matrix.compiler.cmake_wrapper == null
+        shell: bash
+        env:
+          CC: "${{ matrix.compiler.cc }}"
+          CXX: "${{ matrix.compiler.cxx }}"
+          CMAKE_EXPORT_COMPILE_COMMANDS: "ON"
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+      - name: Build
+        shell: bash
+        run: |
+          cd build
+          make -j$(nproc)
