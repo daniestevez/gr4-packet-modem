@@ -9,7 +9,7 @@ struct Source : public gr::Block<Source<T>> {
 
     [[nodiscard]] constexpr auto processOne() const noexcept
     {
-        fmt::print("source::ProcessOne()");
+        fmt::print("source::ProcessOne()\n");
         return 0;
     }
 };
@@ -17,12 +17,12 @@ struct Source : public gr::Block<Source<T>> {
 ENABLE_REFLECTION_FOR_TEMPLATE(Source, out);
 
 template <typename T>
-struct Sink : public gr::Block<Source<T>> {
+struct Sink : public gr::Block<Sink<T>> {
     gr::PortIn<T> in;
 
     [[nodiscard]] constexpr auto processOne(T a) const noexcept
     {
-        fmt::print("sink::ProcessOne({})", a);
+        fmt::print("sink::ProcessOne({})\n", a);
     }
 };
 
@@ -35,7 +35,7 @@ int main()
     gr::Graph fg;
     auto& src = fg.emplaceBlock<Source<int>>();
     auto& snk = fg.emplaceBlock<Sink<int>>();
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(src).template to<"in">(snk)));
+    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(src).to<"in">(snk)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     expect(sched.runAndWait().has_value());
