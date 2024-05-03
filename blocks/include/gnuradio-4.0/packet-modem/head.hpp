@@ -43,12 +43,15 @@ public:
                    d_published);
 
         if (d_published == d_num_items) {
+            fmt::print("Head::processBulk returning DONE\n");
             return gr::work::Status::DONE;
         }
         if (outSpan.size() == 0) {
+            fmt::print("Head::processBulk returning INSUFFICIENT_OUTPUT_ITEMS\n");
             return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         if (inSpan.size() == 0) {
+            fmt::print("Head::processBulk returning INSUFFICIENT_INPUT_ITEMS\n");
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         const size_t can_publish =
@@ -58,6 +61,11 @@ public:
         std::ignore = inSpan.consume(can_publish);
         outSpan.publish(can_publish);
         d_published += can_publish;
+        if (d_published == d_num_items) {
+            fmt::print("Head::processBulk returning DONE\n");
+        } else  {
+            fmt::print("Head::processBulk returning OK\n");
+        }
         return d_published == d_num_items ? gr::work::Status::DONE : gr::work::Status::OK;
     }
 };
