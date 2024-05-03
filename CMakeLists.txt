@@ -47,5 +47,6 @@ endif()
 # Mainly for FMT
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
+add_subdirectory(blocks)
 add_subdirectory(graph-prototype)
 add_subdirectory(src)
