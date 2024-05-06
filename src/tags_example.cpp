@@ -6,7 +6,6 @@
 #include <pmtv/pmt.hpp>
 #include <boost/ut.hpp>
 #include <numeric>
-#include <thread>
 
 int main()
 {
@@ -24,23 +23,12 @@ int main()
         { std::ssize(v) - 1, { { "end", pmtv::pmt_null() } } }
     };
 
-    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>(v, true, tags);
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>(v, false, tags);
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
-    gr::MsgPortOut toScheduler;
-    expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
-
-    std::thread stopper([&toScheduler]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        gr::sendMessage<gr::message::Command::Set>(toScheduler,
-                                                   "",
-                                                   gr::block::property::kLifeCycleState,
-                                                   { { "state", "REQUESTED_STOP" } });
-    });
     expect(sched.runAndWait().has_value());
-    stopper.join();
 
     const auto data = sink.data();
     std::print("vector sink contains {} items\n", data.size());
@@ -54,6 +42,4 @@ int main()
     for (const auto& t : sink_tags) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
     }
-
-    return 0;
 }

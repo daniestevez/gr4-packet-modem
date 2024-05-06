@@ -35,23 +35,29 @@ public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
-        // TODO: remove this debugging print
+#ifdef TRACE
         fmt::print("Head::processBulk(inSpan.size() = {}, outSpan.size = {}), "
                    "d_published = {}\n",
                    inSpan.size(),
                    outSpan.size(),
                    d_published);
-
+#endif
         if (d_published == d_num_items) {
+#ifdef TRACE
             fmt::print("Head::processBulk returning DONE\n");
+#endif
             return gr::work::Status::DONE;
         }
         if (outSpan.size() == 0) {
+#ifdef TRACE
             fmt::print("Head::processBulk returning INSUFFICIENT_OUTPUT_ITEMS\n");
+#endif
             return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         if (inSpan.size() == 0) {
+#ifdef TRACE
             fmt::print("Head::processBulk returning INSUFFICIENT_INPUT_ITEMS\n");
+#endif
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         const size_t can_publish =
@@ -61,11 +67,13 @@ public:
         std::ignore = inSpan.consume(can_publish);
         outSpan.publish(can_publish);
         d_published += can_publish;
+#ifdef TRACE
         if (d_published == d_num_items) {
             fmt::print("Head::processBulk returning DONE\n");
         } else  {
             fmt::print("Head::processBulk returning OK\n");
         }
+#endif
         return d_published == d_num_items ? gr::work::Status::DONE : gr::work::Status::OK;
     }
 };
