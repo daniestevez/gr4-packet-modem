@@ -42,4 +42,6 @@ int main()
     for (const auto& t : sink_tags) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
     }
+
+    return 0;
 }

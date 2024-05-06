@@ -70,7 +70,7 @@ public:
 #ifdef TRACE
         if (d_published == d_num_items) {
             fmt::print("Head::processBulk returning DONE\n");
-        } else  {
+        } else {
             fmt::print("Head::processBulk returning OK\n");
         }
 #endif
