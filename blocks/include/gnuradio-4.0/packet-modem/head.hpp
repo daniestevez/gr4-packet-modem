@@ -46,18 +46,24 @@ public:
 #ifdef TRACE
             fmt::print("Head::processBulk returning DONE\n");
 #endif
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
             return gr::work::Status::DONE;
         }
         if (outSpan.size() == 0) {
 #ifdef TRACE
             fmt::print("Head::processBulk returning INSUFFICIENT_OUTPUT_ITEMS\n");
 #endif
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         if (inSpan.size() == 0) {
 #ifdef TRACE
             fmt::print("Head::processBulk returning INSUFFICIENT_INPUT_ITEMS\n");
 #endif
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         const size_t can_publish =
