@@ -1,15 +1,8 @@
-#include <fmt/core.h>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
-#include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
-#include <gnuradio-4.0/packet-modem/packet_strobe.hpp>
-#include <gnuradio-4.0/packet-modem/vector_sink.hpp>
-#include <gnuradio-4.0/packet-modem/vector_source.hpp>
-#include <pmtv/pmt.hpp>
+#include <gnuradio-4.0/packet-modem/message_strobe.hpp>
 #include <boost/ut.hpp>
-#include <chrono>
-#include <numeric>
 #include <thread>
 
 int main()
@@ -18,25 +11,33 @@ int main()
 
     gr::Graph fg;
 
-    gr::MsgPortOut toDebug;
-    auto& dbg = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    expect(eq(gr::ConnectionResult::SUCCESS, toDebug.connect(dbg.print)));
+    const gr::property_map message = { { "test", 1 } };
+    auto& strobe = fg.emplaceBlock<gr::packet_modem::MessageStrobe<>>(
+        message, std::chrono::seconds(1));
+    auto& debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+    expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.print)));
+    expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.store)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     gr::MsgPortOut toScheduler;
     expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
 
     std::thread stopper([&toScheduler]() {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        std::print("sending REQUEST_STOP to scheduler\n");
         gr::sendMessage<gr::message::Command::Set>(toScheduler,
                                                    "",
                                                    gr::block::property::kLifeCycleState,
                                                    { { "state", "REQUESTED_STOP" } });
     });
+
     expect(sched.runAndWait().has_value());
     stopper.join();
 
-    sendMessage<gr::message::Command::Invalid>(toDebug, "", "", { { "test", "foo" } });
+    std::print("MessageDebug stored these messages:\n");
+    for (const auto& m : debug.messages()) {
+        fmt::print("{}\n", m);
+    }
 
     return 0;
 }
