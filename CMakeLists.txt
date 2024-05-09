@@ -49,5 +49,5 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 add_subdirectory(blocks)
 add_subdirectory(examples)
-add_subdirectory(graph-prototype)
+add_subdirectory(gnuradio4)
 add_subdirectory(src)
