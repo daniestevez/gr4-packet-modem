@@ -1,17 +1,11 @@
 #include <fmt/core.h>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
-#include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
-#include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/pack_bits.hpp>
-#include <gnuradio-4.0/packet-modem/packet_strobe.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <pmtv/pmt.hpp>
 #include <boost/ut.hpp>
-#include <chrono>
-#include <numeric>
-#include <thread>
 
 int main()
 {
@@ -37,9 +31,6 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(pack).to<"in">(sink)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
-    gr::MsgPortOut toScheduler;
-    expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
-
     expect(sched.runAndWait().has_value());
 
     const auto data = sink.data();

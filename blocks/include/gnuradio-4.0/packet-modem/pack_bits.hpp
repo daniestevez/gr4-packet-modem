@@ -11,13 +11,36 @@ namespace gr::packet_modem {
 template <Endianness endianness = Endianness::MSB,
           typename TIn = uint8_t,
           typename TOut = uint8_t>
-class PackBits : public gr::Block<PackBits<endianness, TIn, TOut>>
+class PackBits : public gr::Block<PackBits<endianness, TIn, TOut>, gr::ResamplingRatio<>>
 {
 public:
     using Description = Doc<R""(
-@brief Pack Bits.
+@brief Pack Bits. Packs k nibbles of n bits into k*n-bit nibbles.
 
-TODO...
+This block assumes that the input items are formed by nibbles of
+`bits_per_input` placed in the LSBs of the item. It packs the nibbles in
+`inputs_per_output` input items to form an output sample, which contains a
+nibble of `bits_per_input * inputs_per_output` bits in which the nibbles in the
+corresponding input items have been concatenated. The order of this
+concatenation is given by the `Endianness` template parameter. If the order is
+`MSB`, then the nibble in the first item is placed in the MSBs of the
+concatenated nibble. If the order is `LSB`, then the nibble in the first item is
+placed in the LSBs of the concatenated nibble. The bits within each input nibble
+are not rearranged regardless of the `Endianness` used.
+
+If the input items contain data in the bits above the `bits_per_input` LSBs,
+this data is discarded.
+
+As an example, using this block with `inputs_per_output = 8` and
+`bits_per_input = 1` serves to convert an unpacked one-bit-per-byte input into a
+packed 8-bits-per-byte output.
+
+By default this block operates on `uint8_t` input and output items, but it can
+use larger integers. This is required when the input or output nibbles have more
+than 8 bits. For example, using `TOut = uint16_t`, `inputs_per_output = 10` and
+`bits_per_input = 1` can be used to pack 10 bits from a one-bit-per-byte
+`uint8_t` input into 10-bit nibbles in a `uint16_t` output.  This could be used
+to feed a 1024QAM constellation modulator.
 
 TODO: packet_len tag adjustment
 
@@ -41,6 +64,9 @@ public:
             throw std::invalid_argument(fmt::format(
                 "[PackBits] bits_per_input must be positive; got {}", bits_per_input));
         }
+        // set resampling ratio for the scheduler
+        this->numerator = 1;
+        this->denominator = inputs_per_output;
     }
 
     static constexpr Endianness kEndianness = endianness;
@@ -74,7 +100,7 @@ public:
                 if constexpr (kEndianness == Endianness::MSB) {
                     join = static_cast<TOut>(join << d_shift) | chunk;
                 } else {
-                    // LSB
+                    static_assert(kEndianness == Endianness::LSB);
                     join |= chunk << shift;
                     shift += d_shift;
                 }
