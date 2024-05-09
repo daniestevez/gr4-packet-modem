@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/packet-modem/endianness.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <ranges>
+#include <stdexcept>
 
 namespace gr::packet_modem {
 
@@ -42,7 +43,12 @@ than 8 bits. For example, using `TOut = uint16_t`, `inputs_per_output = 10` and
 `uint8_t` input into 10-bit nibbles in a `uint16_t` output.  This could be used
 to feed a 1024QAM constellation modulator.
 
-TODO: packet_len tag adjustment
+The block can optionally adjust the length of packet-length tags. If a non-empty
+string is supplied in the `packet_length_tag_key` constructor argument, the
+value of tags with that key will be dividied by `inputs_per_output` in the
+output. It is assumed that the value of these tags can be converted to
+`uint64_t` and is divisible by `inputs_per_output`. Otherwise, the block throws
+an exception.
 
 )"">;
 
@@ -50,15 +56,19 @@ private:
     const size_t d_inputs_per_output;
     const TOut d_shift;
     const TIn d_mask;
+    const std::string d_packet_len_tag_key;
 
 public:
     gr::PortIn<TIn> in;
     gr::PortOut<TOut> out;
 
-    PackBits(size_t inputs_per_output, TIn bits_per_input = 1)
+    PackBits(size_t inputs_per_output,
+             TIn bits_per_input = 1,
+             const std::string& packet_len_tag_key = "")
         : d_inputs_per_output(inputs_per_output),
           d_shift(bits_per_input),
-          d_mask(static_cast<TIn>(TIn{ 1 } << bits_per_input) - TIn{ 1 })
+          d_mask(static_cast<TIn>(TIn{ 1 } << bits_per_input) - TIn{ 1 }),
+          d_packet_len_tag_key(packet_len_tag_key)
     {
         if (bits_per_input <= 0) {
             throw std::invalid_argument(fmt::format(
@@ -89,6 +99,26 @@ public:
             outSpan.publish(0);
             return outSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS
                                        : gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
+
+        if (!d_packet_len_tag_key.empty() && this->input_tags_present()) {
+            auto tag = this->mergedInputTag();
+            if (tag.map.contains(d_packet_len_tag_key)) {
+                // Adjust the packet_len tag value and overwrite the output tag
+                // that is automatically propagated by the runtime.
+                const auto packet_len =
+                    pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
+                if (packet_len % d_inputs_per_output) {
+                    throw std::runtime_error(
+                        fmt::format("[PackBits] packet_len {} is not divisible by "
+                                    "inputs_per_output {}",
+                                    packet_len,
+                                    d_inputs_per_output));
+                }
+                tag.map[d_packet_len_tag_key] =
+                    pmtv::pmt(packet_len / d_inputs_per_output);
+                out.publishTag(tag.map, 0);
+            }
         }
 
         auto in_item = inSpan.begin();
