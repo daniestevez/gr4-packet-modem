@@ -19,7 +19,7 @@ public:
 @brief Pack Bits. Packs k nibbles of n bits into k*n-bit nibbles.
 
 This block assumes that the input items are formed by nibbles of
-`bits_per_input` placed in the LSBs of the item. It packs the nibbles in
+`bits_per_input` bits placed in the LSBs of the item. It packs these nibbles in
 `inputs_per_output` input items to form an output sample, which contains a
 nibble of `bits_per_input * inputs_per_output` bits in which the nibbles in the
 corresponding input items have been concatenated. The order of this
