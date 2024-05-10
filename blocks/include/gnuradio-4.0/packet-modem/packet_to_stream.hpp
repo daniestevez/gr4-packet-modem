@@ -90,6 +90,7 @@ public:
         const auto to_publish = std::min({ inSpan.size(), outSpan.size(), d_remaining });
         std::ranges::copy_n(
             inSpan.begin(), static_cast<ssize_t>(to_publish), outSpan.begin());
+        d_remaining -= to_publish;
 
         // At this point we return instead of trying to fill the rest of the
         // output with zeros. There might be a packet available on the input but
