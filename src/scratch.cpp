@@ -1,17 +1,11 @@
 #include <fmt/core.h>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
-#include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
-#include <gnuradio-4.0/packet-modem/message_debug.hpp>
-#include <gnuradio-4.0/packet-modem/pack_bits.hpp>
-#include <gnuradio-4.0/packet-modem/packet_strobe.hpp>
-#include <gnuradio-4.0/packet-modem/vector_sink.hpp>
+#include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <pmtv/pmt.hpp>
 #include <boost/ut.hpp>
-#include <chrono>
 #include <numeric>
-#include <thread>
 
 int main()
 {
@@ -19,40 +13,22 @@ int main()
 
     gr::Graph fg;
 
-    const std::vector<uint8_t> v = { 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0 };
-    // This works as expected
+    std::vector<int> v(100);
+    std::iota(v.begin(), v.end(), 0);
+
     const std::vector<gr::Tag> tags = {
-        { 0, { { "zero", pmtv::pmt_null() } } },
-        { 2, { { "two", pmtv::pmt_null() } } },
+        { 0, { { "begin", pmtv::pmt_null() } } },
+        { 10, { { "param_a", 3.1415 }, { "param_b", 12345U } } },
+        { 73, { { "param_c", std::vector<int>{ 1, 2, 3 } }, { "param_d", 0.0f } } },
+        { std::ssize(v) - 1, { { "end", pmtv::pmt_null() } } }
     };
-    // This makes the scheduler loop forever. PackBits::processBulk() is never called
-    // const std::vector<gr::Tag> tags = {
-    //     { 1, { { "one", pmtv::pmt_null() } } },
-    // };
-    auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(v, false, tags);
-    auto& pack = fg.emplaceBlock<gr::packet_modem::PackBits<>>(2U);
-    auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(pack)));
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(pack).to<"in">(sink)));
+
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>(v, false, tags);
+    auto& sink = fg.emplaceBlock<gr::packet_modem::FileSink<int>>("/tmp/test_file_sink");
+    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
-    gr::MsgPortOut toScheduler;
-    expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
-
     expect(sched.runAndWait().has_value());
-
-    const auto data = sink.data();
-    std::print("vector sink contains {} items\n", data.size());
-    std::print("vector sink items:\n");
-    for (const auto n : data) {
-        std::print("{} ", n);
-    }
-    std::print("\n");
-    std::print("vector sink tags:\n");
-    for (const auto& t : sink.tags()) {
-        fmt::print("index = {}, map = {}\n", t.index, t.map);
-    }
 
     return 0;
 }
