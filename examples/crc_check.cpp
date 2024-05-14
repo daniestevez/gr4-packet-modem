@@ -1,7 +1,6 @@
 #include <fmt/core.h>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
-#include <gnuradio-4.0/packet-modem/crc.hpp>
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
 #include <gnuradio-4.0/packet-modem/crc_check.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
@@ -14,12 +13,9 @@ int main()
 {
     using namespace boost::ut;
 
-    auto crc = gr::packet_modem::Crc(16, 0x1021, 0xFFFF, 0xFFFF, true, true);
-    std::vector<uint8_t> data(10);
-    std::println("crc = 0x{:x}", crc.compute(data));
-
     gr::Graph fg;
 
+    std::vector<uint8_t> data(10);
     const std::vector<gr::Tag> tags = { { 0, { { "packet_len", 8 } } },
                                         //{ 1, { { "foo", "bar" } } },
                                         { 8, { { "packet_len", 2 } } } };

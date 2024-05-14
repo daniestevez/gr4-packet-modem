@@ -45,6 +45,7 @@ private:
     Crc<CrcType> d_crc;
     const size_t d_header_bytes;
     const std::string d_packet_len_tag_key;
+    size_t d_header_remaining;
     uint64_t d_data_remaining;
     unsigned d_crc_remaining;
     CrcType d_crc_rem;
@@ -75,6 +76,7 @@ public:
                 result_reflected),
           d_header_bytes(skip_header_bytes),
           d_packet_len_tag_key(packet_len_tag_key),
+          d_header_remaining(0),
           d_data_remaining(0),
           d_crc_remaining(0),
           d_crc_rem(0)
@@ -107,6 +109,12 @@ public:
                 throw std::runtime_error(not_found);
             }
             d_data_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
+            d_header_remaining = d_header_bytes;
+            if (d_header_remaining >= d_data_remaining) {
+                std::println("[CrcAppend] WARNING: received packet shorter than header "
+                             "(length {})",
+                             d_data_remaining);
+            }
             d_crc_remaining = d_crc_num_bytes;
             d_crc.initialize();
             // modify packet_len tag
@@ -125,12 +133,14 @@ public:
         if (d_data_remaining > 0) {
             const auto to_consume =
                 std::min({ d_data_remaining, inSpan.size(), outSpan.size() });
-            d_crc.update(inSpan | std::views::take(static_cast<ssize_t>(to_consume)));
+            d_crc.update(inSpan | std::views::take(static_cast<ssize_t>(to_consume)) |
+                         std::views::drop(d_header_remaining));
             std::ranges::copy_n(
                 inSpan.begin(), static_cast<ssize_t>(to_consume), out_data);
             consumed += to_consume;
             published += to_consume;
             out_data += static_cast<ssize_t>(to_consume);
+            d_header_remaining -= std::min(d_header_remaining, to_consume);
             d_data_remaining -= to_consume;
             if (d_data_remaining == 0) {
                 d_crc_rem = d_crc.finalize();
