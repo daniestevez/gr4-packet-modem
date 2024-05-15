@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
 #include <gnuradio-4.0/packet-modem/crc_check.hpp>
 #include <gnuradio-4.0/packet-modem/interpolating_fir_filter.hpp>
+#include <gnuradio-4.0/packet-modem/random_source.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <pmtv/pmt.hpp>
@@ -15,25 +16,11 @@ int main()
 {
     using namespace boost::ut;
 
-
     gr::Graph fg;
-
-    const std::vector<gr::Tag> tags = { { 0, { { "packet_len", 8 } } },
-                                        { 1, { { "foo", "bar" } } },
-                                        { 8, { { "packet_len", 2 } } } };
-    std::vector<float> v(90);
-    v[0] = 1.0f;
-    v[31] = 1.0f;
-    v[32] = 0.5f;
-    v[62] = 1.0f;
-    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<float>>(v, false, tags);
-    std::vector<float> taps(7);
-    std::iota(taps.begin(), taps.end(), 1);
-    auto& fir =
-        fg.emplaceBlock<gr::packet_modem::InterpolatingFirFilter<float>>(3U, taps);
-    auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(fir)));
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(fir).to<"in">(sink)));
+    auto& source = fg.emplaceBlock<gr::packet_modem::RandomSource<uint8_t>>(
+        uint8_t{ 0 }, uint8_t{ 255 }, 1000U, false);
+    auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
+    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
 
