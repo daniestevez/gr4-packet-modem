@@ -34,3 +34,8 @@ jobs:
         run: |
           cd build
           make -j$(nproc)
+      - name: Test
+        shell: bash
+        run: |
+          cd build
+          ctest --output-on-error
