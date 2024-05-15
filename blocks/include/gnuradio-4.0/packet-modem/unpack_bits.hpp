@@ -17,7 +17,6 @@ class UnpackBits
 {
 public:
     using Description = Doc<R""(
-TODO...
 @brief Unpack Bits. Unpacks k*n-bit nibbles to k nibbles of n.
 
 This block performs the opposite function of Pack Bits. It assumes that the
