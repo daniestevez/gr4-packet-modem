@@ -17,6 +17,12 @@ public:
 @brief Tagged Stream to PDU. Converts a stream of packets delimited by packet length tags
 into a stream of PDUs.
 
+The input of this block is a stream of items of type `T` forming packets
+delimited by a packet-length tag that is present in the first item of the packet
+and whose value indicates the length of the packet. It converts the packets in
+the input into a stream of `Pdu` objects, where each packet is stored as the
+`data` vector in the `Pdu`, and the tags previously attached to items of the
+packet are stored as the `tags` vector in the `Pdu`.
 
 )"">;
 
