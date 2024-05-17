@@ -2,9 +2,9 @@
 #include <boost/ut.hpp>
 #include <cmath>
 
-int main()
-{
+boost::ut::suite FirdesTests = [] {
     using namespace boost::ut;
+    using namespace gr::packet_modem;
 
     "root_raised_cosine"_test = [] {
         // obtained with GR3 firdes.root_raised_cosine(1.0, 4.0, 1.0, 0.35, 65)
@@ -32,14 +32,16 @@ int main()
             6.526567449327558e-05,   -0.0009425065363757312,  -0.0009797688107937574,
             -0.00010189539170823991, 0.0007716506370343268
         };
-        const size_t num_taps = 65;
-        const auto taps =
-            gr::packet_modem::firdes::root_raised_cosine(1.0, 4.0, 1.0, 0.35, num_taps);
-        expect(taps.size() == expected_taps.size());
-        expect(taps.size() == num_taps);
+        constexpr auto num_taps = 65_ul;
+        expect(eq(expected_taps.size(), num_taps));
+        const auto taps = firdes::root_raised_cosine(
+            1.0, 4.0, 1.0, 0.35, static_cast<size_t>(num_taps));
+        expect(eq(taps.size(), num_taps));
         const float tolerance = 1e-7f;
         for (size_t j = 0; j < taps.size(); ++j) {
             expect(std::abs(taps[j] - expected_taps[j]) < tolerance);
         }
     };
-}
+};
+
+int main() {}
