@@ -29,6 +29,8 @@ private:
 public:
     gr::PortIn<T> in;
     gr::PortOut<Pdu<T>> out;
+    // This causes compile errors:
+    // gr::PortOut<Pdu<T>, gr::RequiredSamples<1U, 1U, true>> out;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
