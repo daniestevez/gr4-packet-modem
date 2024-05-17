@@ -13,9 +13,9 @@ public:
 public:
     gr::PortIn<T> in;
     // This compiles fine:
-    // gr::PortOut<T> out;
+    gr::PortOut<T> out;
     // This causes compile errors:
-    gr::PortOut<T, gr::RequiredSamples<1U, 1U, true>> out;
+    //gr::PortOut<T, gr::RequiredSamples<1U, 1U, true>> out;
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
