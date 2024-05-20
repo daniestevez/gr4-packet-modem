@@ -52,7 +52,7 @@ private:
 
 public:
     gr::PortIn<uint8_t> in;
-    gr::PortOut<uint8_t> out;
+    gr::PortOut<uint8_t, gr::Async> out;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
