@@ -60,21 +60,7 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
-
-        // TODO: remove this once https://github.com/fair-acc/gnuradio4/pull/342 is merged
-        MsgPortOut toScheduler;
-        expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
-        std::thread stopper([&toScheduler]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            sendMessage<message::Command::Set>(toScheduler,
-                                               "",
-                                               block::property::kLifeCycleState,
-                                               { { "state", "REQUESTED_STOP" } });
-        });
-        //
-
         expect(sched.runAndWait().has_value());
-        stopper.join();
         const auto sink_data = sink.data();
         for (size_t j = 0; j < repetitions; ++j) {
             const auto r = sink_data |
