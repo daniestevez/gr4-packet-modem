@@ -84,6 +84,11 @@ public:
 
         std::ignore = inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()));
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
+#ifdef TRACE
+        fmt::println("PduToTaggedStream consumed = {}, published = {}",
+                     in_item - inSpan.begin(),
+                     out_item - outSpan.begin());
+#endif
 
         return out_item == outSpan.begin() ? gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS
                                            : gr::work::Status::OK;
