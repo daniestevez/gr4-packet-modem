@@ -1,6 +1,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
+#include <gnuradio-4.0/packet-modem/random_source.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <boost/ut.hpp>
@@ -78,6 +79,26 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
             expect(eq(tag_end.index, static_cast<ssize_t>((j + 1) * v.size() - 1)));
             expect(tag_begin.map == tags[0].map);
             expect(tag_end.map == tags[1].map);
+        }
+    };
+
+    "random_source"_test = [] {
+        Graph fg;
+        constexpr auto num_items = 1000000_ul;
+        constexpr auto min = 1872_i;
+        constexpr auto max = 2873_i;
+        auto& source = fg.emplaceBlock<RandomSource<int>>(static_cast<int>(min),
+                                                          static_cast<int>(max),
+                                                          static_cast<size_t>(num_items),
+                                                          false);
+        auto& sink = fg.emplaceBlock<VectorSink<int>>();
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
+        scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto data = sink.data();
+        expect(eq(data.size(), num_items));
+        for (const auto x : data) {
+            expect(x >= min && x <= max);
         }
     };
 };
