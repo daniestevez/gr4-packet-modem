@@ -104,6 +104,11 @@ public:
                      this->input_tags_present(),
                      d_tag.map);
 #endif
+        if (inSpan.size() == 0) {
+          std::ignore = inSpan.consume(0);
+          outSpan.publish(0);
+          return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         if (d_packet_len == 0) {
             // Tags can only be fetched in one processBulk() call. They
             // disappear in the next call, even if the input is not consumed. We

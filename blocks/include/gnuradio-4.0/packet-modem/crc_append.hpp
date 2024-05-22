@@ -100,6 +100,11 @@ public:
                      d_crc_remaining);
 #endif
         if (d_crc_remaining == 0) {
+            if (inSpan.size() == 0) {
+                std::ignore = inSpan.consume(0);
+                outSpan.publish(0);
+                return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+            }
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =
                 "[CrcAppend] expected packet-length tag not found\n";

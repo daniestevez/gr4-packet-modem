@@ -58,6 +58,11 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
+        if (inSpan.size() == 0) {
+          std::ignore = inSpan.consume(0);
+          outSpan.publish(0);
+          return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         if (d_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =

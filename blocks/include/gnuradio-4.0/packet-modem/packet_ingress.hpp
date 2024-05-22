@@ -57,6 +57,11 @@ public:
                      d_remaining,
                      d_valid);
 #endif
+        if (inSpan.size() == 0) {
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
+            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         if (d_remaining == 0) {
             // Fetch a new packet_len tag
             static constexpr auto not_found =
@@ -75,12 +80,18 @@ public:
                 // commands is appropriate for GNU Radio 3.10-style message passing.
                 gr::sendMessage<gr::message::Command::Invalid>(
                     metadata, "", "", { { "packet_length", d_remaining } });
+#ifdef TRACE
+                fmt::println("{} publishTag({}, 0)", this->name, tag.map);
+#endif
                 out.publishTag(tag.map, 0);
             } else {
                 fmt::println(
                     "{} packet too long (length {}); dropping", this->name, d_remaining);
             }
         } else if (d_valid && this->input_tags_present()) {
+#ifdef TRACE
+            fmt::println("{} publishTag({}, 0)", this->name, this->mergedInputTag().map);
+#endif
             out.publishTag(this->mergedInputTag().map, 0);
         }
 
