@@ -34,7 +34,7 @@ private:
 
 public:
     gr::PortIn<T> in;
-    gr::PortOut<Pdu<T>> out;
+    gr::PortOut<Pdu<T>, gr::RequiredSamples<1U, 1U, false>> out;
     // This causes compile errors:
     // gr::PortOut<Pdu<T>, gr::RequiredSamples<1U, 1U, true>> out;
 
@@ -50,11 +50,19 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print(
-            "TaggedStreamToPdu::processBulk(inSpan.size() = {}, outSpan.size = {})\n",
-            inSpan.size(),
-            outSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = "
+                     "{}), d_remaining = {}, d_pdu.data.size() = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     d_remaining,
+                     d_pdu.data.size());
 #endif
+        if (inSpan.size() == 0) {
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
+            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         if (outSpan.size() == 0) {
             // we always require space in the output, just in case we need to
             // publish an output PDU
@@ -66,7 +74,7 @@ public:
         if (d_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =
-                "[TaggedStreamToPdu] expected packet-length tag not found\n";
+                "[TaggedStreamToPdu] expected packet-length tag not found";
             if (!this->input_tags_present()) {
                 throw std::runtime_error(not_found);
             }
@@ -109,8 +117,19 @@ public:
             outSpan[0] = std::move(d_pdu);
             d_pdu = {};
             outSpan.publish(1);
+#ifdef TRACE
+            fmt::println("{} consume = {}, publish = 1", this->name, to_consume);
+#endif
         } else {
             outSpan.publish(0);
+#ifdef TRACE
+            fmt::println("{} consume = {}, publish = 0, d_remaining = {}, "
+                         "d_pdu.data.size() = {}",
+                         this->name,
+                         to_consume,
+                         d_remaining,
+                         d_pdu.data.size());
+#endif
         }
 
         return gr::work::Status::OK;

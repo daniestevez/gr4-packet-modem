@@ -49,17 +49,18 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("PacketIngress::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                   "d_remaining = {}, d_valid = {}\n",
-                   inSpan.size(),
-                   outSpan.size(),
-                   d_remaining,
-                   d_valid);
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
+                     "d_remaining = {}, d_valid = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     d_remaining,
+                     d_valid);
 #endif
         if (d_remaining == 0) {
             // Fetch a new packet_len tag
             static constexpr auto not_found =
-                "[PacketIngress] expected packet-length tag not found\n";
+                "[PacketIngress] expected packet-length tag not found";
             if (!this->input_tags_present()) {
                 throw std::runtime_error(not_found);
             }
@@ -76,8 +77,8 @@ public:
                     metadata, "", "", { { "packet_length", d_remaining } });
                 out.publishTag(tag.map, 0);
             } else {
-                fmt::print("[PacketIngress] packet too long (length {}); dropping\n",
-                           d_remaining);
+                fmt::println(
+                    "{} packet too long (length {}); dropping", this->name, d_remaining);
             }
         } else if (d_valid && this->input_tags_present()) {
             out.publishTag(this->mergedInputTag().map, 0);

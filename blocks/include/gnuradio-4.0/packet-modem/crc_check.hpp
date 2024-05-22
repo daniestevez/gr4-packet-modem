@@ -87,7 +87,8 @@ public:
           d_packet_len(0)
     {
         if (num_bits % 8 != 0) {
-            throw std::invalid_argument("CRC number of bits must be a multiple of 8");
+            throw std::invalid_argument(
+                fmt::format("{} CRC number of bits must be a multiple of 8", this->name));
         }
     }
 
@@ -95,8 +96,9 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("CrcCheck::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
                      "input_tags_present() = {}, d_tag.map = {}",
+                     this->name,
                      inSpan.size(),
                      outSpan.size(),
                      this->input_tags_present(),
@@ -109,7 +111,7 @@ public:
 
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =
-                "[CrcCheck] expected packet-length tag not found\n";
+                "[CrcCheck] expected packet-length tag not found";
             if (!this->input_tags_present()) {
                 throw std::runtime_error(not_found);
             }
@@ -127,7 +129,7 @@ public:
             // we need the whole packet to be present in the input at once to
             // decide its fate (it can be dropped or passed to the output)
 #ifdef TRACE
-            fmt::println("CrcCheck::processBulk() -> INSUFFICIENT_INPUT_ITEMS");
+            fmt::println("{}::processBulk() -> INSUFFICIENT_INPUT_ITEMS", this->name);
 #endif
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
@@ -135,8 +137,8 @@ public:
         }
         if (d_packet_len <= d_crc_num_bytes) {
             // the packet is too short; drop it
-            std::println("[CrcCheck] packet is too short (length {}); dropping",
-                         d_packet_len);
+            fmt::println(
+                "{} packet is too short (length {}); dropping", this->name, d_packet_len);
             std::ignore = inSpan.consume(d_packet_len);
             outSpan.publish(0);
             d_packet_len = 0;
@@ -168,7 +170,8 @@ public:
             const size_t output_size = d_discard_crc ? payload_size : d_packet_len;
             if (outSpan.size() < output_size) {
 #ifdef TRACE
-                fmt::println("CrcCheck::processBulk() -> INSUFFICIENT_OUTPUT_ITEMS");
+                fmt::println("{}::processBulk() -> INSUFFICIENT_OUTPUT_ITEMS",
+                             this->name);
 #endif
                 outSpan.publish(0);
                 std::ignore = inSpan.consume(0);
@@ -188,7 +191,7 @@ public:
         d_packet_len = 0;
 
 #ifdef TRACE
-        fmt::println("CrcCheck::processBulk() -> OK");
+        fmt::println("{}::processBulk() -> OK", this->name);
 #endif
 
         return gr::work::Status::OK;

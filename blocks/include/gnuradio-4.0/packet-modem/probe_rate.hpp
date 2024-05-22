@@ -115,7 +115,7 @@ public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan)
     {
 #ifdef TRACE
-        fmt::print("ProbeRate::processBulk(inSpan.size() = {})\n", inSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
         const auto n = inSpan.size();
         d_samples_consumed.fetch_add(static_cast<uint64_t>(n),

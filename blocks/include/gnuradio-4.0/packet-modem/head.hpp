@@ -36,15 +36,16 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("Head::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                   "d_published = {}\n",
-                   inSpan.size(),
-                   outSpan.size(),
-                   d_published);
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+                     "d_published = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     d_published);
 #endif
         if (d_published == d_num_items) {
 #ifdef TRACE
-            fmt::print("Head::processBulk returning DONE\n");
+            fmt::println("{}::processBulk returning DONE", this->name);
 #endif
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
@@ -52,7 +53,8 @@ public:
         }
         if (outSpan.size() == 0) {
 #ifdef TRACE
-            fmt::print("Head::processBulk returning INSUFFICIENT_OUTPUT_ITEMS\n");
+            fmt::println("{}::processBulk returning INSUFFICIENT_OUTPUT_ITEMS",
+                         this->name);
 #endif
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
@@ -60,7 +62,8 @@ public:
         }
         if (inSpan.size() == 0) {
 #ifdef TRACE
-            fmt::print("Head::processBulk returning INSUFFICIENT_INPUT_ITEMS\n");
+            fmt::println("{}::processBulk returning INSUFFICIENT_INPUT_ITEMS",
+                         this->name);
 #endif
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
@@ -75,9 +78,9 @@ public:
         d_published += can_publish;
 #ifdef TRACE
         if (d_published == d_num_items) {
-            fmt::print("Head::processBulk returning DONE\n");
+            fmt::println("{}::processBulk returning DONE", this->name);
         } else {
-            fmt::print("Head::processBulk returning OK\n");
+            fmt::println("{}::processBulk returning OK", this->name);
         }
 #endif
         return d_published == d_num_items ? gr::work::Status::DONE : gr::work::Status::OK;

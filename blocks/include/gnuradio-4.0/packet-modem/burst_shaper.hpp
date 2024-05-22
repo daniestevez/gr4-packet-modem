@@ -53,14 +53,15 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("BurstShaper::processBulk(inSpan.size() = {}, outSpan.size = {})\n",
-                   inSpan.size(),
-                   outSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {})",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size());
 #endif
         if (d_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =
-                "[BurstShaper] expected packet-length tag not found\n";
+                "[BurstShaper] expected packet-length tag not found";
             if (!this->input_tags_present()) {
                 throw std::runtime_error(not_found);
             }

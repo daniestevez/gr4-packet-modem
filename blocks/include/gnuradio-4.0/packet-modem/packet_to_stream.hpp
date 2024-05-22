@@ -58,11 +58,12 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("PacketToStream::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                   "d_remaining = {}\n",
-                   inSpan.size(),
-                   outSpan.size(),
-                   d_remaining);
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+                     "d_remaining = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     d_remaining);
 #endif
         if (d_remaining == 0 && inSpan.size() == 0) {
             // We are not mid-packet and there is no input available. Fill the
@@ -76,7 +77,7 @@ public:
         if (d_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             static constexpr auto not_found =
-                "[PacketToStream] expected packet-length tag not found\n";
+                "[PacketToStream] expected packet-length tag not found";
             if (!this->input_tags_present()) {
                 throw std::runtime_error(not_found);
             }

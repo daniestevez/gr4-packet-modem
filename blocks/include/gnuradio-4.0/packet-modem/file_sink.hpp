@@ -31,8 +31,8 @@ public:
     {
         FILE* f = std::fopen(filename.c_str(), append ? "ab" : "wb");
         if (f == nullptr) {
-            throw std::runtime_error(
-                fmt::format("[FileSink] error opening file: {}", std::strerror(errno)));
+            throw std::runtime_error(fmt::format(
+                "{} error opening file: {}", this->name, std::strerror(errno)));
         }
         d_file = f;
     }
@@ -47,11 +47,11 @@ public:
     gr::work::Status processBulk(gr::ConsumableSpan auto& inSpan)
     {
 #ifdef TRACE
-        fmt::print("FileSink::processBulk(inSpan.size() = {})\n", inSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
         if (fwrite(inSpan.data(), sizeof(T), inSpan.size(), d_file) != inSpan.size()) {
-            throw std::runtime_error(fmt::format("[FileSink] error writing to file: {}",
-                                                 std::strerror(errno)));
+            throw std::runtime_error(fmt::format(
+                "{} error writing to file: {}", this->name, std::strerror(errno)));
         }
         std::ignore = inSpan.consume(inSpan.size());
 

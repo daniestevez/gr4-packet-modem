@@ -43,8 +43,8 @@ public:
     {
 #ifdef TRACE
         fmt::println(
-            "StreamToTaggedStream::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-            "d_count = {}",
+            "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), d_count = {}",
+            this->name,
             inSpan.size(),
             outSpan.size(),
             d_count);
@@ -54,7 +54,7 @@ public:
         for (uint64_t index = d_count == 0 ? 0 : d_packet_length - d_count; index < n;
              index += d_packet_length) {
 #ifdef TRACE
-            fmt::println("StreamToTaggedStream publishTag(index = {})", index);
+            fmt::println("{} publishTag(index = {})", this->name, index);
 #endif
             out.publishTag({ { d_packet_len_tag_key, d_packet_length } },
                            static_cast<ssize_t>(index));

@@ -78,10 +78,10 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println(
-            "InterpolatingFirFilter::processBulk(inSpan.size() = {}, outSpan.size = {})",
-            inSpan.size(),
-            outSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {})",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size());
 #endif
         const auto to_consume = std::min(inSpan.size(), outSpan.size() / d_interpolation);
         if (to_consume == 0) {

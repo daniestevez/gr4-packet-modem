@@ -50,7 +50,7 @@ boost::ut::suite PacketIngressTests = [] {
         MsgPortOut toScheduler;
         expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
         std::thread stopper([&toScheduler]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             sendMessage<message::Command::Set>(toScheduler,
                                                "",
                                                block::property::kLifeCycleState,

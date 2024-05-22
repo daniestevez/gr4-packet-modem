@@ -39,10 +39,10 @@ boost::ut::suite BurstShaperTests = [] {
                   fg.connect<"out">(burst_shaper).to<"in">(tagged_to_pdu)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(tagged_to_pdu).to<"in">(sink)));
-        scheduler::Simple sched{ std::move(fg) };
+        scheduler::Simple sched{ std::move(fg) };        
         expect(sched.runAndWait().has_value());
         const auto pdus = sink.data();
-        expect(eq(pdus.size(), packet_lengths.size()));
+        expect(eq(pdus.size(), packet_lengths.size()));        
         for (size_t j = 0; j < packet_lengths.size(); ++j) {
             const auto& pdu = pdus[j];
             expect(eq(pdu.data.size(), packet_lengths[j]));

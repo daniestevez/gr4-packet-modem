@@ -41,7 +41,8 @@ public:
         : d_packet_len_tag(packet_len_tag), in(num_inputs)
     {
         if (num_inputs == 0) {
-            throw std::invalid_argument("[PacketMux] num_inputs cannot be zero");
+            throw std::invalid_argument(
+                fmt::format("{} num_inputs cannot be zero", this->name));
         }
     }
 
@@ -50,7 +51,7 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("PacketMux::processBulk(outSpan.size() = {}) ", outSpan.size());
+        fmt::print("{}::processBulk(outSpan.size() = {}) ", this->name, outSpan.size());
         for (size_t j = 0; j < inSpans.size(); ++j) {
             fmt::print("inSpans[{}].size() = {} ", j, inSpans[j].size());
         }
@@ -68,15 +69,15 @@ public:
             }
             // TODO: this isn't working, because the tags from all the input
             // ports get merged an overwritten
-            fmt::print("PacketMux::input_tags_present() = {}\n",
-                       this->input_tags_present());
+            fmt::println(
+                "{}::input_tags_present() = {}", this->name, this->input_tags_present());
             if (this->input_tags_present()) {
                 const auto tag = this->mergedInputTag();
                 fmt::print(
                     "PacketMux::mergedInputTag() = ({}, {})\n", tag.index, tag.map);
             }
             for (auto& inPort : in) {
-                fmt::print("getting tags for input port\n");
+                fmt::println("getting tags for input port");
                 for (const auto& tag : inPort.getTags(min_in_size)) {
                     fmt::print("tag = ({}, {})\n", tag.index, tag.map);
                 }
@@ -118,8 +119,7 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("PacketMux<PDU<T>>::processBulk(outSpan.size() = {}) ",
-                   outSpan.size());
+        fmt::print("{}::processBulk(outSpan.size() = {}) ", this->name, outSpan.size());
         for (size_t j = 0; j < inSpans.size(); ++j) {
             fmt::print("inSpans[{}].size() = {} ", j, inSpans[j].size());
         }

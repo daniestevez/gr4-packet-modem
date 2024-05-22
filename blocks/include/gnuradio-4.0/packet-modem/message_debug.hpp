@@ -34,9 +34,9 @@ public:
         for (const auto& message : messages) {
             const auto& data = message.data;
             if (data.has_value()) {
-                fmt::print("[MessageDebug] {}\n", data.value());
+                fmt::println("[MessageDebug] {}", data.value());
             } else {
-                fmt::print("[MessageDebug] ERROR: {}\n", data.error());
+                fmt::println("[MessageDebug] ERROR: {}", data.error());
             }
         }
     }

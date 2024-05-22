@@ -60,10 +60,10 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print(
-            "HeaderFormatter::processBulk(inSpan.size() = {}, outSpan.size() = {})\n",
-            inSpan.size(),
-            outSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size());
 #endif
         const size_t num_headers = std::min(inSpan.size(), outSpan.size() / HEADER_LEN);
 

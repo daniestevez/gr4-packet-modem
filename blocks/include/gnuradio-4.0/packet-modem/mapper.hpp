@@ -36,8 +36,8 @@ public:
     Mapper(const std::vector<TOut>& map) : d_map(map), d_mask(map.size() - 1)
     {
         if (!std::has_single_bit(map.size())) {
-            throw std::invalid_argument(std::format(
-                "[Mapper] the map size must be a power of 2 (got {})", map.size()));
+            throw std::invalid_argument(fmt::format(
+                "{} the map size must be a power of 2 (got {})", this->name, map.size()));
         }
     }
 

@@ -73,7 +73,8 @@ public:
     {
         if (bits_per_output <= 0) {
             throw std::invalid_argument(
-                fmt::format("[UnpackBits] bits_per_output must be positive; got {}",
+                fmt::format("{} bits_per_output must be positive; got {}",
+                            this->name,
                             bits_per_output));
         }
         // set resampling ratio for the scheduler
@@ -89,11 +90,12 @@ public:
         const auto to_consume =
             std::min(inSpan.size(), outSpan.size() / d_outputs_per_input);
 #ifdef TRACE
-        std::print("UnpackBits::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                   "to_consume = {}\n",
-                   inSpan.size(),
-                   outSpan.size(),
-                   to_consume);
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
+                     "to_consume = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     to_consume);
 #endif
 
         if (to_consume == 0) {

@@ -45,12 +45,18 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("PduToTaggedStream::processBulk(inSpan.size() = {}, outSpan.size() "
-                     "= {}), d_index = {}",
-                     inSpan.size(),
-                     outSpan.size(),
-                     d_index);
+        fmt::println(
+            "{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), d_index = {}",
+            this->name,
+            inSpan.size(),
+            outSpan.size(),
+            d_index);
 #endif
+        if (inSpan.size() == 0) {
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
+            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         auto in_item = inSpan.begin();
         auto out_item = outSpan.begin();
         while (in_item != inSpan.end() && out_item != outSpan.end()) {
@@ -85,7 +91,8 @@ public:
         std::ignore = inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()));
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
 #ifdef TRACE
-        fmt::println("PduToTaggedStream consumed = {}, published = {}",
+        fmt::println("{} consumed = {}, published = {}",
+                     this->name,
                      in_item - inSpan.begin(),
                      out_item - outSpan.begin());
 #endif

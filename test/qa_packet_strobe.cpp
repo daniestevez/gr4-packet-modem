@@ -14,18 +14,22 @@ boost::ut::suite PacketStrobeTests = [] {
         Graph fg;
         const size_t packet_len = 1000;
         auto& strobe = fg.emplaceBlock<PacketStrobe<uint8_t>>(
-            packet_len, std::chrono::milliseconds(1), "packet_len");
+            packet_len, std::chrono::milliseconds(10), "packet_len");
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(strobe).to<"in">(stream_to_pdu)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(stream_to_pdu).to<"in">(sink)));
-        scheduler::Simple sched{ std::move(fg) };
+        // a multi-threaded scheduler is required for this test because the
+        // TaggedStreamToPdu processBulk() needs to be called multiple times while
+        // the PacketStrobe processBulk() is sleeping.
+        scheduler::Simple<scheduler::ExecutionPolicy::multiThreaded> sched{ std::move(
+            fg) };
         MsgPortOut toScheduler;
         expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
         std::thread stopper([&toScheduler]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             sendMessage<message::Command::Set>(toScheduler,
                                                "",
                                                block::property::kLifeCycleState,

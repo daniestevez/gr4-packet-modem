@@ -60,12 +60,13 @@ public:
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("PacketStrobe::processBulk(outSpan.size() = {}), d_position = {}, "
-                   "d_last_packet_time = {}, now = {}\n",
-                   outSpan.size(),
-                   d_position,
-                   d_last_packet_time,
-                   ClockSourceType::now());
+        fmt::println("{}::processBulk(outSpan.size() = {}), d_position = {}, "
+                     "d_last_packet_time = {}, now = {}",
+                     this->name,
+                     outSpan.size(),
+                     d_position,
+                     d_last_packet_time,
+                     ClockSourceType::now());
 #endif
         // check if we can produce a new packet now
         if (d_position == 0 && d_last_packet_time.has_value()) {
@@ -84,8 +85,9 @@ public:
 
         if (d_position == 0 && d_packet_len_tag.has_value()) {
 #ifdef TRACE
-            fmt::print("PacketStrobe publishing packet length tag (now = {})\n",
-                       ClockSourceType::now());
+            fmt::println("{} publishing packet length tag (now = {})",
+                         this->name,
+                         ClockSourceType::now());
 #endif
             out.publishTag(*d_packet_len_tag, 0);
         }

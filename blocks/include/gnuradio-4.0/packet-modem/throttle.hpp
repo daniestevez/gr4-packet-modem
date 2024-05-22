@@ -68,9 +68,10 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("Throttle::processBulk(inSpan.size() = {}, outSpan.size = {})\n",
-                   inSpan.size(),
-                   outSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {})",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size());
 #endif
 
         size_t items_per_chunk = std::min(inSpan.size(), outSpan.size());
@@ -89,9 +90,9 @@ public:
             constexpr auto limit_duration =
                 std::chrono::duration<double>(std::numeric_limits<long>::max());
             if (duration > limit_duration) {
-                std::print(
-                    "[Throttle] WARNING: Throttle sleep time overflow! You are probably "
-                    "using a very low sample rate.");
+                fmt::println("{} WARNING: Throttle sleep time overflow! You are probably "
+                             "using a very low sample rate.",
+                             this->name);
             }
             std::this_thread::sleep_for(duration);
         }

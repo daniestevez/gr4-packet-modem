@@ -71,8 +71,10 @@ public:
           d_packet_len_tag_key(packet_len_tag_key)
     {
         if (bits_per_input <= 0) {
-            throw std::invalid_argument(fmt::format(
-                "[PackBits] bits_per_input must be positive; got {}", bits_per_input));
+            throw std::invalid_argument(
+                fmt::format("{} bits_per_input must be positive; got {}",
+                            this->name,
+                            bits_per_input));
         }
         // set resampling ratio for the scheduler
         this->numerator = 1;
@@ -87,11 +89,12 @@ public:
         const auto to_publish =
             std::min(inSpan.size() / d_inputs_per_output, outSpan.size());
 #ifdef TRACE
-        std::print("PackBits::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                   "to_publish = {}\n",
-                   inSpan.size(),
-                   outSpan.size(),
-                   to_publish);
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
+                     "to_publish = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     to_publish);
 #endif
 
         if (to_publish == 0) {
@@ -110,8 +113,9 @@ public:
                     pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
                 if (packet_len % d_inputs_per_output) {
                     throw std::runtime_error(
-                        fmt::format("[PackBits] packet_len {} is not divisible by "
+                        fmt::format("{} packet_len {} is not divisible by "
                                     "inputs_per_output {}",
+                                    this->name,
                                     packet_len,
                                     d_inputs_per_output));
                 }

@@ -37,14 +37,15 @@ public:
     gr::work::Status processBulk(gr::ConsumableSpan auto& inSpan)
     {
 #ifdef TRACE
-        fmt::print("VectorSink::processBulk(inSpan.size() = {})\n", inSpan.size());
+        fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
         if (this->input_tags_present()) {
 #ifdef TRACE
-            fmt::print("VectorSink received tag ({}, {}) at index = {}\n",
-                       this->mergedInputTag().index,
-                       this->mergedInputTag().map,
-                       d_vector.size());
+            fmt::println("{} received tag ({}, {}) at index = {}",
+                         this->name,
+                         this->mergedInputTag().index,
+                         this->mergedInputTag().map,
+                         d_vector.size());
 #endif
             d_tags.emplace_back(d_vector.size(), this->mergedInputTag().map);
         }

@@ -42,12 +42,12 @@ public:
         : d_vector(data), d_repeat(repeat), d_tags(tags)
     {
         if (d_vector.empty()) {
-            throw std::invalid_argument("[VectorSource] data is empty");
+            throw std::invalid_argument(fmt::format("{} data is empty", this->name));
         }
         for (const auto& tag : tags) {
             if (tag.index < 0 || static_cast<size_t>(tag.index) >= data.size()) {
                 throw std::invalid_argument(fmt::format(
-                    "[VectorSource] tag {} has invalid index {}", tag.map, tag.index));
+                    "{} tag {} has invalid index {}", this->name, tag.map, tag.index));
             }
         }
     }
@@ -55,7 +55,7 @@ public:
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::print("VectorSource::processBulk(outSpan.size() = {})\n", outSpan.size());
+        fmt::println("{}::processBulk(outSpan.size() = {})", this->name, outSpan.size());
 #endif
         // copy what remains of the current "loop" of the vector
         const auto n = std::min(std::ssize(d_vector) - d_position, std::ssize(outSpan));
@@ -75,9 +75,9 @@ public:
             outSpan.publish(static_cast<size_t>(n));
 #ifdef TRACE
             if (d_position == std::ssize(d_vector)) {
-                fmt::print("VectorSource::processBulk returning DONE\n");
+                fmt::println("{}::processBulk returning DONE", this->name);
             } else {
-                fmt::print("VectorSource::processBulk returning OK\n");
+                fmt::println("{}::processBulk returning OK", this->name);
             }
 #endif
             return d_position == std::ssize(d_vector) ? gr::work::Status::DONE
@@ -87,6 +87,9 @@ public:
         if (d_position != std::ssize(d_vector)) {
             // there is no more output
             outSpan.publish(static_cast<size_t>(n));
+#ifdef TRACE
+            fmt::println("{}::processBulk returning OK", this->name);
+#endif
             return gr::work::Status::OK;
         }
 
@@ -110,7 +113,7 @@ public:
 
         outSpan.publish(outSpan.size());
 #ifdef TRACE
-        fmt::print("VectorSource::processBulk returning OK\n");
+        fmt::println("{}::processBulk returning OK", this->name);
 #endif
         return gr::work::Status::OK;
     }

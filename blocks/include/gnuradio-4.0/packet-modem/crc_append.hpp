@@ -82,7 +82,8 @@ public:
           d_crc_rem(0)
     {
         if (num_bits % 8 != 0) {
-            throw std::invalid_argument("CRC number of bits must be a multiple of 8");
+            throw std::invalid_argument(
+                fmt::format("{} CRC number of bits must be a multiple of 8", this->name));
         }
     }
 
@@ -90,8 +91,9 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("CrcAppend::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
                      "d_data_remaining = {}, d_crc_remaining = {}",
+                     this->name,
                      inSpan.size(),
                      outSpan.size(),
                      d_data_remaining,
@@ -111,8 +113,9 @@ public:
             d_data_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
             d_header_remaining = d_header_bytes;
             if (d_header_remaining >= d_data_remaining) {
-                std::println("[CrcAppend] WARNING: received packet shorter than header "
+                fmt::println("{} WARNING: received packet shorter than header "
                              "(length {})",
+                             this->name,
                              d_data_remaining);
             }
             d_crc_remaining = d_crc_num_bytes;
@@ -170,8 +173,10 @@ public:
         std::ignore = inSpan.consume(consumed);
         outSpan.publish(published);
 #ifdef TRACE
-        fmt::println(
-            "CrcAppend::processBulk() consume = {}, publish = {}", consumed, published);
+        fmt::println("{}::processBulk() consume = {}, publish = {}",
+                     this->name,
+                     consumed,
+                     published);
 #endif
 
         if (published == 0) {
