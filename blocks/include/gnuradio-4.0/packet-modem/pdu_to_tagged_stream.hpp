@@ -65,6 +65,7 @@ public:
                 if (packet_len == 0) {
                     this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
                                            "received PDU of length zero");
+                    this->requestStop();
                     return gr::work::Status::ERROR;
                 }
                 out.publishTag({ { d_packet_len_tag_key, packet_len } },

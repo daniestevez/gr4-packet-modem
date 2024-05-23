@@ -86,12 +86,14 @@ public:
                 this->emitErrorMessage(fmt::format("{}:processBulk", this->name),
                                        "packet_length not present in metadata or cannot "
                                        "be cast to uint64_t");
+                this->requestStop();
                 return gr::work::Status::ERROR;
             }
             if (packet_length > std::numeric_limits<uint16_t>::max()) {
                 this->emitErrorMessage(
                     fmt::format("{}::processBulk", this->name),
                     fmt::format("packet_length {} is too large", packet_length));
+                this->requestStop();
                 return gr::work::Status::ERROR;
             }
 

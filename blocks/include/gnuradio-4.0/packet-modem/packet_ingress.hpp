@@ -67,6 +67,7 @@ public:
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
                                        "expected packet-length tag not found");
+                this->requestStop();
                 return gr::work::Status::ERROR;
             };
             if (!this->input_tags_present()) {

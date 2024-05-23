@@ -118,6 +118,7 @@ public:
                                     "inputs_per_output {}",
                                     packet_len,
                                     d_inputs_per_output));
+                    this->requestStop();
                     return gr::work::Status::ERROR;
                 }
                 tag.map[d_packet_len_tag_key] =

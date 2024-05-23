@@ -59,11 +59,12 @@ public:
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                     "d_remaining = {}",
+                     "d_remaining = {}, input_tags_present = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
-                     d_remaining);
+                     d_remaining,
+                     this->input_tags_present());
 #endif
         if (d_remaining == 0 && inSpan.size() == 0) {
             // We are not mid-packet and there is no input available. Fill the
@@ -79,6 +80,7 @@ public:
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
                                        "expected packet-length tag not found");
+                this->requestStop();
                 return gr::work::Status::ERROR;
             };
             if (!this->input_tags_present()) {
@@ -104,6 +106,10 @@ public:
 
         std::ignore = inSpan.consume(to_publish);
         outSpan.publish(to_publish);
+
+#ifdef TRACE
+        fmt::println("{}::processBulk published = {} ", this->name, to_publish);
+#endif
 
         return gr::work::Status::OK;
     }

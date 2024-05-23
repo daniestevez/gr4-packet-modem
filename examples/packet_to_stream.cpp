@@ -20,9 +20,9 @@ int main()
 
     const double samp_rate = 100e3;
     auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
-        25U, std::chrono::seconds(3), "packet_len");
+        25U, std::chrono::milliseconds(100), "packet_len", false);
     auto& packet_to_stream = fg.emplaceBlock<gr::packet_modem::PacketToStream<int>>();
-    auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(samp_rate);
+    auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(samp_rate, 1000U);
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(source).to<"in">(packet_to_stream)));
@@ -30,18 +30,24 @@ int main()
               fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(throttle).to<"in">(sink)));
 
-    gr::scheduler::Simple sched{ std::move(fg) };
+    gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
+        std::move(fg)
+    };
     gr::MsgPortOut toScheduler;
     expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
     std::thread stopper([&toScheduler]() {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
         gr::sendMessage<gr::message::Command::Set>(toScheduler,
                                                    "",
                                                    gr::block::property::kLifeCycleState,
                                                    { { "state", "REQUESTED_STOP" } });
     });
-    expect(sched.runAndWait().has_value());
+    const auto ret = sched.runAndWait();
     stopper.join();
+    expect(ret.has_value());
+    if (!ret.has_value()) {
+        fmt::println("scheduler error: {}", ret.error());
+    }
 
     const auto data = sink.data();
     std::print("vector sink contains {} items\n", data.size());

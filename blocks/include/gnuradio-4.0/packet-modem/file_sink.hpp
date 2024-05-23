@@ -53,6 +53,7 @@ public:
             this->emitErrorMessage(
                 fmt::format("{}::processBulk", this->name),
                 fmt::format("error writing to file: {}", std::strerror(errno)));
+            this->requestStop();
             return gr::work::Status::ERROR;
         }
         std::ignore = inSpan.consume(inSpan.size());
