@@ -91,13 +91,15 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                     "d_data_remaining = {}, d_crc_remaining = {}",
-                     this->name,
-                     inSpan.size(),
-                     outSpan.size(),
-                     d_data_remaining,
-                     d_crc_remaining);
+        fmt::println(
+            "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+            "d_data_remaining = {}, d_crc_remaining = {}, input_tags_present() = {}",
+            this->name,
+            inSpan.size(),
+            outSpan.size(),
+            d_data_remaining,
+            d_crc_remaining,
+            this->input_tags_present());
 #endif
         if (d_crc_remaining == 0) {
             if (inSpan.size() == 0) {
@@ -106,14 +108,17 @@ public:
                 return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
             }
             // Fetch the packet length tag to determine the length of the packet.
-            static constexpr auto not_found =
-                "[CrcAppend] expected packet-length tag not found\n";
+            auto not_found_error = [this]() {
+                this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
+                                       "expected packet-length tag not found");
+                return gr::work::Status::ERROR;
+            };
             if (!this->input_tags_present()) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             auto tag = this->mergedInputTag();
             if (!tag.map.contains(d_packet_len_tag_key)) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             d_data_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
             d_header_remaining = d_header_bytes;

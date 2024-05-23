@@ -34,7 +34,7 @@ private:
 
 public:
     gr::PortIn<T> in;
-    gr::PortOut<Pdu<T>/*, gr::RequiredSamples<1U, 1U, false>*/> out;
+    gr::PortOut<Pdu<T> /*, gr::RequiredSamples<1U, 1U, false>*/> out;
     // This causes compile errors:
     // gr::PortOut<Pdu<T>, gr::RequiredSamples<1U, 1U, true>> out;
 

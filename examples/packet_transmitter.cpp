@@ -41,9 +41,8 @@ int main(int argc, char* argv[])
     expect(
         eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
 
-    gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::multiThreaded> sched{
-        std::move(fg)
-    };
+    gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::multiThreaded> sched{ std::move(
+        fg) };
     const auto ret = sched.runAndWait();
     if (!ret.has_value()) {
         fmt::println("scheduler error: {}", ret.error());
