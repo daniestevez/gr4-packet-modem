@@ -84,7 +84,7 @@ public:
             }
         }
 
-        return gr::work::Status::DONE;
+        return gr::work::Status::OK;
     }
 };
 
@@ -155,7 +155,7 @@ public:
         }
 
         return n == 0 ? gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS
-                      : gr::work::Status::DONE;
+                      : gr::work::Status::OK;
     }
 };
 
