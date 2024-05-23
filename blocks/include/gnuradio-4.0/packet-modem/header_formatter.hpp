@@ -37,7 +37,7 @@ The input messages need to contain the following properties:
 
 This list of properties can be extended in future versions or by user
 customization. If some of the properties in this list are missing from a
-message, the block throws an exception. The input messages can contain
+message, the block returns an error. The input messages can contain
 additional properties not included in this list, but they are ignored.
 
 )"">;
@@ -78,11 +78,21 @@ public:
         for (const auto& meta : inSpan | std::views::take(num_headers)) {
             out.publishTag(d_packet_len_tag, header - outSpan.begin());
 
-            const auto packet_length =
-                pmtv::cast<uint64_t>(meta.data.value().at("packet_length"));
+            uint64_t packet_length = 0;
+            try {
+                packet_length =
+                    pmtv::cast<uint64_t>(meta.data.value().at("packet_length"));
+            } catch (...) {
+                this->emitErrorMessage(fmt::format("{}:processBulk", this->name),
+                                       "packet_length not present in metadata or cannot "
+                                       "be cast to uint64_t");
+                return gr::work::Status::ERROR;
+            }
             if (packet_length > std::numeric_limits<uint16_t>::max()) {
-                throw std::runtime_error(
+                this->emitErrorMessage(
+                    fmt::format("{}::processBulk", this->name),
                     fmt::format("packet_length {} is too large", packet_length));
+                return gr::work::Status::ERROR;
             }
 
             header[0] = (packet_length >> 8) & 0xff;

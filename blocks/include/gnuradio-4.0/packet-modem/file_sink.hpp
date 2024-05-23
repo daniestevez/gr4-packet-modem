@@ -50,8 +50,10 @@ public:
         fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
         if (fwrite(inSpan.data(), sizeof(T), inSpan.size(), d_file) != inSpan.size()) {
-            throw std::runtime_error(fmt::format(
-                "{} error writing to file: {}", this->name, std::strerror(errno)));
+            this->emitErrorMessage(
+                fmt::format("{}::processBulk", this->name),
+                fmt::format("error writing to file: {}", std::strerror(errno)));
+            return gr::work::Status::ERROR;
         }
         std::ignore = inSpan.consume(inSpan.size());
 

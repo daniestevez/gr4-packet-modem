@@ -47,8 +47,8 @@ The block can optionally adjust the length of packet-length tags. If a non-empty
 string is supplied in the `packet_length_tag_key` constructor argument, the
 value of tags with that key will be dividied by `inputs_per_output` in the
 output. It is assumed that the value of these tags can be converted to
-`uint64_t` and is divisible by `inputs_per_output`. Otherwise, the block throws
-an exception.
+`uint64_t` and is divisible by `inputs_per_output`. Otherwise, the block returns
+an error.
 
 )"">;
 
@@ -112,12 +112,13 @@ public:
                 const auto packet_len =
                     pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
                 if (packet_len % d_inputs_per_output) {
-                    throw std::runtime_error(
-                        fmt::format("{} packet_len {} is not divisible by "
+                    this->emitErrorMessage(
+                        fmt::format("{}::processBulk", this->name),
+                        fmt::format("packet_len {} is not divisible by "
                                     "inputs_per_output {}",
-                                    this->name,
                                     packet_len,
                                     d_inputs_per_output));
+                    return gr::work::Status::ERROR;
                 }
                 tag.map[d_packet_len_tag_key] =
                     pmtv::pmt(packet_len / d_inputs_per_output);

@@ -63,8 +63,9 @@ public:
             if (d_index == 0) {
                 const uint64_t packet_len = in_item->data.size();
                 if (packet_len == 0) {
-                    throw std::runtime_error(
-                        "[PduToTaggedStream] received PDU of length zero");
+                    this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
+                                           "received PDU of length zero");
+                    return gr::work::Status::ERROR;
                 }
                 out.publishTag({ { d_packet_len_tag_key, packet_len } },
                                out_item - outSpan.begin());

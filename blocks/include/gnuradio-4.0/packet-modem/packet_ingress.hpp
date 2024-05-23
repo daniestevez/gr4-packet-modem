@@ -64,14 +64,17 @@ public:
         }
         if (d_remaining == 0) {
             // Fetch a new packet_len tag
-            static constexpr auto not_found =
-                "[PacketIngress] expected packet-length tag not found";
+            auto not_found_error = [this]() {
+                this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
+                                       "expected packet-length tag not found");
+                return gr::work::Status::ERROR;
+            };
             if (!this->input_tags_present()) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             auto tag = this->mergedInputTag();
             if (!tag.map.contains(d_packet_len_tag_key)) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             d_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
             d_valid = d_remaining <= std::numeric_limits<uint16_t>::max();

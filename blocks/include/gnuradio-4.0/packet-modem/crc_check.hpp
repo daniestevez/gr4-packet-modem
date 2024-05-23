@@ -105,9 +105,9 @@ public:
                      d_tag.map);
 #endif
         if (inSpan.size() == 0) {
-          std::ignore = inSpan.consume(0);
-          outSpan.publish(0);
-          return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+            std::ignore = inSpan.consume(0);
+            outSpan.publish(0);
+            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         if (d_packet_len == 0) {
             // Tags can only be fetched in one processBulk() call. They
@@ -115,18 +115,23 @@ public:
             // store the value in case we need it.
 
             // Fetch the packet length tag to determine the length of the packet.
-            static constexpr auto not_found =
-                "[CrcCheck] expected packet-length tag not found";
+            auto not_found_error = [this]() {
+                this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
+                                       "expected packet-length tag not found");
+                return gr::work::Status::ERROR;
+            };
             if (!this->input_tags_present()) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             d_tag = this->mergedInputTag();
             if (!d_tag.map.contains(d_packet_len_tag_key)) {
-                throw std::runtime_error(not_found);
+                return not_found_error();
             }
             d_packet_len = pmtv::cast<uint64_t>(d_tag.map[d_packet_len_tag_key]);
             if (d_packet_len == 0) {
-                throw std::runtime_error("[CrcCheck] received packet_len = 0");
+                this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
+                                       "received packet-length equal to zero");
+                return gr::work::Status::ERROR;
             }
         }
 
