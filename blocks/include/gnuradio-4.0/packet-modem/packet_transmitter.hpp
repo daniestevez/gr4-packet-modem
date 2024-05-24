@@ -6,13 +6,16 @@
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
+#include <gnuradio-4.0/packet-modem/glfsr_source.hpp>
 #include <gnuradio-4.0/packet-modem/header_formatter.hpp>
 #include <gnuradio-4.0/packet-modem/interpolating_fir_filter.hpp>
 #include <gnuradio-4.0/packet-modem/mapper.hpp>
+#include <gnuradio-4.0/packet-modem/null_source.hpp>
 #include <gnuradio-4.0/packet-modem/pack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/packet_ingress.hpp>
 #include <gnuradio-4.0/packet-modem/packet_mux.hpp>
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
+#include <gnuradio-4.0/packet-modem/stream_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/unpack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
@@ -27,6 +30,7 @@ public:
     gr::PortOut<std::complex<float>>* out;
 
     PacketTransmitter(gr::Graph& fg,
+                      bool stream_mode = false,
                       size_t samples_per_symbol = 4U,
                       const std::string& packet_len_tag_key = "packet_len")
     {
@@ -110,11 +114,73 @@ public:
         auto& payload_symbols_to_pdu =
             fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
         payload_symbols_to_pdu.name = "PacketTransmitter(payload_symbols_to_pdu)";
-        auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(2U);
+        auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(stream_mode ? 2U : 4U);
         symbols_mux.name = "PacketTransmitter(symbols_mux)";
         auto& symbols_to_stream =
             fg.emplaceBlock<PduToTaggedStream<c64>>(packet_len_tag_key);
         symbols_to_stream.name = "PacketTransmitter(symbols_to_stream)";
+
+        constexpr auto connection_error = "connection_error";
+
+        if (!stream_mode) {
+            // ramp-down sequence
+            auto& ramp_down_source = fg.emplaceBlock<GlfsrSource<>>(32U);
+            // 9 symbols used for ramp down. 5 to clear the RRC filter and 4 to
+            // actually perform the amplitude ramp-down
+            const size_t ramp_down_nsymbols = 9;
+            const size_t ramp_down_nbits = 2U * ramp_down_nsymbols;
+            auto& ramp_down_tags =
+                fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(ramp_down_nbits);
+            auto& ramp_down_pack =
+                fg.emplaceBlock<PackBits<>>(2U, uint8_t{ 1 }, packet_len_tag_key);
+            auto& ramp_down_modulator =
+                fg.emplaceBlock<Mapper<uint8_t, c64>>(qpsk_constellation);
+            auto& ramp_symbols_to_pdu =
+                fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+            ramp_symbols_to_pdu.name = "PacketTransmitter(ramp_symbols_to_pdu)";
+
+            auto& rrc_flush_source = fg.emplaceBlock<NullSource<c64>>();
+            const size_t rrc_flush_nsymbols = 11;
+            auto& rrc_flush_tags =
+                fg.emplaceBlock<StreamToTaggedStream<c64>>(rrc_flush_nsymbols);
+            auto& flush_symbols_to_pdu =
+                fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+            flush_symbols_to_pdu.name = "PacketTransmitter(flush_symbols_to_pdu)";
+
+            if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_tags) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(ramp_down_tags).to<"in">(ramp_down_pack) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(ramp_down_pack).to<"in">(ramp_down_modulator) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(ramp_down_modulator).to<"in">(ramp_symbols_to_pdu) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect(ramp_symbols_to_pdu, { "out" }, symbols_mux, { "in", 2 }) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+
+            if (fg.connect<"out">(rrc_flush_source).to<"in">(rrc_flush_tags) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(rrc_flush_tags).to<"in">(flush_symbols_to_pdu) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect(flush_symbols_to_pdu, { "out" }, symbols_mux, { "in", 3 }) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+        }
 
         const size_t ntaps = samples_per_symbol * 11U;
         const auto rrc_taps = firdes::root_raised_cosine(
@@ -122,8 +188,6 @@ public:
         auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
             samples_per_symbol, rrc_taps);
         out = &rrc_interp.out;
-
-        constexpr auto connection_error = "connection_error";
 
         if (fg.connect<"out">(ingress).to<"in">(crc_append) !=
             ConnectionResult::SUCCESS) {
