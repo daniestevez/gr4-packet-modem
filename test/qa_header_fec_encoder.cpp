@@ -5,12 +5,12 @@
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <boost/ut.hpp>
 
-boost::ut::suite HeadTests = [] {
+boost::ut::suite HeaderFecEncoderTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
 
-    "head"_test = [] {
+    "header_fec_encoder"_test = [] {
         Graph fg;
         const std::vector<uint8_t> v = { 0xeb, 0x59, 0x29, 0xd6, //
                                          0x6b, 0x11, 0x2d, 0x72 };
