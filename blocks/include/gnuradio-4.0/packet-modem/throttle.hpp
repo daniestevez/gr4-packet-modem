@@ -20,7 +20,7 @@
 namespace gr::packet_modem {
 
 template <typename T, typename ClockSourceType = std::chrono::steady_clock>
-class Throttle : public gr::Block<Throttle<T, ClockSourceType>>
+class Throttle : public gr::Block<Throttle<T, ClockSourceType>, gr::BlockingIO<true>>
 {
 public:
     using Description = Doc<R""(
@@ -62,6 +62,13 @@ public:
     {
         d_total_items = 0;
         d_start = ClockSourceType::now();
+    }
+
+    void stop()
+    {
+        // this seems to be necessary for a BlockIO block (see clock_source.hpp
+        // in gnuradio4)
+        this->requestStop();
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,

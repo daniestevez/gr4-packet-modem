@@ -20,7 +20,7 @@ int main()
 
     const double samp_rate = 100e3;
     auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
-        25U, std::chrono::milliseconds(100), "packet_len", false);
+        25U, std::chrono::milliseconds(100), "packet_len", true);
     auto& packet_to_stream = fg.emplaceBlock<gr::packet_modem::PacketToStream<int>>();
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(samp_rate, 1000U);
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();

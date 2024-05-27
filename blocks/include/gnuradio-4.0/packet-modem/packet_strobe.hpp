@@ -10,7 +10,8 @@
 namespace gr::packet_modem {
 
 template <typename T, typename ClockSourceType = std::chrono::system_clock>
-class PacketStrobe : public gr::Block<PacketStrobe<T, ClockSourceType>>
+class PacketStrobe
+    : public gr::Block<PacketStrobe<T, ClockSourceType>, gr::BlockingIO<true>>
 {
 public:
     using Description = Doc<R""(
@@ -55,6 +56,13 @@ public:
                   : std::optional<property_map>{
                         { { packet_len_tag, static_cast<uint64_t>(packet_len) } } })
     {
+    }
+
+    void stop()
+    {
+        // this seems to be necessary for a BlockIO block (see clock_source.hpp
+        // in gnuradio4)
+        this->requestStop();
     }
 
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
