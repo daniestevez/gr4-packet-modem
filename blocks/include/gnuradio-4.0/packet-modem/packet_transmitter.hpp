@@ -7,6 +7,7 @@
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/glfsr_source.hpp>
+#include <gnuradio-4.0/packet-modem/header_fec_encoder.hpp>
 #include <gnuradio-4.0/packet-modem/header_formatter.hpp>
 #include <gnuradio-4.0/packet-modem/interpolating_fir_filter.hpp>
 #include <gnuradio-4.0/packet-modem/mapper.hpp>
@@ -41,7 +42,7 @@ public:
 
         // header
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter>(packet_len_tag_key);
-        // TODO: add header FEC encoder here
+        auto& header_fec = fg.emplaceBlock<HeaderFecEncoder>(packet_len_tag_key);
 
         // payload
         auto& crc_append = fg.emplaceBlock<CrcAppend<>>(32U,
@@ -197,7 +198,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(header_formatter).to<"in">(header_to_pdu) !=
+        if (fg.connect<"out">(header_formatter).to<"in">(header_fec) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"out">(header_fec).to<"in">(header_to_pdu) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
