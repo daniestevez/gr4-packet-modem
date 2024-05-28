@@ -187,8 +187,22 @@ public:
         }
 
         const size_t ntaps = samples_per_symbol * 11U;
-        const auto rrc_taps = firdes::root_raised_cosine(
+        auto rrc_taps = firdes::root_raised_cosine(
             1.0, static_cast<double>(samples_per_symbol), 1.0, 0.35, ntaps);
+        // scale rrc_taps for maximum power using [-1, 1] DAC range
+        std::vector<float> rrc_taps_sum_abs(samples_per_symbol);
+        for (size_t j = 0; j < samples_per_symbol; ++j) {
+            for (size_t k = j; k < rrc_taps.size(); k += samples_per_symbol) {
+                rrc_taps_sum_abs[j] += std::abs(rrc_taps[k]);
+            }
+        }
+        const float rrc_taps_sum_abs_max =
+            *std::max_element(rrc_taps_sum_abs.cbegin(), rrc_taps_sum_abs.cend());
+        // used to avoid reaching DAC full scale
+        const float scale = 0.9f;
+        for (auto& x : rrc_taps) {
+            x *= scale / rrc_taps_sum_abs_max;
+        }
         auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
             samples_per_symbol, rrc_taps);
         auto& rrc_interp_mult_tag = fg.emplaceBlock<MultiplyPacketLenTag<c64>>(
