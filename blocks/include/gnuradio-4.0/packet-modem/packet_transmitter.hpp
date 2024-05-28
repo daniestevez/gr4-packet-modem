@@ -107,7 +107,7 @@ public:
         auto& syncword_source =
             fg.emplaceBlock<VectorSource<uint8_t>>(syncword, true, syncword_tags);
         syncword_source.name = "PacketTransmitter(syncword_source)";
-        const std::vector<c64> bpsk_constellation = { { -1.0f, 0.0f }, { 1.0f, 0.0f } };
+        const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
         auto& syncword_bpsk_modulator =
             fg.emplaceBlock<Mapper<uint8_t, c64>>(bpsk_constellation);
 
