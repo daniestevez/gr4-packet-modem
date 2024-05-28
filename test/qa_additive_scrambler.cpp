@@ -52,6 +52,26 @@ boost::ut::suite AdditiveScramblerTests = [] {
         }
     };
 
+    // test for the new CCSDS scrambler defined in CCSDS 131.0-B-5 (September 2023)
+    "additive_scrambler_ccsds_2023"_test = [] {
+        Graph fg;
+        const std::vector<uint8_t> expected = { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0,
+                                                0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1,
+                                                1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1 };
+        const std::vector<uint8_t> v(expected.size());
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v);
+        auto& scrambler =
+            fg.emplaceBlock<AdditiveScrambler<uint8_t>>(0x4001U, 0x18E38U, 16U);
+        auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(scrambler)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(scrambler).to<"in">(sink)));
+        scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        expect(eq(sink.data(), expected));
+    };
+
     "additive_scrambler_reset"_test = [] {
         Graph fg;
         constexpr auto num_items = 100000_ul;

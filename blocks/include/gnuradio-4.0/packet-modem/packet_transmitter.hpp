@@ -72,11 +72,11 @@ public:
             fg.emplaceBlock<PduToTaggedStream<uint8_t>>(packet_len_tag_key);
         muxed_to_stream.name = "PacketTransmitter(muxed_to_stream)";
 
-        // TODO: evaluate replacement by a better scrambler (PN9 for instance)
         auto& scrambler_unpack =
             fg.emplaceBlock<UnpackBits<>>(8U, uint8_t{ 1 }, packet_len_tag_key);
+        // 17-bit CCSDS scrambler defined in CCSDS 131.0-B-5 (September 2023)
         auto& scrambler = fg.emplaceBlock<AdditiveScrambler<uint8_t>>(
-            0xA9U, 0xFFU, 7U, 0U, packet_len_tag_key);
+            0x4001U, 0x18E38U, 16U, 0U, packet_len_tag_key);
         const float a = std::sqrt(2.0f) / 2.0f;
         const std::vector<c64> qpsk_constellation = {
             { a, a }, { a, -a }, { -a, a }, { -a, -a }
