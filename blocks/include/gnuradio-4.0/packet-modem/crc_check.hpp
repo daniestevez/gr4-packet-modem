@@ -107,11 +107,7 @@ public:
                      this->input_tags_present(),
                      _tag.map);
 #endif
-        if (inSpan.size() == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
-        }
+        assert(inSpan.size() > 0);
         if (_packet_len == 0) {
             // Tags can only be fetched in one processBulk() call. They
             // disappear in the next call, even if the input is not consumed. We
@@ -146,7 +142,9 @@ public:
 #ifdef TRACE
             fmt::println("{}::processBulk() -> INSUFFICIENT_INPUT_ITEMS", this->name);
 #endif
-            std::ignore = inSpan.consume(0);
+            if (!inSpan.consume(0)) {
+                throw gr::exception("consume failed");
+            }
             outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
@@ -154,7 +152,9 @@ public:
             // the packet is too short; drop it
             fmt::println(
                 "{} packet is too short (length {}); dropping", this->name, _packet_len);
-            std::ignore = inSpan.consume(_packet_len);
+            if (!inSpan.consume(_packet_len)) {
+                throw gr::exception("consume failed");
+            }
             outSpan.publish(0);
             _packet_len = 0;
             return gr::work::Status::OK;
@@ -189,7 +189,9 @@ public:
                              this->name);
 #endif
                 outSpan.publish(0);
-                std::ignore = inSpan.consume(0);
+                if (!inSpan.consume(0)) {
+                    throw gr::exception("consume failed");
+                }
                 return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
             }
             // modify packet_len tag
@@ -202,7 +204,9 @@ public:
             outSpan.publish(0);
         }
 
-        std::ignore = inSpan.consume(_packet_len);
+        if (!inSpan.consume(_packet_len)) {
+            throw gr::exception("consume failed");
+        }
         _packet_len = 0;
 
 #ifdef TRACE

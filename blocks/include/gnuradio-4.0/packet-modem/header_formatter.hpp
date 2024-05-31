@@ -69,17 +69,10 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
-        const size_t num_headers = std::min(inSpan.size(), outSpan.size() / HEADER_LEN);
-
-        if (num_headers == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
-        }
-
+        assert(inSpan.size() == outSpan.size() / HEADER_LEN);
+        assert(inSpan.size() > 0);
         auto header = outSpan.begin();
-        for (const auto& meta : inSpan | std::views::take(num_headers)) {
+        for (const auto& meta : inSpan) {
             out.publishTag(_packet_len_tag, header - outSpan.begin());
 
             uint64_t packet_length = 0;
@@ -107,9 +100,6 @@ public:
             header[3] = 0x55;
             header += HEADER_LEN;
         }
-
-        std::ignore = inSpan.consume(num_headers);
-        outSpan.publish(num_headers * HEADER_LEN);
 
         return gr::work::Status::OK;
     }

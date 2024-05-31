@@ -45,7 +45,9 @@ public:
             outSpan.size(),
             _count);
 #endif
-        const auto n = std::min(inSpan.size(), outSpan.size());
+        assert(inSpan.size() == outSpan.size());
+        assert(inSpan.size() > 0);
+        const auto n = inSpan.size();
         std::ranges::copy_n(inSpan.begin(), static_cast<ssize_t>(n), outSpan.begin());
         for (uint64_t index = _count == 0 ? 0 : packet_length - _count; index < n;
              index += packet_length) {
@@ -56,12 +58,6 @@ public:
                            static_cast<ssize_t>(index));
         }
         _count = (_count + n) % packet_length;
-        std::ignore = inSpan.consume(n);
-        outSpan.publish(n);
-        if (n == 0) {
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
-        }
         return gr::work::Status::OK;
     }
 };

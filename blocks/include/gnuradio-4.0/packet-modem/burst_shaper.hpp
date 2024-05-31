@@ -51,11 +51,8 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
-        if (inSpan.size() == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
-        }
+        assert(inSpan.size() == outSpan.size());
+        assert(inSpan.size() > 0);
         if (_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             auto not_found_error = [this]() {
@@ -89,8 +86,7 @@ public:
         size_t n = 0;
         if (position < leading_shape.size()) {
             // multiply samples by leading shape
-            n = std::min(
-                { leading_shape.size() - position, inSpan.size(), outSpan.size() });
+            n = std::min(leading_shape.size() - position, inSpan.size());
             for (size_t j = position; j < position + n; ++j) {
                 *out_item++ = *in_item++ * leading_shape[j];
             }
@@ -98,9 +94,8 @@ public:
         }
         if (_remaining > trailing_shape.size()) {
             // copy samples without shaping
-            const size_t m = std::min({ _remaining - trailing_shape.size(),
-                                        inSpan.size() - n,
-                                        outSpan.size() - n });
+            const size_t m =
+                std::min(_remaining - trailing_shape.size(), inSpan.size() - n);
             std::copy_n(in_item, m, out_item);
             in_item += static_cast<ssize_t>(m);
             out_item += static_cast<ssize_t>(m);
@@ -108,7 +103,7 @@ public:
             _remaining -= m;
         }
         // multiply samples by trailing edge
-        const size_t m = std::min({ _remaining, inSpan.size() - n, outSpan.size() - n });
+        const size_t m = std::min(_remaining, inSpan.size() - n);
         if (m > 0) {
             const auto start = trailing_shape.size() - _remaining;
             const auto end = start + m;
@@ -119,13 +114,10 @@ public:
             _remaining -= m;
         }
 
-        std::ignore = inSpan.consume(n);
-        outSpan.publish(n);
-
-        if (n == 0) {
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
+        if (!inSpan.consume(n)) {
+            throw gr::exception("consume failed");
         }
+        outSpan.publish(n);
 
         return gr::work::Status::OK;
     }

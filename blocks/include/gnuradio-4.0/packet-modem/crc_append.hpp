@@ -105,7 +105,9 @@ public:
 #endif
         if (_crc_remaining == 0) {
             if (inSpan.size() == 0) {
-                std::ignore = inSpan.consume(0);
+                if (!inSpan.consume(0)) {
+                    throw gr::exception("consume failed");
+                }
                 outSpan.publish(0);
                 return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
             }
@@ -183,7 +185,9 @@ public:
             published += to_publish;
         }
 
-        std::ignore = inSpan.consume(consumed);
+        if (!inSpan.consume(consumed)) {
+            throw gr::exception("consume failed");
+        }
         outSpan.publish(published);
 #ifdef TRACE
         fmt::println("{}::processBulk() consume = {}, publish = {}",

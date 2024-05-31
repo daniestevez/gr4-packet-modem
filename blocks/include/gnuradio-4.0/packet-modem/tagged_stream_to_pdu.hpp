@@ -56,14 +56,18 @@ public:
                      _pdu.data.size());
 #endif
         if (inSpan.size() == 0) {
-            std::ignore = inSpan.consume(0);
+            if (!inSpan.consume(0)) {
+                throw gr::exception("consume failed");
+            }
             outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         if (outSpan.size() == 0) {
             // we always require space in the output, just in case we need to
             // publish an output PDU
-            std::ignore = inSpan.consume(0);
+            if (!inSpan.consume(0)) {
+                throw gr::exception("consume failed");
+            }
             outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
@@ -112,7 +116,9 @@ public:
         const auto to_consume = std::min(_remaining, inSpan.size());
         std::ranges::copy(inSpan | std::views::take(to_consume),
                           std::back_inserter(_pdu.data));
-        std::ignore = inSpan.consume(to_consume);
+        if (!inSpan.consume(to_consume)) {
+            throw gr::exception("consume failed");
+        }
         _remaining -= to_consume;
         _index += to_consume;
 

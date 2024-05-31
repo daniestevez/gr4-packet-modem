@@ -95,14 +95,8 @@ public:
                      outSpan.size(),
                      to_consume);
 #endif
-
-        if (to_consume == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
-        }
-
+        assert(inSpan.size() == outSpan.size() / outputs_per_input);
+        assert(inSpan.size() > 0);
         if (!packet_len_tag_key.empty() && this->input_tags_present()) {
             auto tag = this->mergedInputTag();
             if (tag.map.contains(packet_len_tag_key)) {
@@ -115,7 +109,7 @@ public:
         }
 
         auto out_item = outSpan.begin();
-        for (auto& in_item : inSpan | std::views::take(to_consume)) {
+        for (auto& in_item : inSpan) {
             if constexpr (kEndianness == Endianness::MSB) {
                 TIn shift = bits_per_output * static_cast<TIn>(outputs_per_input - 1U);
                 for (size_t j = 0; j < outputs_per_input; ++j) {
@@ -131,9 +125,6 @@ public:
                 }
             }
         }
-
-        std::ignore = inSpan.consume(to_consume);
-        outSpan.publish(to_consume * outputs_per_input);
 
         return gr::work::Status::OK;
     }

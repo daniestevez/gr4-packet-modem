@@ -79,25 +79,15 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
-        const auto to_consume = std::min(inSpan.size(), outSpan.size() / interpolation);
-        if (to_consume == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
-        }
-
+        assert(inSpan.size() == outSpan.size() / interpolation);
         auto out_item = outSpan.begin();
-        for (const auto& in_item : inSpan | std::views::take(to_consume)) {
+        for (const auto& in_item : inSpan) {
             _history.push_back(in_item);
             for (const auto& branch : _taps_polyphase) {
                 *out_item++ = std::inner_product(
                     branch.cbegin(), branch.cend(), _history.cbegin(), TOut{ 0 });
             }
         }
-
-        std::ignore = inSpan.consume(to_consume);
-        outSpan.publish(to_consume * interpolation);
 
         return gr::work::Status::OK;
     }

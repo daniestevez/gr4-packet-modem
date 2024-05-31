@@ -84,24 +84,14 @@ public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
-        const auto to_publish =
-            std::min(inSpan.size() / inputs_per_output, outSpan.size());
 #ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                     "to_publish = {}",
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
                      this->name,
                      inSpan.size(),
-                     outSpan.size(),
-                     to_publish);
+                     outSpan.size());
 #endif
-
-        if (to_publish == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return outSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS
-                                       : gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
-        }
-
+        assert(inSpan.size() / inputs_per_output == outSpan.size());
+        assert(outSpan.size() > 0);
         if (!packet_len_tag_key.empty() && this->input_tags_present()) {
             auto tag = this->mergedInputTag();
             if (tag.map.contains(packet_len_tag_key)) {
@@ -124,7 +114,7 @@ public:
         }
 
         auto in_item = inSpan.begin();
-        for (auto& out_item : outSpan | std::views::take(to_publish)) {
+        for (auto& out_item : outSpan) {
             TOut join = TOut{ 0 };
             TOut shift = TOut{ 0 };
             for (size_t j = 0; j < inputs_per_output; ++j) {
@@ -140,9 +130,6 @@ public:
             }
             out_item = join;
         }
-
-        std::ignore = inSpan.consume(to_publish * inputs_per_output);
-        outSpan.publish(to_publish);
 
         return gr::work::Status::OK;
     }

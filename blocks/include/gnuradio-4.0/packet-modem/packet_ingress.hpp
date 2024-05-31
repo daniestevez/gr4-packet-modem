@@ -54,11 +54,8 @@ public:
                      _remaining,
                      _valid);
 #endif
-        if (inSpan.size() == 0) {
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(0);
-            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
-        }
+        assert(inSpan.size() > 0);
+        assert(inSpan.size() == outSpan.size());
         if (_remaining == 0) {
             // Fetch a new packet_len tag
             auto not_found_error = [this]() {
@@ -96,22 +93,19 @@ public:
             out.publishTag(this->mergedInputTag().map, 0);
         }
 
-        auto to_consume = std::min(_remaining, inSpan.size());
+        const auto to_consume = std::min(_remaining, inSpan.size());
         if (_valid) {
-            to_consume = std::min(to_consume, outSpan.size());
             std::ranges::copy_n(
                 inSpan.begin(), static_cast<ssize_t>(to_consume), outSpan.begin());
             outSpan.publish(to_consume);
         } else {
             outSpan.publish(0);
         }
-        std::ignore = inSpan.consume(to_consume);
-        _remaining -= to_consume;
-
-        if (to_consume == 0) {
-            return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                      : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
+        if (!inSpan.consume(to_consume)) {
+            throw gr::exception("consume failed");
         }
+        _remaining -= to_consume;
+        assert(to_consume > 0);
 
         return gr::work::Status::OK;
     }

@@ -97,7 +97,9 @@ public:
         }
 
         _total_items += items_per_chunk;
-        std::ignore = inSpan.consume(items_per_chunk);
+        if (!inSpan.consume(items_per_chunk)) {
+            throw gr::exception("consume failed");
+        }
         outSpan.publish(items_per_chunk);
 
         return gr::work::Status::OK;

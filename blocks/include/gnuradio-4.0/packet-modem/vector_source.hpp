@@ -122,7 +122,6 @@ public:
         }
         output += _position;
 
-        outSpan.publish(outSpan.size());
 #ifdef TRACE
         fmt::println("{}::processBulk returning OK", this->name);
 #endif

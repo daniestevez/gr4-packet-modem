@@ -67,8 +67,6 @@ public:
             // We are not mid-packet and there is no input available. Fill the
             // output with zeros and return.
             std::ranges::fill(outSpan, T{ 0 });
-            std::ignore = inSpan.consume(0);
-            outSpan.publish(outSpan.size());
             return gr::work::Status::OK;
         }
 
@@ -101,7 +99,9 @@ public:
         // one packet at a time, since tags are always aligned to the first item
         // of inSpan.
 
-        std::ignore = inSpan.consume(to_publish);
+        if (!inSpan.consume(to_publish)) {
+            throw gr::exception("consume failed");
+        }
         outSpan.publish(to_publish);
 
 #ifdef TRACE

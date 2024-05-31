@@ -133,10 +133,14 @@ public:
         fmt::print("\n");
 #endif
 
-        const auto min_in_size =
-            std::ranges::min(inSpans | std::views::transform(
-                                           [](const auto& span) { return span.size(); }));
-        const auto n = std::min(min_in_size, outSpan.size());
+#ifndef NDEBUG
+        for (const auto& inSpan : inSpans) {
+            assert(inSpan.size() == outSpan.size());
+        }
+#endif
+
+        const auto n = outSpan.size();
+        assert(n > 0);
 
         for (size_t j = 0; j < n; ++j) {
             outSpan[j].data = inSpans[0][j].data;
@@ -152,17 +156,7 @@ public:
             }
         }
 
-        for (const auto& span : inSpans) {
-            std::ignore = span.consume(n);
-        }
-        outSpan.publish(n);
-
-        if (min_in_size == 0) {
-            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
-        }
-
-        return n == 0 ? gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS
-                      : gr::work::Status::OK;
+        return gr::work::Status::OK;
     }
 };
 
