@@ -24,7 +24,7 @@ defined by the `interpolation` parameter. The filter taps are given in the
 
 )"">;
 
-private:
+public:
     // taps in a polyphase structure
     std::vector<std::vector<TTaps>> _taps_polyphase;
     // the history constructed here is a placeholder; an appropriate history is

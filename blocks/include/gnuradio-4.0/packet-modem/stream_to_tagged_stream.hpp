@@ -23,7 +23,7 @@ value of these tags is `packet_length`.
 
 )"">;
 
-private:
+public:
     uint64_t _count = 0;
 
 public:

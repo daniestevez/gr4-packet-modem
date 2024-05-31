@@ -50,7 +50,7 @@ public:
     gr::PortOut<uint8_t> out;
     std::string packet_len_tag_key = "packet_len";
 
-private:
+public:
     gr::property_map _packet_len_tag = { { packet_len_tag_key, HEADER_LEN } };
 
 public:

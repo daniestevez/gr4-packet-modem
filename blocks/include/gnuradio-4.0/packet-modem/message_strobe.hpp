@@ -23,12 +23,13 @@ constructor, and then repeats.
 
 )"">;
 
-private:
+public:
     std::condition_variable _cv;
     bool _stop;
     std::mutex _mutex;
     std::thread _thread;
 
+private:
     void start_thread()
     {
         {

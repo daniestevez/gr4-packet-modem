@@ -39,7 +39,7 @@ the CRC calculation with the `skip_header_bytes` parameter.
 
 )"">;
 
-private:
+public:
     unsigned _crc_num_bytes;
     // std::optional because it is constructed later
     std::optional<Crc<CrcType>> _crc;
@@ -48,6 +48,7 @@ private:
     unsigned _crc_remaining;
     CrcType _crc_rem;
 
+private:
     void _set_crc()
     {
         _crc = Crc(

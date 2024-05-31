@@ -25,7 +25,7 @@ zero, and grows as necessary.
 
 )"">;
 
-private:
+public:
     std::vector<T> _vector;
     std::vector<gr::Tag> _tags;
 

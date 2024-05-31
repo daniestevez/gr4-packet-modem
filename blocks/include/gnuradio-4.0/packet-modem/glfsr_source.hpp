@@ -30,10 +30,11 @@ pseudo-random sequence of bits.
 
 )"">;
 
-private:
+public:
     uint64_t _mask;
     uint64_t _reg;
 
+private:
     static constexpr uint64_t _polynomial_masks[] = {
         0x00000000,
         0x00000001, // x^1 + 1

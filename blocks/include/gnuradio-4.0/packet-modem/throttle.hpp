@@ -40,7 +40,7 @@ parameter to a non-zero value that indicates the maximum number of items that
 
 )"">;
 
-private:
+public:
     std::chrono::duration<double> _sample_period;
     uint64_t _total_items;
     ClockSourceType::time_point _start;

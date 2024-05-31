@@ -27,9 +27,10 @@ the same relative positions of the data.
 
 )"">;
 
-private:
+public:
     ssize_t _position;
 
+private:
     void check_vector()
     {
         if (data.empty()) {
@@ -47,15 +48,14 @@ public:
     gr::PortOut<T> out;
     std::vector<T> data;
     bool repeat = false;
-    // this cannot be update through settings because gr::Tag cannot be
+    // this cannot be updated through settings because gr::Tag cannot be
     // converted to pmtv
     std::vector<gr::Tag> tags;
 
-    void settingsChanged(const gr::property_map& /* old_settings */,
-                         const gr::property_map& /* new_settings */)
-    {
-        check_vector();
-    }
+    // void settingsChanged(const gr::property_map& /* old_settings */,
+    //                      const gr::property_map& /* new_settings */)
+    // {
+    // }
 
     void start()
     {

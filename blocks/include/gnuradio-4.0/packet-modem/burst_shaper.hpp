@@ -29,7 +29,7 @@ the `TIn`, `TOut` and `TShape` template parameters respectively.
 
 )"">;
 
-private:
+public:
     uint64_t _remaining;
     uint64_t _packet_len;
 

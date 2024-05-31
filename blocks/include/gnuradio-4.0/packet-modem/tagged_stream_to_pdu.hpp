@@ -26,7 +26,7 @@ packet are stored as the `tags` vector in the `Pdu`.
 
 )"">;
 
-private:
+public:
     uint64_t _remaining;
     uint64_t _index;
     Pdu<T> _pdu;

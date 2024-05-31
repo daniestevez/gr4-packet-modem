@@ -52,7 +52,7 @@ an error.
 
 )"">;
 
-private:
+public:
     TIn _mask = TIn{ 1 };
 
 public:

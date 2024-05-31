@@ -27,13 +27,14 @@ by the update time), and the average rate, which is the rate smoothed with a
 
 )"">;
 
-private:
+public:
     std::atomic<uint64_t> _samples_consumed;
     std::condition_variable _cv;
     bool _stop;
     std::mutex _mutex;
     std::thread _thread;
 
+private:
     void start_thread()
     {
         _stop = false;

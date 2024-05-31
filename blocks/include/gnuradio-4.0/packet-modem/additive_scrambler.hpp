@@ -45,7 +45,7 @@ bits per byte. In the hard symbols case the input should be unpacked.
 
 )"">;
 
-private:
+public:
     uint64_t _reg;
     uint64_t _current_count;
 

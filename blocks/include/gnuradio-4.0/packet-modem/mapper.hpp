@@ -25,7 +25,7 @@ mapping nibbles into constellation symbols.
 
 )"">;
 
-private:
+public:
     size_t _mask;
 
 public:

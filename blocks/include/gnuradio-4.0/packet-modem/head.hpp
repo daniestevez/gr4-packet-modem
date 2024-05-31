@@ -22,7 +22,7 @@ done.
 
 )"">;
 
-private:
+public:
     size_t _published = 0;
 
 public:

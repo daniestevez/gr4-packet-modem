@@ -46,13 +46,14 @@ the whole packet to be present in the input at once.
 
 )"">;
 
-private:
+public:
     unsigned _crc_num_bytes;
     // std::optional because it is constructed in settingsChanged()
     std::optional<Crc<CrcType>> _crc;
     uint64_t _packet_len;
     gr::Tag _tag;
 
+private:
     void _set_crc()
     {
         _crc = Crc(

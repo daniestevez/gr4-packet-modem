@@ -32,6 +32,7 @@ false`. This is not recommended because the scheduler will call the block's
 private:
     using time_point = ClockSourceType::time_point;
 
+public:
     std::optional<gr::property_map> _packet_len_tag;
     size_t _position;
     std::optional<time_point> _last_packet_time;

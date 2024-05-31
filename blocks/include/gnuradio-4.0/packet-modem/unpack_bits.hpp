@@ -53,7 +53,7 @@ output. It is assumed that the value of these tags can be converted to
 
 )"">;
 
-private:
+public:
     TIn _mask;
 
 public:

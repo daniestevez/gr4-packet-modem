@@ -25,7 +25,7 @@ Tags in the input stream are discarded.
 
 )"">;
 
-private:
+public:
     ssize_t _index = 0;
 
 public:

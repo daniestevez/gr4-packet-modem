@@ -21,7 +21,7 @@ overwritten or appended, depending on the `append` parameter of the block constr
 
 )"">;
 
-private:
+public:
     FILE* _file = nullptr;
 
 public:

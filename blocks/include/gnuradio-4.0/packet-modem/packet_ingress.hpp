@@ -27,7 +27,7 @@ or payload preparation that is necessary.
 
 )"">;
 
-private:
+public:
     size_t _remaining;
     bool _valid;
 

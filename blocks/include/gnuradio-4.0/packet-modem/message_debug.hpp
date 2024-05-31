@@ -21,7 +21,7 @@ Messages received in the `print` port are printed. Messages received in the
 
 )"">;
 
-private:
+public:
     std::vector<gr::Message> d_messages;
 
 public:

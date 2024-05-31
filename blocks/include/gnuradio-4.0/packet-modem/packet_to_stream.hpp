@@ -39,7 +39,7 @@ mid-packet.
 
 )"">;
 
-private:
+public:
     uint64_t _remaining;
 
 public:

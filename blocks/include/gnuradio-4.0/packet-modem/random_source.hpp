@@ -24,9 +24,10 @@ parameter.
 
 )"">;
 
-private:
+public:
     VectorSource<T> _vector_source;
 
+private:
     std::vector<T> random_vector(T min, T max, size_t size)
     {
         std::random_device r;
