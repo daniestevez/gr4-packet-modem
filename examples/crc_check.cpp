@@ -20,11 +20,23 @@ int main()
                                         //{ 1, { { "foo", "bar" } } },
                                         { 8, { { "packet_len", 2 } } } };
     auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(data, false, tags);
+        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>({ { "repeat", false } });
+    source.data = data;
+    source.tags = tags;
     auto& crc_append = fg.emplaceBlock<gr::packet_modem::CrcAppend<>>(
-        16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true);
+        { { "num_bits", 16U },
+          { "poly", uint64_t{ 0x1021 } },
+          { "initial_value", uint64_t{ 0xFFFF } },
+          { "final_xor", uint64_t{ 0xFFFF } },
+          { "input_reflected", true },
+          { "result_reflected", true } });
     auto& crc_check = fg.emplaceBlock<gr::packet_modem::CrcCheck<>>(
-        16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true);
+        { { "num_bits", 16U },
+          { "poly", uint64_t{ 0x1021 } },
+          { "initial_value", uint64_t{ 0xFFFF } },
+          { "final_xor", uint64_t{ 0xFFFF } },
+          { "input_reflected", true },
+          { "result_reflected", true } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(source).to<"in">(crc_append)));

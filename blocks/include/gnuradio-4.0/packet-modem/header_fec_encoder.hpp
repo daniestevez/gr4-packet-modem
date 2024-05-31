@@ -22,9 +22,7 @@ packed format.
 )"">;
 
 private:
-    const std::string d_packet_len_tag_key;
-
-    static constexpr uint32_t generator[] = {
+    static constexpr uint32_t _generator[] = {
         0x8ef9c844, 0x74ac6ee2, 0x3cfef71b, 0xb26263a9, 0x2dd63058, 0x007b3a60,
         0x31351305, 0xeaf6ef05, 0x05c7c06c, 0x14d54cea, 0x8b9a3a38, 0x014c7864,
         0x40f8d0fc, 0x61ef3bcd, 0xce500e2b, 0x9db2e7df, 0x011d14d6, 0x83164c42,
@@ -46,11 +44,7 @@ private:
 public:
     gr::PortIn<uint8_t> in;
     gr::PortOut<uint8_t> out;
-
-    HeaderFecEncoder(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag_key(packet_len_tag_key)
-    {
-    }
+    std::string packet_len_tag_key = "packet_len";
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
@@ -72,14 +66,13 @@ public:
                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
 
-        if (!d_packet_len_tag_key.empty() && this->input_tags_present()) {
+        if (!packet_len_tag_key.empty() && this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            if (tag.map.contains(d_packet_len_tag_key)) {
+            if (tag.map.contains(packet_len_tag_key)) {
                 // Adjust the packet_len tag value and overwrite the output tag
                 // that is automatically propagated by the runtime.
-                const auto packet_len =
-                    pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
-                tag.map[d_packet_len_tag_key] = pmtv::pmt(packet_len * 8U);
+                const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+                tag.map[packet_len_tag_key] = pmtv::pmt(packet_len * 8U);
                 out.publishTag(tag.map, 0);
             }
         }
@@ -98,7 +91,7 @@ public:
             for (int k = 0; k < 12; ++k) {
                 uint8_t parity_bits = 0;
                 for (int l = 0; l < 8; ++l) {
-                    const uint32_t row = generator[8 * k + l];
+                    const uint32_t row = _generator[8 * k + l];
                     const uint8_t parity =
                         static_cast<uint8_t>(__builtin_parity(info & row));
                     parity_bits = static_cast<uint8_t>(parity_bits << 1) | parity;
@@ -122,6 +115,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::HeaderFecEncoder, in, out);
+ENABLE_REFLECTION(gr::packet_modem::HeaderFecEncoder, in, out, packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_HEADER_FEC_ENCODER

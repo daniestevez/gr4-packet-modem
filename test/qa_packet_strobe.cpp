@@ -12,9 +12,11 @@ boost::ut::suite PacketStrobeTests = [] {
 
     "packet_strobe"_test = [] {
         Graph fg;
-        const size_t packet_len = 1000;
+        const uint64_t packet_len = 1000;
         auto& strobe = fg.emplaceBlock<PacketStrobe<uint8_t>>(
-            packet_len, std::chrono::milliseconds(10), "packet_len");
+            { { "packet_len", packet_len },
+              { "interval_secs", 0.01 },
+              { "packet_len_tag_key", "packet_len" } });
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
         expect(eq(ConnectionResult::SUCCESS,

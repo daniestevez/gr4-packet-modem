@@ -40,51 +40,52 @@ the CRC calculation with the `skip_header_bytes` parameter.
 )"">;
 
 private:
-    const unsigned d_crc_num_bytes;
-    const bool d_swap_endianness;
-    Crc<CrcType> d_crc;
-    const size_t d_header_bytes;
-    const std::string d_packet_len_tag_key;
-    size_t d_header_remaining;
-    uint64_t d_data_remaining;
-    unsigned d_crc_remaining;
-    CrcType d_crc_rem;
+    unsigned _crc_num_bytes;
+    // std::optional because it is constructed later
+    std::optional<Crc<CrcType>> _crc;
+    size_t _header_remaining;
+    uint64_t _data_remaining;
+    unsigned _crc_remaining;
+    CrcType _crc_rem;
+
+    void _set_crc()
+    {
+        _crc = Crc(
+            num_bits, poly, initial_value, final_xor, input_reflected, result_reflected);
+        _crc_num_bytes = num_bits / 8;
+    }
 
 public:
     gr::PortIn<uint8_t> in;
     gr::PortOut<uint8_t, gr::Async> out;
+    // These defaults correspond to CRC-32, which is also the default in the GNU
+    // Radio 3.10 block
+    unsigned num_bits = 32;
+    CrcType poly = 0x4C11DB7;
+    CrcType initial_value = 0xFFFFFFFF;
+    CrcType final_xor = 0xFFFFFFFF;
+    bool input_reflected = true;
+    bool result_reflected = true;
+    bool swap_endianness = false;
+    uint64_t skip_header_bytes = 0;
+    std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
-    CrcAppend(unsigned num_bits,
-              CrcType poly,
-              CrcType initial_value = 0,
-              CrcType final_xor = 0,
-              bool input_reflected = false,
-              bool result_reflected = false,
-              bool swap_endianness = false,
-              size_t skip_header_bytes = 0,
-              const std::string& packet_len_tag_key = "packet_len")
-        : d_crc_num_bytes(num_bits / 8),
-          d_swap_endianness(swap_endianness),
-          d_crc(num_bits,
-                poly,
-                initial_value,
-                final_xor,
-                input_reflected,
-                result_reflected),
-          d_header_bytes(skip_header_bytes),
-          d_packet_len_tag_key(packet_len_tag_key),
-          d_header_remaining(0),
-          d_data_remaining(0),
-          d_crc_remaining(0),
-          d_crc_rem(0)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (num_bits % 8 != 0) {
-            throw std::invalid_argument(
-                fmt::format("{} CRC number of bits must be a multiple of 8", this->name));
+            throw gr::exception("CRC number of bits must be a multiple of 8");
         }
+        _set_crc();
+    }
+
+    void start()
+    {
+        _crc_remaining = 0;
+        _set_crc();
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
@@ -93,15 +94,15 @@ public:
 #ifdef TRACE
         fmt::println(
             "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-            "d_data_remaining = {}, d_crc_remaining = {}, input_tags_present() = {}",
+            "_data_remaining = {}, _crc_remaining = {}, input_tags_present() = {}",
             this->name,
             inSpan.size(),
             outSpan.size(),
-            d_data_remaining,
-            d_crc_remaining,
+            _data_remaining,
+            _crc_remaining,
             this->input_tags_present());
 #endif
-        if (d_crc_remaining == 0) {
+        if (_crc_remaining == 0) {
             if (inSpan.size() == 0) {
                 std::ignore = inSpan.consume(0);
                 outSpan.publish(0);
@@ -118,23 +119,23 @@ public:
                 return not_found_error();
             }
             auto tag = this->mergedInputTag();
-            if (!tag.map.contains(d_packet_len_tag_key)) {
+            if (!tag.map.contains(packet_len_tag_key)) {
                 return not_found_error();
             }
-            d_data_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
-            d_header_remaining = d_header_bytes;
-            if (d_header_remaining >= d_data_remaining) {
+            _data_remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+            _header_remaining = skip_header_bytes;
+            if (_header_remaining >= _data_remaining) {
                 fmt::println("{} WARNING: received packet shorter than header "
                              "(length {})",
                              this->name,
-                             d_data_remaining);
+                             _data_remaining);
             }
-            d_crc_remaining = d_crc_num_bytes;
-            d_crc.initialize();
+            _crc_remaining = _crc_num_bytes;
+            _crc->initialize();
             // modify packet_len tag
-            tag.map[d_packet_len_tag_key] = pmtv::pmt(d_data_remaining + d_crc_remaining);
+            tag.map[packet_len_tag_key] = pmtv::pmt(_data_remaining + _crc_remaining);
             out.publishTag(tag.map, 0);
-        } else if (d_data_remaining > 0 && this->input_tags_present()) {
+        } else if (_data_remaining > 0 && this->input_tags_present()) {
             // Propagate other data tags
             auto tag = this->mergedInputTag();
             out.publishTag(tag.map, 0);
@@ -144,38 +145,38 @@ public:
         size_t published = 0;
         auto out_data = outSpan.begin();
 
-        if (d_data_remaining > 0) {
+        if (_data_remaining > 0) {
             const auto to_consume =
-                std::min({ d_data_remaining, inSpan.size(), outSpan.size() });
-            d_crc.update(inSpan | std::views::take(static_cast<ssize_t>(to_consume)) |
-                         std::views::drop(d_header_remaining));
+                std::min({ _data_remaining, inSpan.size(), outSpan.size() });
+            _crc->update(inSpan | std::views::take(static_cast<ssize_t>(to_consume)) |
+                         std::views::drop(_header_remaining));
             std::ranges::copy_n(
                 inSpan.begin(), static_cast<ssize_t>(to_consume), out_data);
             consumed += to_consume;
             published += to_consume;
             out_data += static_cast<ssize_t>(to_consume);
-            d_header_remaining -= std::min(d_header_remaining, to_consume);
-            d_data_remaining -= to_consume;
-            if (d_data_remaining == 0) {
-                d_crc_rem = d_crc.finalize();
+            _header_remaining -= std::min(_header_remaining, to_consume);
+            _data_remaining -= to_consume;
+            if (_data_remaining == 0) {
+                _crc_rem = _crc->finalize();
             }
         }
 
-        if (d_data_remaining == 0) {
-            assert(d_crc_remaining > 0);
+        if (_data_remaining == 0) {
+            assert(_crc_remaining > 0);
             const auto to_publish =
-                std::min(static_cast<size_t>(d_crc_remaining),
+                std::min(static_cast<size_t>(_crc_remaining),
                          static_cast<size_t>(outSpan.size() - published));
-            if (d_swap_endianness) {
+            if (swap_endianness) {
                 for (size_t j = 0; j < to_publish; ++j) {
                     *out_data++ =
-                        (d_crc_rem >> (8 * (d_crc_num_bytes - d_crc_remaining))) & 0xff;
-                    --d_crc_remaining;
+                        (_crc_rem >> (8 * (_crc_num_bytes - _crc_remaining))) & 0xff;
+                    --_crc_remaining;
                 }
             } else {
                 for (size_t j = 0; j < to_publish; ++j) {
-                    *out_data++ = (d_crc_rem >> (8 * (d_crc_remaining - 1))) & 0xff;
-                    --d_crc_remaining;
+                    *out_data++ = (_crc_rem >> (8 * (_crc_remaining - 1))) & 0xff;
+                    --_crc_remaining;
                 }
             }
             published += to_publish;
@@ -191,8 +192,8 @@ public:
 #endif
 
         if (published == 0) {
-            return d_data_remaining > 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                        : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
+            return _data_remaining > 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
+                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         return gr::work::Status::OK;
     }
@@ -200,6 +201,17 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::CrcAppend, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::CrcAppend,
+                               in,
+                               out,
+                               num_bits,
+                               poly,
+                               initial_value,
+                               final_xor,
+                               input_reflected,
+                               result_reflected,
+                               swap_endianness,
+                               skip_header_bytes,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_CRC_APPEND

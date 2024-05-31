@@ -75,7 +75,10 @@ int main()
     const gr::packet_modem::Pdu<int> pdu(std::vector{ 1, 2, 3, 4, 5, 6 }, {});
     const std::vector<gr::packet_modem::Pdu<int>> pdus = { pdu };
     auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<int>>>(pdus);
+        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<int>>>();
+    // cannot be set through the property_map constructor, because Pdu is not
+    // convertible to PMT
+    source.data = pdus;
     auto& to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<int>>();
     auto& process = fg.emplaceBlock<Process<int>>();
     auto& process_pdu = fg.emplaceBlock<Process<gr::packet_modem::Pdu<int>>>();

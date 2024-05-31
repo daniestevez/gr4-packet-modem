@@ -22,25 +22,27 @@ overwritten or appended, depending on the `append` parameter of the block constr
 )"">;
 
 private:
-    FILE* d_file;
+    FILE* _file = nullptr;
 
 public:
     gr::PortIn<T> in;
+    std::string filename;
+    bool append = false;
 
-    FileSink(const std::string& filename, bool append = false) : d_file(nullptr)
+    void start()
     {
-        FILE* f = std::fopen(filename.c_str(), append ? "ab" : "wb");
-        if (f == nullptr) {
-            throw std::runtime_error(fmt::format(
-                "{} error opening file: {}", this->name, std::strerror(errno)));
+        _file = std::fopen(filename.c_str(), append ? "ab" : "wb");
+        if (_file == nullptr) {
+            throw gr::exception(
+                fmt::format("error opening file: {}", std::strerror(errno)));
         }
-        d_file = f;
     }
 
-    ~FileSink()
+    void stop()
     {
-        if (d_file != nullptr) {
-            std::fclose(d_file);
+        if (_file != nullptr) {
+            std::fclose(_file);
+            _file = nullptr;
         }
     }
 
@@ -49,21 +51,19 @@ public:
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
-        if (fwrite(inSpan.data(), sizeof(T), inSpan.size(), d_file) != inSpan.size()) {
+        if (fwrite(inSpan.data(), sizeof(T), inSpan.size(), _file) != inSpan.size()) {
             this->emitErrorMessage(
                 fmt::format("{}::processBulk", this->name),
                 fmt::format("error writing to file: {}", std::strerror(errno)));
             this->requestStop();
             return gr::work::Status::ERROR;
         }
-        std::ignore = inSpan.consume(inSpan.size());
-
         return gr::work::Status::OK;
     }
 };
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::FileSink, in);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::FileSink, in, filename, append);
 
 #endif // _GR4_PACKET_MODEM_FILE_SINK

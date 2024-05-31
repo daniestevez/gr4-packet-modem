@@ -9,7 +9,7 @@
 namespace gr::packet_modem {
 
 template <typename T>
-class RandomSource : public VectorSource<T>
+class RandomSource : public gr::Block<RandomSource<T>>
 {
 public:
     using Description = Doc<R""(
@@ -25,6 +25,8 @@ parameter.
 )"">;
 
 private:
+    VectorSource<T> _vector_source;
+
     std::vector<T> random_vector(T min, T max, size_t size)
     {
         std::random_device r;
@@ -39,14 +41,28 @@ private:
     }
 
 public:
-    RandomSource(T minimum, T maximum, size_t num_items, bool repeat = true)
-        : VectorSource<T>(random_vector(minimum, maximum, num_items), repeat)
+    gr::PortOut<T> out;
+    T minimum;
+    T maximum;
+    size_t num_items = 1;
+    bool repeat = false;
+
+    void start()
     {
+        _vector_source.data = random_vector(minimum, maximum, num_items);
+        _vector_source.repeat = repeat;
+        _vector_source.start();
+    }
+
+    gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
+    {
+        return _vector_source.processBulk(outSpan);
     }
 };
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::RandomSource, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::RandomSource, out, minimum, maximum, num_items, repeat);
 
 #endif // _GR4_PACKET_MODEM_RANDOM_SOURCE

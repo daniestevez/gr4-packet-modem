@@ -13,7 +13,7 @@ int main()
 
     const gr::property_map message = { { "test", 1 } };
     auto& strobe = fg.emplaceBlock<gr::packet_modem::MessageStrobe<>>(
-        message, std::chrono::seconds(1));
+        { { "message", message }, { "interval_secs", 1.0 } });
     auto& debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.print)));
     expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.store)));

@@ -25,13 +25,18 @@ int main()
     // const std::vector<gr::Tag> tags = {
     //     { 1, { { "one", pmtv::pmt_null() } } },
     // };
-    auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(v, false, tags);
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>();
+    source.data = v;
+    source.tags = tags;
     auto& pack = fg.emplaceBlock<gr::packet_modem::PackBits<>>(
-        2U, static_cast<uint8_t>(1), "packet_len");
+        { { "inputs_per_output", 2UZ },
+          { "bits_per_input", uint8_t{ 1 } },
+          { "packet_len_tag_key", "packet_len" } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     auto& unpack = fg.emplaceBlock<gr::packet_modem::UnpackBits<>>(
-        2U, static_cast<uint8_t>(1), "packet_len");
+        { { "outputs_per_input", 2UZ },
+          { "bits_per_input", uint8_t{ 1 } },
+          { "packet_len_tag_key", "packet_len" } });
     auto& sink_unpacked = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(pack)));
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(pack).to<"in">(unpack)));

@@ -26,31 +26,28 @@ Tags in the input stream are discarded.
 )"">;
 
 private:
-    const std::string d_packet_len_tag_key;
-    ssize_t d_index = 0;
+    ssize_t _index = 0;
 
 public:
     gr::PortIn<Pdu<T>> in;
     gr::PortOut<T, gr::Async> out;
+    std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
-    PduToTaggedStream(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag_key(packet_len_tag_key)
-    {
-    }
+    void start() { _index = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println(
-            "{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), d_index = {}",
+            "{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), _index = {}",
             this->name,
             inSpan.size(),
             outSpan.size(),
-            d_index);
+            _index);
 #endif
         if (inSpan.size() == 0) {
             std::ignore = inSpan.consume(0);
@@ -60,7 +57,7 @@ public:
         auto in_item = inSpan.begin();
         auto out_item = outSpan.begin();
         while (in_item != inSpan.end() && out_item != outSpan.end()) {
-            if (d_index == 0) {
+            if (_index == 0) {
                 const uint64_t packet_len = in_item->data.size();
                 if (packet_len == 0) {
                     this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
@@ -68,25 +65,24 @@ public:
                     this->requestStop();
                     return gr::work::Status::ERROR;
                 }
-                out.publishTag({ { d_packet_len_tag_key, packet_len } },
+                out.publishTag({ { packet_len_tag_key, packet_len } },
                                out_item - outSpan.begin());
             }
             const auto n =
-                std::min(std::ssize(in_item->data) - d_index, outSpan.end() - out_item);
-            std::ranges::copy(in_item->data | std::views::drop(d_index) |
-                                  std::views::take(n),
-                              out_item);
+                std::min(std::ssize(in_item->data) - _index, outSpan.end() - out_item);
+            std::ranges::copy(
+                in_item->data | std::views::drop(_index) | std::views::take(n), out_item);
             for (const auto& tag : in_item->tags) {
-                if (tag.index >= d_index && tag.index - d_index < n) {
+                if (tag.index >= _index && tag.index - _index < n) {
                     out.publishTag(tag.map,
-                                   tag.index - d_index + (out_item - outSpan.begin()));
+                                   tag.index - _index + (out_item - outSpan.begin()));
                 }
             }
             out_item += n;
-            d_index += n;
-            if (d_index == std::ssize(in_item->data)) {
+            _index += n;
+            if (_index == std::ssize(in_item->data)) {
                 ++in_item;
-                d_index = 0;
+                _index = 0;
             }
         }
 
@@ -106,6 +102,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PduToTaggedStream, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PduToTaggedStream,
+                               in,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_PDU_TO_TAGGED_STREAM

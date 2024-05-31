@@ -24,42 +24,38 @@ value of these tags is `packet_length`.
 )"">;
 
 private:
-    const uint64_t d_packet_length;
-    const std::string d_packet_len_tag_key;
-    uint64_t d_count = 0;
+    uint64_t _count = 0;
 
 public:
     gr::PortIn<T> in;
     gr::PortOut<T> out;
+    uint64_t packet_length = 1;
+    std::string packet_len_tag_key = "packet_len";
 
-    StreamToTaggedStream(uint64_t packet_length,
-                         const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_length(packet_length), d_packet_len_tag_key(packet_len_tag_key)
-    {
-    }
+    void start() { _count = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println(
-            "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), d_count = {}",
+            "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), _count = {}",
             this->name,
             inSpan.size(),
             outSpan.size(),
-            d_count);
+            _count);
 #endif
         const auto n = std::min(inSpan.size(), outSpan.size());
         std::ranges::copy_n(inSpan.begin(), static_cast<ssize_t>(n), outSpan.begin());
-        for (uint64_t index = d_count == 0 ? 0 : d_packet_length - d_count; index < n;
-             index += d_packet_length) {
+        for (uint64_t index = _count == 0 ? 0 : packet_length - _count; index < n;
+             index += packet_length) {
 #ifdef TRACE
             fmt::println("{} publishTag(index = {})", this->name, index);
 #endif
-            out.publishTag({ { d_packet_len_tag_key, d_packet_length } },
+            out.publishTag({ { packet_len_tag_key, packet_length } },
                            static_cast<ssize_t>(index));
         }
-        d_count = (d_count + n) % d_packet_length;
+        _count = (_count + n) % packet_length;
         std::ignore = inSpan.consume(n);
         outSpan.publish(n);
         if (n == 0) {
@@ -72,6 +68,7 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::StreamToTaggedStream, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::StreamToTaggedStream, in, out, packet_length, packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_STREAM_TO_TAGGED_STREAM

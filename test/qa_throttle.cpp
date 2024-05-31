@@ -15,7 +15,9 @@ boost::ut::suite ThrottleTests = [] {
         const double samp_rate = 100e3;
         auto& source = fg.emplaceBlock<NullSource<int>>();
         const size_t max_items_per_chunk = 100;
-        auto& throttle = fg.emplaceBlock<Throttle<int>>(samp_rate, max_items_per_chunk);
+        auto& throttle = fg.emplaceBlock<Throttle<int>>(
+            { { "sample_rate", samp_rate },
+              { "maximum_items_per_chunk", max_items_per_chunk } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(throttle)));

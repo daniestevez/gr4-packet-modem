@@ -26,13 +26,14 @@ zero, and grows as necessary.
 )"">;
 
 private:
-    std::vector<T> d_vector;
-    std::vector<gr::Tag> d_tags;
+    std::vector<T> _vector;
+    std::vector<gr::Tag> _tags;
 
 public:
     gr::PortIn<T> in;
+    size_t reserve_items = 1024;
 
-    VectorSink(size_t reserve_items = 1024) { d_vector.reserve(reserve_items); }
+    void start() { _vector.reserve(reserve_items); }
 
     gr::work::Status processBulk(gr::ConsumableSpan auto& inSpan)
     {
@@ -45,26 +46,24 @@ public:
                          this->name,
                          this->mergedInputTag().index,
                          this->mergedInputTag().map,
-                         d_vector.size());
+                         _vector.size());
 #endif
-            d_tags.emplace_back(d_vector.size(), this->mergedInputTag().map);
+            _tags.emplace_back(_vector.size(), this->mergedInputTag().map);
         }
 
-        d_vector.append_range(inSpan);
-        std::ignore = inSpan.consume(inSpan.size());
-
+        _vector.append_range(inSpan);
         return gr::work::Status::OK;
     }
 
     // Returns a copy of the vector stored in the block
-    std::vector<T> data() const noexcept { return d_vector; }
+    std::vector<T> data() const noexcept { return _vector; }
 
     // Returns a copy of the tags stored in the block
-    std::vector<gr::Tag> tags() const noexcept { return d_tags; }
+    std::vector<gr::Tag> tags() const noexcept { return _tags; }
 };
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::VectorSink, in);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::VectorSink, in, reserve_items);
 
 #endif // _GR4_PACKET_MODEM_VECTOR_SINK

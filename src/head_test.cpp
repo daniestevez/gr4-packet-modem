@@ -37,7 +37,8 @@ int main()
 
     gr::Graph fg;
     auto& source = fg.emplaceBlock<Source<int>>();
-    auto& head = fg.emplaceBlock<gr::packet_modem::Head<int>>(10U);
+    auto& head =
+        fg.emplaceBlock<gr::packet_modem::Head<int>>({ { "num_items", uint64_t{ 10 } } });
     auto& sink = fg.emplaceBlock<Sink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink)));

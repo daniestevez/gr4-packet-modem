@@ -25,53 +25,49 @@ defined by the `interpolation` parameter. The filter taps are given in the
 )"">;
 
 private:
-    const size_t d_interpolation;
     // taps in a polyphase structure
-    std::vector<std::vector<TTaps>> d_taps;
+    std::vector<std::vector<TTaps>> _taps_polyphase;
     // the history constructed here is a placeholder; an appropriate history is
-    // constructed in set_taps()
-    gr::HistoryBuffer<TIn> d_history{ 1 };
+    // constructed in settingsChanged()
+    gr::HistoryBuffer<TIn> _history{ 1 };
 
 public:
     gr::PortIn<TIn> in;
     gr::PortOut<TOut> out;
+    size_t interpolation;
+    std::vector<TTaps> taps;
 
-    InterpolatingFirFilter(size_t interpolation, const std::vector<TTaps>& taps)
-        : d_interpolation(interpolation)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (interpolation == 0) {
-            throw std::invalid_argument("interpolation cannot be zero");
+            throw gr::exception("interpolation cannot be zero");
         }
 
         // set resampling ratio for the scheduler
         this->numerator = interpolation;
         this->denominator = 1;
 
-        set_taps(taps);
-    }
-
-    void set_taps(const std::vector<TTaps>& taps)
-    {
         // organize the taps in a polyphase structure
-        d_taps.resize(d_interpolation);
-        for (size_t j = 0; j < d_interpolation; ++j) {
-            d_taps[j].clear();
-            for (size_t k = j; k < taps.size(); k += d_interpolation) {
-                d_taps[j].push_back(taps[k]);
+        _taps_polyphase.resize(interpolation);
+        for (size_t j = 0; j < interpolation; ++j) {
+            _taps_polyphase[j].clear();
+            for (size_t k = j; k < taps.size(); k += interpolation) {
+                _taps_polyphase[j].push_back(taps[k]);
             }
         }
 
         // create a history of the appropriate size
         const auto capacity =
-            std::bit_ceil((taps.size() + d_interpolation - 1) / d_interpolation);
+            std::bit_ceil((taps.size() + interpolation - 1) / interpolation);
         auto new_history = gr::HistoryBuffer<TIn>(capacity);
         // fill history with zeros to avoid problems with undefined history contents
         new_history.push_back_bulk(std::views::repeat(TIn{ 0 }, capacity));
         // move old history items to the new history
-        for (ssize_t j = static_cast<ssize_t>(d_history.size()) - 1; j >= 0; --j) {
-            new_history.push_back(d_history[static_cast<size_t>(j)]);
+        for (ssize_t j = static_cast<ssize_t>(_history.size()) - 1; j >= 0; --j) {
+            new_history.push_back(_history[static_cast<size_t>(j)]);
         }
-        d_history = new_history;
+        _history = new_history;
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
@@ -83,7 +79,7 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
-        const auto to_consume = std::min(inSpan.size(), outSpan.size() / d_interpolation);
+        const auto to_consume = std::min(inSpan.size(), outSpan.size() / interpolation);
         if (to_consume == 0) {
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
@@ -93,15 +89,15 @@ public:
 
         auto out_item = outSpan.begin();
         for (const auto& in_item : inSpan | std::views::take(to_consume)) {
-            d_history.push_back(in_item);
-            for (const auto& branch : d_taps) {
+            _history.push_back(in_item);
+            for (const auto& branch : _taps_polyphase) {
                 *out_item++ = std::inner_product(
-                    branch.cbegin(), branch.cend(), d_history.cbegin(), TOut{ 0 });
+                    branch.cbegin(), branch.cend(), _history.cbegin(), TOut{ 0 });
             }
         }
 
         std::ignore = inSpan.consume(to_consume);
-        outSpan.publish(to_consume * d_interpolation);
+        outSpan.publish(to_consume * interpolation);
 
         return gr::work::Status::OK;
     }
@@ -109,6 +105,7 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::InterpolatingFirFilter, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::InterpolatingFirFilter, in, out, interpolation, taps);
 
 #endif // _GR4_PACKET_MODEM_INTERPOLATING_FIR_FILTER

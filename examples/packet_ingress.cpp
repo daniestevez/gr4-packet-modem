@@ -31,8 +31,9 @@ int main()
         offset += len;
     }
     std::vector<uint8_t> v(offset);
-    auto& packet_source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(v, false, tags);
+    auto& packet_source = fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>();
+    packet_source.data = v;
+    packet_source.tags = tags;
 
     auto& ingress = fg.emplaceBlock<gr::packet_modem::PacketIngress<>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();

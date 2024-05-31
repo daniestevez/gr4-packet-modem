@@ -19,10 +19,13 @@ boost::ut::suite PacketMuxTests = [] {
         const Pdu<int> pdu1 = { std::vector{ 6, 7, 8, 9 }, { { 2, { { "e", "f" } } } } };
         const Pdu<int> pdu2 = { std::vector{ 10, 11, 12, 13, 14, 15 },
                                 { { 3, { { "h", "i" } } }, { 5, { { "j", "k" } } } } };
-        auto& source0 = fg.emplaceBlock<VectorSource<Pdu<int>>>(std::vector{ pdu0 });
-        auto& source1 = fg.emplaceBlock<VectorSource<Pdu<int>>>(std::vector{ pdu1 });
-        auto& source2 = fg.emplaceBlock<VectorSource<Pdu<int>>>(std::vector{ pdu2 });
-        auto& mux = fg.emplaceBlock<PacketMux<Pdu<int>>>(3U);
+        auto& source0 = fg.emplaceBlock<VectorSource<Pdu<int>>>();
+        source0.data = std::vector{ pdu0 };
+        auto& source1 = fg.emplaceBlock<VectorSource<Pdu<int>>>();
+        source1.data = std::vector{ pdu1 };
+        auto& source2 = fg.emplaceBlock<VectorSource<Pdu<int>>>();
+        source2.data = std::vector{ pdu2 };
+        auto& mux = fg.emplaceBlock<PacketMux<Pdu<int>>>({ { "num_inputs", 3UZ } });
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<int>>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect(source0, { "out" }, mux, { "in", 0 })));

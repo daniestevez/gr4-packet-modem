@@ -40,50 +40,54 @@ public:
     {
         using c64 = std::complex<float>;
 
-        auto& ingress = fg.emplaceBlock<PacketIngress<>>(packet_len_tag_key);
+        auto& ingress = fg.emplaceBlock<PacketIngress<>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         in = &ingress.in;
 
         // header
-        auto& header_formatter = fg.emplaceBlock<HeaderFormatter>(packet_len_tag_key);
-        auto& header_fec = fg.emplaceBlock<HeaderFecEncoder>(packet_len_tag_key);
+        auto& header_formatter = fg.emplaceBlock<HeaderFormatter>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
+        auto& header_fec = fg.emplaceBlock<HeaderFecEncoder>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
 
         // payload
-        auto& crc_append = fg.emplaceBlock<CrcAppend<>>(32U,
-                                                        0x4C11DB7U,
-                                                        0xFFFFFFFFU,
-                                                        0xFFFFFFFFU,
-                                                        true,
-                                                        true,
-                                                        false,
-                                                        0U,
-                                                        packet_len_tag_key);
+        auto& crc_append = fg.emplaceBlock<CrcAppend<>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         // a payload FEC encoder block would be instantiated here
 
         // TODO: replace by stream PacketMux
-        auto& header_to_pdu =
-            fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(packet_len_tag_key);
+        auto& header_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         header_to_pdu.name = "PacketTransmitter(header_to_pdu)";
-        auto& payload_to_pdu =
-            fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(packet_len_tag_key);
+        auto& payload_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         payload_to_pdu.name = "PacketTransmitter(payload_to_pdu)";
-        auto& header_payload_mux = fg.emplaceBlock<PacketMux<Pdu<uint8_t>>>(2U);
+        auto& header_payload_mux =
+            fg.emplaceBlock<PacketMux<Pdu<uint8_t>>>({ { "num_inputs", 2UZ } });
         header_payload_mux.name = "PacketTransmitter(header_payload_mux)";
-        auto& muxed_to_stream =
-            fg.emplaceBlock<PduToTaggedStream<uint8_t>>(packet_len_tag_key);
+        auto& muxed_to_stream = fg.emplaceBlock<PduToTaggedStream<uint8_t>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         muxed_to_stream.name = "PacketTransmitter(muxed_to_stream)";
 
-        auto& scrambler_unpack =
-            fg.emplaceBlock<UnpackBits<>>(8U, uint8_t{ 1 }, packet_len_tag_key);
+        auto& scrambler_unpack = fg.emplaceBlock<UnpackBits<>>(
+            { { "outputs_per_input", 8UZ },
+              { "packet_len_tag_key", packet_len_tag_key } });
         // 17-bit CCSDS scrambler defined in CCSDS 131.0-B-5 (September 2023)
         auto& scrambler = fg.emplaceBlock<AdditiveScrambler<uint8_t>>(
-            0x4001U, 0x18E38U, 16U, 0U, packet_len_tag_key);
+            { { "mask", uint64_t{ 0x4001U } },
+              { "seed", uint64_t{ 0x18E38U } },
+              { "length", uint64_t{ 16U } },
+              { "reset_tag_key", packet_len_tag_key } });
         const float a = std::sqrt(2.0f) / 2.0f;
         const std::vector<c64> qpsk_constellation = {
             { a, a }, { a, -a }, { -a, a }, { -a, -a }
         };
         auto& qpsk_pack =
-            fg.emplaceBlock<PackBits<>>(2U, uint8_t{ 1 }, packet_len_tag_key);
-        auto& qpsk_modulator = fg.emplaceBlock<Mapper<uint8_t, c64>>(qpsk_constellation);
+            fg.emplaceBlock<PackBits<>>({ { "inputs_per_output", 2UZ },
+                                          { "bits_per_input", uint8_t{ 1 } },
+                                          { "packet_len_tag_key", packet_len_tag_key } });
+        auto& qpsk_modulator =
+            fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", qpsk_constellation } });
 
         // syncword (64-bit CCSDS syncword)
         const std::vector<uint8_t> syncword = {
@@ -105,23 +109,26 @@ public:
             { 0, { { packet_len_tag_key, syncword.size() } } }
         };
         auto& syncword_source =
-            fg.emplaceBlock<VectorSource<uint8_t>>(syncword, true, syncword_tags);
+            fg.emplaceBlock<VectorSource<uint8_t>>({ { "repeat", true } });
+        syncword_source.data = syncword;
+        syncword_source.tags = syncword_tags;
         syncword_source.name = "PacketTransmitter(syncword_source)";
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
         auto& syncword_bpsk_modulator =
-            fg.emplaceBlock<Mapper<uint8_t, c64>>(bpsk_constellation);
+            fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", bpsk_constellation } });
 
         // TODO: replace by stream PacketMux
-        auto& syncword_to_pdu =
-            fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+        auto& syncword_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         syncword_to_pdu.name = "PacketTransmitter(syncword_to_pdu)";
-        auto& payload_symbols_to_pdu =
-            fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+        auto& payload_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         payload_symbols_to_pdu.name = "PacketTransmitter(payload_symbols_to_pdu)";
-        auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(stream_mode ? 2U : 4U);
+        auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(
+            { { "num_inputs", stream_mode ? 2UZ : 4UZ } });
         symbols_mux.name = "PacketTransmitter(symbols_mux)";
-        auto& symbols_to_stream =
-            fg.emplaceBlock<PduToTaggedStream<c64>>(packet_len_tag_key);
+        auto& symbols_to_stream = fg.emplaceBlock<PduToTaggedStream<c64>>(
+            { { "packet_len_tag_key", packet_len_tag_key } });
         symbols_to_stream.name = "PacketTransmitter(symbols_to_stream)";
 
         constexpr auto connection_error = "connection_error";
@@ -129,26 +136,28 @@ public:
         const size_t rrc_flush_nsymbols = 11;
         if (!stream_mode) {
             // ramp-down sequence
-            auto& ramp_down_source = fg.emplaceBlock<GlfsrSource<>>(32U);
+            auto& ramp_down_source = fg.emplaceBlock<GlfsrSource<>>({ { "degree", 32 } });
             // 9 symbols used for ramp down. 5 to clear the RRC filter and 4 to
             // actually perform the amplitude ramp-down
             const size_t ramp_down_nsymbols = 9;
             const size_t ramp_down_nbits = 2U * ramp_down_nsymbols;
-            auto& ramp_down_tags =
-                fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(ramp_down_nbits);
-            auto& ramp_down_pack =
-                fg.emplaceBlock<PackBits<>>(2U, uint8_t{ 1 }, packet_len_tag_key);
+            auto& ramp_down_tags = fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(
+                { { "packet_length", static_cast<uint64_t>(ramp_down_nbits) } });
+            auto& ramp_down_pack = fg.emplaceBlock<PackBits<>>(
+                { { "inputs_per_output", 2UZ },
+                  { "bits_per_input", uint8_t{ 1 } },
+                  { "packet_len_tag_key", packet_len_tag_key } });
             auto& ramp_down_modulator =
-                fg.emplaceBlock<Mapper<uint8_t, c64>>(qpsk_constellation);
-            auto& ramp_symbols_to_pdu =
-                fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+                fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", qpsk_constellation } });
+            auto& ramp_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
+                { { "packet_len_tag_key", packet_len_tag_key } });
             ramp_symbols_to_pdu.name = "PacketTransmitter(ramp_symbols_to_pdu)";
 
             auto& rrc_flush_source = fg.emplaceBlock<NullSource<c64>>();
-            auto& rrc_flush_tags =
-                fg.emplaceBlock<StreamToTaggedStream<c64>>(rrc_flush_nsymbols);
-            auto& flush_symbols_to_pdu =
-                fg.emplaceBlock<TaggedStreamToPdu<c64>>(packet_len_tag_key);
+            auto& rrc_flush_tags = fg.emplaceBlock<StreamToTaggedStream<c64>>(
+                { { "packet_length", static_cast<uint64_t>(rrc_flush_nsymbols) } });
+            auto& flush_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
+                { { "packet_len_tag_key", packet_len_tag_key } });
             flush_symbols_to_pdu.name = "PacketTransmitter(flush_symbols_to_pdu)";
 
             if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_tags) !=
@@ -204,9 +213,10 @@ public:
             x *= scale / rrc_taps_sum_abs_max;
         }
         auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
-            samples_per_symbol, rrc_taps);
+            { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
         auto& rrc_interp_mult_tag = fg.emplaceBlock<MultiplyPacketLenTag<c64>>(
-            static_cast<double>(samples_per_symbol), packet_len_tag_key);
+            { { "mult", static_cast<double>(samples_per_symbol) },
+              { "packet_len_tag_key", packet_len_tag_key } });
 
         if (!stream_mode) {
             // burst shaper
@@ -226,7 +236,9 @@ public:
                 trailing_ramp[j] = leading_ramp[leading_ramp.size() - 1 - j];
             }
             auto& burst_shaper = fg.emplaceBlock<BurstShaper<c64, c64, float>>(
-                leading_ramp, trailing_ramp, packet_len_tag_key);
+                { { "leading_shape", leading_ramp },
+                  { "trailing_shape", trailing_ramp },
+                  { "packet_len_tag_key", packet_len_tag_key } });
             if (fg.connect<"out">(rrc_interp_mult_tag).to<"in">(burst_shaper) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);

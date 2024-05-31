@@ -17,8 +17,8 @@ public:
 @brief Packet strobe. Produces one packet periodically.
 
 The packets produced by this block have a fixed length given by the `packet_len`
-argument and they are filled with zeros. The packets are produced with the
-interval indicated in `interval`. If the `packet_len_tag` argument is set to a
+setting and they are filled with zeros. The packets are produced with the
+interval indicated in `interval`. If the `packet_len_tag_key` setting is set to a
 non-empty string, then a packet length tags will be inserted in the output to
 make it a tagged stream.
 
@@ -32,48 +32,48 @@ false`. This is not recommended because the scheduler will call the block's
 private:
     using time_point = ClockSourceType::time_point;
 
-    const size_t d_packet_len;
-    const ClockSourceType::duration d_interval;
-    const bool d_sleep;
-    const std::optional<gr::property_map> d_packet_len_tag;
-    size_t d_position = 0;
-    std::optional<time_point> d_last_packet_time = std::nullopt;
+    std::optional<gr::property_map> _packet_len_tag;
+    size_t _position;
+    std::optional<time_point> _last_packet_time;
 
 public:
     gr::PortOut<T> out;
+    uint64_t packet_len = 1;
+    double interval_secs = 1.0;
+    std::string packet_len_tag_key = "";
+    bool sleep = true;
 
-    PacketStrobe(size_t packet_len,
-                 ClockSourceType::duration interval,
-                 const std::string& packet_len_tag = "",
-                 bool sleep = true)
-        : d_packet_len(packet_len),
-          d_interval(interval),
-          d_sleep(sleep),
-          d_packet_len_tag(
-              packet_len_tag.empty()
-                  ? std::nullopt
-                  : std::optional<property_map>{
-                        { { packet_len_tag, static_cast<uint64_t>(packet_len) } } })
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
+        _packet_len_tag =
+            packet_len_tag_key.empty()
+                ? std::nullopt
+                : std::optional<gr::property_map>{
+                      { { packet_len_tag_key, static_cast<uint64_t>(packet_len) } }
+                  };
     }
+
+    void start() { _position = 0; }
 
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(outSpan.size() = {}), d_position = {}, "
-                     "d_last_packet_time = {}, now = {}",
+        fmt::println("{}::processBulk(outSpan.size() = {}), _position = {}, "
+                     "_last_packet_time = {}, now = {}",
                      this->name,
                      outSpan.size(),
-                     d_position,
-                     d_last_packet_time,
+                     _position,
+                     _last_packet_time,
                      ClockSourceType::now());
 #endif
         // check if we can produce a new packet now
-        if (d_position == 0 && d_last_packet_time.has_value()) {
-            const auto elapsed = ClockSourceType::now() - *d_last_packet_time;
-            if (elapsed < d_interval) {
-                if (d_sleep) {
-                    std::this_thread::sleep_for(d_interval - elapsed);
+        if (_position == 0 && _last_packet_time.has_value()) {
+            const auto elapsed = ClockSourceType::now() - *_last_packet_time;
+            const auto _interval = std::chrono::duration<double>(interval_secs);
+            if (elapsed < _interval) {
+                if (sleep) {
+                    std::this_thread::sleep_for(_interval - elapsed);
                 } else {
                     // we cannot produce a packet and cannot sleep, so we return
                     // to the scheduler without any produced items
@@ -83,22 +83,22 @@ public:
             }
         }
 
-        if (d_position == 0 && d_packet_len_tag.has_value()) {
+        if (_position == 0 && _packet_len_tag.has_value()) {
 #ifdef TRACE
             fmt::println("{} publishing packet length tag (now = {})",
                          this->name,
                          ClockSourceType::now());
 #endif
-            out.publishTag(*d_packet_len_tag, 0);
+            out.publishTag(*_packet_len_tag, 0);
         }
 
-        const auto n = std::min(d_packet_len - d_position, outSpan.size());
+        const auto n = std::min(packet_len - _position, outSpan.size());
         std::ranges::fill(outSpan | std::views::take(n), T{ 0 });
         outSpan.publish(n);
-        d_position += n;
-        if (d_position == d_packet_len) {
-            d_position = 0;
-            d_last_packet_time = ClockSourceType::now();
+        _position += n;
+        if (_position == packet_len) {
+            _position = 0;
+            _last_packet_time = ClockSourceType::now();
         }
 
         return gr::work::Status::OK;
@@ -107,6 +107,11 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketStrobe, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketStrobe,
+                               out,
+                               packet_len,
+                               interval_secs,
+                               packet_len_tag_key,
+                               sleep);
 
 #endif // _GR4_PACKET_MODEM_PACKET_STROBE

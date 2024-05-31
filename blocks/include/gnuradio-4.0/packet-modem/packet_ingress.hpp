@@ -28,41 +28,38 @@ or payload preparation that is necessary.
 )"">;
 
 private:
-    const std::string d_packet_len_tag_key;
-    size_t d_remaining;
-    bool d_valid;
+    size_t _remaining;
+    bool _valid;
 
 public:
     gr::PortIn<T> in;
     gr::PortOut<T> out;
     gr::MsgPortOut metadata;
+    std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
-    PacketIngress(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag_key(packet_len_tag_key), d_remaining(0)
-    {
-    }
+    void start() { _remaining = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                     "d_remaining = {}, d_valid = {}",
+                     "_remaining = {}, _valid = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
-                     d_remaining,
-                     d_valid);
+                     _remaining,
+                     _valid);
 #endif
         if (inSpan.size() == 0) {
             std::ignore = inSpan.consume(0);
             outSpan.publish(0);
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
-        if (d_remaining == 0) {
+        if (_remaining == 0) {
             // Fetch a new packet_len tag
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
@@ -74,33 +71,33 @@ public:
                 return not_found_error();
             }
             auto tag = this->mergedInputTag();
-            if (!tag.map.contains(d_packet_len_tag_key)) {
+            if (!tag.map.contains(packet_len_tag_key)) {
                 return not_found_error();
             }
-            d_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
-            d_valid = d_remaining <= std::numeric_limits<uint16_t>::max();
-            if (d_valid) {
+            _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+            _valid = _remaining <= std::numeric_limits<uint16_t>::max();
+            if (_valid) {
                 // Use gr::message::Command::Invalid, since none of the OpenCMW
                 // commands is appropriate for GNU Radio 3.10-style message passing.
                 gr::sendMessage<gr::message::Command::Invalid>(
-                    metadata, "", "", { { "packet_length", d_remaining } });
+                    metadata, "", "", { { "packet_length", _remaining } });
 #ifdef TRACE
                 fmt::println("{} publishTag({}, 0)", this->name, tag.map);
 #endif
                 out.publishTag(tag.map, 0);
             } else {
                 fmt::println(
-                    "{} packet too long (length {}); dropping", this->name, d_remaining);
+                    "{} packet too long (length {}); dropping", this->name, _remaining);
             }
-        } else if (d_valid && this->input_tags_present()) {
+        } else if (_valid && this->input_tags_present()) {
 #ifdef TRACE
             fmt::println("{} publishTag({}, 0)", this->name, this->mergedInputTag().map);
 #endif
             out.publishTag(this->mergedInputTag().map, 0);
         }
 
-        auto to_consume = std::min(d_remaining, inSpan.size());
-        if (d_valid) {
+        auto to_consume = std::min(_remaining, inSpan.size());
+        if (_valid) {
             to_consume = std::min(to_consume, outSpan.size());
             std::ranges::copy_n(
                 inSpan.begin(), static_cast<ssize_t>(to_consume), outSpan.begin());
@@ -109,7 +106,7 @@ public:
             outSpan.publish(0);
         }
         std::ignore = inSpan.consume(to_consume);
-        d_remaining -= to_consume;
+        _remaining -= to_consume;
 
         if (to_consume == 0) {
             return inSpan.size() == 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
@@ -122,6 +119,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketIngress, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketIngress,
+                               in,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_PACKET_INGRESS

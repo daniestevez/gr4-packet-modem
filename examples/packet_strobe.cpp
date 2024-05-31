@@ -17,7 +17,9 @@ int main()
     gr::Graph fg;
 
     auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
-        25U, std::chrono::seconds(3), "packet_len", true);
+        { { "packet_len", uint64_t{ 25 } },
+          { "interval_secs", 3.0 },
+          { "packet_len_tag_key", "packet_len" } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
 

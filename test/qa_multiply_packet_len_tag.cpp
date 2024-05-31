@@ -16,8 +16,10 @@ boost::ut::suite MultiplyPacketLenTagTests = [] {
                                         { 7, { { "packet_len", 23UZ } } } };
         std::vector<int> v(30);
         std::iota(v.begin(), v.end(), 0);
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v, false, tags);
-        auto& fec = fg.emplaceBlock<MultiplyPacketLenTag<int>>(5.0);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        source.tags = tags;
+        auto& fec = fg.emplaceBlock<MultiplyPacketLenTag<int>>({ { "mult", 5.0 } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(fec)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(fec).to<"in">(sink)));

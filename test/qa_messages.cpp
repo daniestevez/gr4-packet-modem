@@ -15,7 +15,7 @@ boost::ut::suite MessageTests = [] {
         Graph fg;
         const property_map message = { { "test", "test data" } };
         auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
-            message, std::chrono::milliseconds(1));
+            { { "message", message }, { "interval_secs", 1e-3 } });
         auto& debug = fg.emplaceBlock<MessageDebug>();
         expect(eq(ConnectionResult::SUCCESS, strobe.strobe.connect(debug.print)));
         expect(eq(ConnectionResult::SUCCESS, strobe.strobe.connect(debug.store)));

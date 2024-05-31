@@ -27,36 +27,33 @@ packet are stored as the `tags` vector in the `Pdu`.
 )"">;
 
 private:
-    const std::string d_packet_len_tag_key;
-    uint64_t d_remaining = 0;
-    uint64_t d_index;
-    Pdu<T> d_pdu;
+    uint64_t _remaining;
+    uint64_t _index;
+    Pdu<T> _pdu;
 
 public:
     gr::PortIn<T> in;
     gr::PortOut<Pdu<T> /*, gr::RequiredSamples<1U, 1U, false>*/> out;
     // This causes compile errors:
     // gr::PortOut<Pdu<T>, gr::RequiredSamples<1U, 1U, true>> out;
+    std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
-    TaggedStreamToPdu(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag_key(packet_len_tag_key)
-    {
-    }
+    void start() { _remaining = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = "
-                     "{}), d_remaining = {}, d_pdu.data.size() = {}",
+                     "{}), _remaining = {}, _pdu.data.size() = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
-                     d_remaining,
-                     d_pdu.data.size());
+                     _remaining,
+                     _pdu.data.size());
 #endif
         if (inSpan.size() == 0) {
             std::ignore = inSpan.consume(0);
@@ -71,7 +68,7 @@ public:
             return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
 
-        if (d_remaining == 0) {
+        if (_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
@@ -83,45 +80,45 @@ public:
                 return not_found_error();
             }
             auto tag = this->mergedInputTag();
-            if (!tag.map.contains(d_packet_len_tag_key)) {
+            if (!tag.map.contains(packet_len_tag_key)) {
                 return not_found_error();
             }
-            d_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
-            if (d_remaining == 0) {
+            _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+            if (_remaining == 0) {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
                                        "received packet-length equal to zero");
                 this->requestStop();
                 return gr::work::Status::ERROR;
             }
-            d_pdu.data.clear();
-            d_pdu.data.reserve(d_remaining);
-            d_pdu.tags.clear();
-            d_index = 0;
+            _pdu.data.clear();
+            _pdu.data.reserve(_remaining);
+            _pdu.tags.clear();
+            _index = 0;
         }
 
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            tag.index = static_cast<ssize_t>(d_index);
+            tag.index = static_cast<ssize_t>(_index);
             // remove packet_len tag
-            if (d_index == 0) {
-                tag.map.erase(d_packet_len_tag_key);
+            if (_index == 0) {
+                tag.map.erase(packet_len_tag_key);
             }
             // the map can be empty if it only contained the packet_len tag
             if (!tag.map.empty()) {
-                d_pdu.tags.push_back(tag);
+                _pdu.tags.push_back(tag);
             }
         }
 
-        const auto to_consume = std::min(d_remaining, inSpan.size());
+        const auto to_consume = std::min(_remaining, inSpan.size());
         std::ranges::copy(inSpan | std::views::take(to_consume),
-                          std::back_inserter(d_pdu.data));
+                          std::back_inserter(_pdu.data));
         std::ignore = inSpan.consume(to_consume);
-        d_remaining -= to_consume;
-        d_index += to_consume;
+        _remaining -= to_consume;
+        _index += to_consume;
 
-        if (d_remaining == 0) {
-            outSpan[0] = std::move(d_pdu);
-            d_pdu = {};
+        if (_remaining == 0) {
+            outSpan[0] = std::move(_pdu);
+            _pdu = {};
             outSpan.publish(1);
 #ifdef TRACE
             fmt::println("{} consume = {}, publish = 1", this->name, to_consume);
@@ -129,12 +126,12 @@ public:
         } else {
             outSpan.publish(0);
 #ifdef TRACE
-            fmt::println("{} consume = {}, publish = 0, d_remaining = {}, "
-                         "d_pdu.data.size() = {}",
+            fmt::println("{} consume = {}, publish = 0, _remaining = {}, "
+                         "_pdu.data.size() = {}",
                          this->name,
                          to_consume,
-                         d_remaining,
-                         d_pdu.data.size());
+                         _remaining,
+                         _pdu.data.size());
 #endif
         }
 
@@ -144,6 +141,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::TaggedStreamToPdu, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::TaggedStreamToPdu,
+                               in,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_TAGGED_STREAM_TO_PDU

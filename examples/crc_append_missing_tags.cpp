@@ -15,9 +15,10 @@ int main()
     const std::vector<uint8_t> v(packet_length);
     const std::vector<gr::Tag> tags = { { 0, { { "packet_len", packet_length } } } };
     auto& vector_source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(v, true, tags);
-    auto& crc_append = fg.emplaceBlock<gr::packet_modem::CrcAppend<>>(
-        32U, 0x4C11DB7U, 0xFFFFFFFFU, 0xFFFFFFFFU, true, true);
+        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>({ { "repeat", true } });
+    vector_source.data = v;
+    vector_source.tags = tags;
+    auto& crc_append = fg.emplaceBlock<gr::packet_modem::CrcAppend<>>();
     auto& null_sink = fg.emplaceBlock<gr::packet_modem::NullSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(vector_source).to<"in">(crc_append)));

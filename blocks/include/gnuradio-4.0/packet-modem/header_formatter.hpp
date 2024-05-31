@@ -43,17 +43,21 @@ additional properties not included in this list, but they are ignored.
 )"">;
 
 private:
-    const gr::property_map d_packet_len_tag;
-
     static constexpr size_t HEADER_LEN = HEADER_FORMATTER_HEADER_LEN;
 
 public:
-    gr::PortInNamed<gr::Message, "metadata"> metadata;
+    gr::PortIn<gr::Message> metadata;
     gr::PortOut<uint8_t> out;
+    std::string packet_len_tag_key = "packet_len";
 
-    HeaderFormatter(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag({ { packet_len_tag_key, HEADER_LEN } })
+private:
+    gr::property_map _packet_len_tag = { { packet_len_tag_key, HEADER_LEN } };
+
+public:
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
+        _packet_len_tag = { { packet_len_tag_key, HEADER_LEN } };
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
@@ -76,7 +80,7 @@ public:
 
         auto header = outSpan.begin();
         for (const auto& meta : inSpan | std::views::take(num_headers)) {
-            out.publishTag(d_packet_len_tag, header - outSpan.begin());
+            out.publishTag(_packet_len_tag, header - outSpan.begin());
 
             uint64_t packet_length = 0;
             try {
@@ -113,6 +117,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::HeaderFormatter, metadata, out);
+ENABLE_REFLECTION(gr::packet_modem::HeaderFormatter, metadata, out, packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_HEADER_FORMATTER

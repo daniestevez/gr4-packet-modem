@@ -25,10 +25,8 @@ boost::ut::suite PacketIngressTests = [] {
             const Pdu<uint8_t> pdu = { std::move(v), {} };
             pdus.push_back(std::move(pdu));
         }
-        // If we set the source to repeat = false, then the runtime will only
-        // call pdu_to_stream once, which only processes one PDU. Workaround:
-        // set to repeat true and put a head block right before the sink.
-        auto& source = fg.emplaceBlock<VectorSource<Pdu<uint8_t>>>(pdus, false);
+        auto& source = fg.emplaceBlock<VectorSource<Pdu<uint8_t>>>();
+        source.data = pdus;
         auto& pdu_to_stream = fg.emplaceBlock<PduToTaggedStream<uint8_t>>();
         auto& packet_ingress = fg.emplaceBlock<PacketIngress<>>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();

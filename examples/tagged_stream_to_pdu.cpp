@@ -20,7 +20,9 @@ int main()
     const std::vector<gr::Tag> tags = { { 0, { { "packet_len", 10 } } },
                                         { 3, { { "foo", "bar" } } },
                                         { 10, { { "packet_len", 20 } } } };
-    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>(v, false, tags);
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>();
+    source.data = v;
+    source.tags = tags;
     auto& stream_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<int>>();
     auto& sink =
         fg.emplaceBlock<gr::packet_modem::VectorSink<gr::packet_modem::Pdu<int>>>();

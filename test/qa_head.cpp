@@ -11,19 +11,20 @@ boost::ut::suite HeadTests = [] {
     using namespace gr;
     using namespace gr::packet_modem;
 
-     "head"_test = [] {
+    "head"_test = [] {
         Graph fg;
         constexpr auto num_items = 1000000_ul;
         constexpr auto num_head = 100000_ul;
         std::vector<int> v(static_cast<size_t>(num_items));
         std::iota(v.begin(), v.end(), 0);
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v);
-        auto& head =
-          fg.emplaceBlock<Head<int>>(static_cast<size_t>(num_head));
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        auto& head = fg.emplaceBlock<Head<int>>(
+            { { "num_items", static_cast<uint64_t>(num_head) } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink)));
-        scheduler::Simple sched{ std::move(fg) };        
+        scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto sink_data = sink.data();
         const auto r = v | std::views::take(static_cast<size_t>(num_head));

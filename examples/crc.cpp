@@ -23,8 +23,9 @@ int main()
     // Uncomment just one of these two sources
     //
 
-    auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>(data, false, tags);
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>();
+    source.data = data;
+    source.tags = tags;
 
     // auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<uint8_t>>(
     //     8U, std::chrono::seconds(3), "packet_len", true);
@@ -32,7 +33,12 @@ int main()
     //
 
     auto& crc_append = fg.emplaceBlock<gr::packet_modem::CrcAppend<>>(
-        16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true);
+        { { "num_bits", 16U },
+          { "poly", uint64_t{ 0x1021 } },
+          { "initial_value", uint64_t{ 0xFFFF } },
+          { "final_xor", uint64_t{ 0xFFFF } },
+          { "input_reflected", true },
+          { "result_reflected", true } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(source).to<"in">(crc_append)));

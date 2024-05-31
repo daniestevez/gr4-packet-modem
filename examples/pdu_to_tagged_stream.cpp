@@ -21,7 +21,8 @@ int main()
     };
     pdus.emplace_back(std::vector<int>(100000));
     auto& source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<int>>>(pdus);
+        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<int>>>();
+    source.data = pdus;
     auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<int>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS,

@@ -54,29 +54,27 @@ output. It is assumed that the value of these tags can be converted to
 )"">;
 
 private:
-    const size_t d_outputs_per_input;
-    const TIn d_shift;
-    const TIn d_mask;
-    const std::string d_packet_len_tag_key;
+    TIn _mask;
 
 public:
     gr::PortIn<TIn> in;
     gr::PortOut<TOut> out;
+    size_t outputs_per_input = 1;
+    TIn bits_per_output = 1;
+    std::string packet_len_tag_key = "";
 
-    UnpackBits(size_t outputs_per_input,
-               TIn bits_per_output = 1,
-               const std::string& packet_len_tag_key = "")
-        : d_outputs_per_input(outputs_per_input),
-          d_shift(bits_per_output),
-          d_mask(static_cast<TIn>(TIn{ 1 } << bits_per_output) - TIn{ 1 }),
-          d_packet_len_tag_key(packet_len_tag_key)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
-        if (bits_per_output <= 0) {
-            throw std::invalid_argument(
-                fmt::format("{} bits_per_output must be positive; got {}",
-                            this->name,
-                            bits_per_output));
+        if (outputs_per_input <= 0) {
+            throw gr::exception(fmt::format("outputs_per_input must be positive; got {}",
+                                            outputs_per_input));
         }
+        if (bits_per_output <= 0) {
+            throw gr::exception(
+                fmt::format("bits_per_output must be positive; got {}", bits_per_output));
+        }
+        _mask = static_cast<TIn>(TIn{ 1 } << bits_per_output) - TIn{ 1 };
         // set resampling ratio for the scheduler
         this->numerator = outputs_per_input;
         this->denominator = 1;
@@ -88,7 +86,7 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
         const auto to_consume =
-            std::min(inSpan.size(), outSpan.size() / d_outputs_per_input);
+            std::min(inSpan.size(), outSpan.size() / outputs_per_input);
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
                      "to_consume = {}",
@@ -105,15 +103,13 @@ public:
                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
 
-        if (!d_packet_len_tag_key.empty() && this->input_tags_present()) {
+        if (!packet_len_tag_key.empty() && this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            if (tag.map.contains(d_packet_len_tag_key)) {
+            if (tag.map.contains(packet_len_tag_key)) {
                 // Adjust the packet_len tag value and overwrite the output tag
                 // that is automatically propagated by the runtime.
-                const auto packet_len =
-                    pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
-                tag.map[d_packet_len_tag_key] =
-                    pmtv::pmt(packet_len * d_outputs_per_input);
+                const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+                tag.map[packet_len_tag_key] = pmtv::pmt(packet_len * outputs_per_input);
                 out.publishTag(tag.map, 0);
             }
         }
@@ -121,23 +117,23 @@ public:
         auto out_item = outSpan.begin();
         for (auto& in_item : inSpan | std::views::take(to_consume)) {
             if constexpr (kEndianness == Endianness::MSB) {
-                TIn shift = d_shift * static_cast<TIn>(d_outputs_per_input - 1U);
-                for (size_t j = 0; j < d_outputs_per_input; ++j) {
-                    *out_item++ = static_cast<TOut>((in_item >> shift) & d_mask);
-                    shift -= d_shift;
+                TIn shift = bits_per_output * static_cast<TIn>(outputs_per_input - 1U);
+                for (size_t j = 0; j < outputs_per_input; ++j) {
+                    *out_item++ = static_cast<TOut>((in_item >> shift) & _mask);
+                    shift -= bits_per_output;
                 }
             } else {
                 static_assert(kEndianness == Endianness::LSB);
                 TIn item = in_item;
-                for (size_t j = 0; j < d_outputs_per_input; ++j) {
-                    *out_item++ = static_cast<TOut>(item & d_mask);
-                    item >>= d_shift;
+                for (size_t j = 0; j < outputs_per_input; ++j) {
+                    *out_item++ = static_cast<TOut>(item & _mask);
+                    item >>= bits_per_output;
                 }
             }
         }
 
         std::ignore = inSpan.consume(to_consume);
-        outSpan.publish(to_consume * d_outputs_per_input);
+        outSpan.publish(to_consume * outputs_per_input);
 
         return gr::work::Status::OK;
     }
@@ -150,6 +146,9 @@ ENABLE_REFLECTION_FOR_TEMPLATE_FULL((gr::packet_modem::Endianness endianness,
                                      typename TOut),
                                     (gr::packet_modem::UnpackBits<endianness, TIn, TOut>),
                                     in,
-                                    out);
+                                    out,
+                                    outputs_per_input,
+                                    bits_per_output,
+                                    packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_UNPACK_BITS

@@ -23,27 +23,27 @@ done.
 )"">;
 
 private:
-    const size_t d_num_items;
-    size_t d_published = 0;
+    size_t _published = 0;
 
 public:
     gr::PortIn<T> in;
     gr::PortOut<T> out;
+    uint64_t num_items;
 
-    Head(size_t num_items) : d_num_items(num_items) {}
+    void start() { _published = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                     "d_published = {}",
+                     "_published = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
-                     d_published);
+                     _published);
 #endif
-        if (d_published == d_num_items) {
+        if (_published == num_items) {
 #ifdef TRACE
             fmt::println("{}::processBulk returning DONE", this->name);
 #endif
@@ -70,25 +70,25 @@ public:
             return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
         }
         const size_t can_publish =
-            std::min({ d_num_items - d_published, outSpan.size(), inSpan.size() });
+            std::min({ num_items - _published, outSpan.size(), inSpan.size() });
         std::ranges::copy_n(
             inSpan.begin(), static_cast<ssize_t>(can_publish), outSpan.begin());
         std::ignore = inSpan.consume(can_publish);
         outSpan.publish(can_publish);
-        d_published += can_publish;
+        _published += can_publish;
 #ifdef TRACE
-        if (d_published == d_num_items) {
+        if (_published == num_items) {
             fmt::println("{}::processBulk returning DONE", this->name);
         } else {
             fmt::println("{}::processBulk returning OK", this->name);
         }
 #endif
-        return d_published == d_num_items ? gr::work::Status::DONE : gr::work::Status::OK;
+        return _published == num_items ? gr::work::Status::DONE : gr::work::Status::OK;
     }
 };
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Head, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Head, in, out, num_items);
 
 #endif // _GR4_PACKET_MODEM_HEAD

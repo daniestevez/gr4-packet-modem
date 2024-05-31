@@ -23,7 +23,9 @@ int main()
         { std::ssize(v) - 1, { { "end", pmtv::pmt_null() } } }
     };
 
-    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>(v, false, tags);
+    auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<int>>();
+    source.data = v;
+    source.tags = tags;
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
 

@@ -14,12 +14,16 @@ boost::ut::suite InterpolatingFirFilterTests = [] {
         Graph fg;
         constexpr auto num_items = 100000_ul;
         auto& source = fg.emplaceBlock<RandomSource<int>>(
-            -8, 8, static_cast<size_t>(num_items), false);
+            { { "minimum", -8 },
+              { "maximum", 8 },
+              { "num_items", static_cast<size_t>(num_items) },
+              { "repeat", false } });
         auto& input_sink = fg.emplaceBlock<VectorSink<int>>();
         const size_t interpolation = 5U;
         const std::vector<int> taps = { 1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                         13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 };
-        auto& fir = fg.emplaceBlock<InterpolatingFirFilter<int>>(interpolation, taps);
+        auto& fir = fg.emplaceBlock<InterpolatingFirFilter<int>>(
+            { { "interpolation", interpolation }, { "taps", taps } });
         auto& output_sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(input_sink)));

@@ -40,33 +40,30 @@ mid-packet.
 )"">;
 
 private:
-    const std::string d_packet_len_tag_key;
-    size_t d_remaining;
+    uint64_t _remaining;
 
 public:
     // The input port is declared as async to signal the runtime that we do not
     // need an input on this port to produce an output.
     gr::PortIn<T, gr::Async> in;
     gr::PortOut<T> out;
+    std::string packet_len_tag_key = "packet_len";
 
-    PacketToStream(const std::string& packet_len_tag_key = "packet_len")
-        : d_packet_len_tag_key(packet_len_tag_key), d_remaining(0)
-    {
-    }
+    void start() { _remaining = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                     "d_remaining = {}, input_tags_present = {}",
+                     "_remaining = {}, input_tags_present = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
-                     d_remaining,
+                     _remaining,
                      this->input_tags_present());
 #endif
-        if (d_remaining == 0 && inSpan.size() == 0) {
+        if (_remaining == 0 && inSpan.size() == 0) {
             // We are not mid-packet and there is no input available. Fill the
             // output with zeros and return.
             std::ranges::fill(outSpan, T{ 0 });
@@ -75,7 +72,7 @@ public:
             return gr::work::Status::OK;
         }
 
-        if (d_remaining == 0) {
+        if (_remaining == 0) {
             // Fetch the packet length tag to determine the length of the packet.
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
@@ -87,16 +84,16 @@ public:
                 return not_found_error();
             }
             auto tag = this->mergedInputTag();
-            if (!tag.map.contains(d_packet_len_tag_key)) {
+            if (!tag.map.contains(packet_len_tag_key)) {
                 return not_found_error();
             }
-            d_remaining = pmtv::cast<uint64_t>(tag.map[d_packet_len_tag_key]);
+            _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
         }
 
-        const auto to_publish = std::min({ inSpan.size(), outSpan.size(), d_remaining });
+        const auto to_publish = std::min({ inSpan.size(), outSpan.size(), _remaining });
         std::ranges::copy_n(
             inSpan.begin(), static_cast<ssize_t>(to_publish), outSpan.begin());
-        d_remaining -= to_publish;
+        _remaining -= to_publish;
 
         // At this point we return instead of trying to fill the rest of the
         // output with zeros. There might be a packet available on the input but
@@ -117,6 +114,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketToStream, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketToStream,
+                               in,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_PACKET_TO_STREAM

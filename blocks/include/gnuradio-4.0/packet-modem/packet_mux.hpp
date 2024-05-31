@@ -26,25 +26,28 @@ required to calculate the output packet-length tag.
 )"">;
 
 private:
-    const std::string d_packet_len_tag;
-    std::vector<size_t> d_packet_lens;
-    size_t d_current_input;
-    size_t d_remaining;
+    std::vector<size_t> _packet_lens;
+    size_t _current_input;
+    size_t _remaining;
 
 public:
     std::vector<gr::PortIn<T>> in;
     gr::PortOut<T> out;
+    size_t num_inputs = 0;
+    std::string packet_len_tag = "packet_len";
 
     constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
 
-    PacketMux(size_t num_inputs, const std::string& packet_len_tag = "packet_len")
-        : d_packet_len_tag(packet_len_tag), in(num_inputs)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (num_inputs == 0) {
-            throw std::invalid_argument(
-                fmt::format("{} num_inputs cannot be zero", this->name));
+            throw gr::exception(fmt::format("num_inputs cannot be zero", this->name));
         }
+        in.resize(num_inputs);
     }
+
+    void start() { _packet_lens.clear(); }
 
     template <gr::ConsumableSpan TInput>
     gr::work::Status processBulk(const std::span<TInput>& inSpans,
@@ -58,7 +61,7 @@ public:
         fmt::print("\n");
 #endif
 
-        if (d_packet_lens.empty()) {
+        if (_packet_lens.empty()) {
             // try to fetch packet lengths tags for each input
             const auto min_in_size =
                 std::ranges::min(inSpans | std::views::transform([](const auto& span) {
@@ -106,12 +109,16 @@ produce a new output PDU.
 public:
     std::vector<gr::PortIn<Pdu<T>>> in;
     gr::PortOut<Pdu<T>> out;
+    size_t num_inputs = 0;
+    std::string packet_len_tag = "packet_len";
 
-    PacketMux(size_t num_inputs) : in(num_inputs)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (num_inputs == 0) {
-            throw std::invalid_argument("[PacketMux] num_inputs cannot be zero");
+            throw gr::exception(fmt::format("num_inputs cannot be zero", this->name));
         }
+        in.resize(num_inputs);
     }
 
     template <gr::ConsumableSpan TInput>
@@ -161,6 +168,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketMux, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketMux, in, out, num_inputs);
 
 #endif // _GR4_PACKET_MODEM_PACKET_MUX

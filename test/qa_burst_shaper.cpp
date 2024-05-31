@@ -24,11 +24,13 @@ boost::ut::suite BurstShaperTests = [] {
             const Pdu<float> pdu = { std::vector(packet_length, 1.0f), {} };
             v.push_back(std::move(pdu));
         }
-        auto& source = fg.emplaceBlock<VectorSource<Pdu<float>>>(v);
+        auto& source = fg.emplaceBlock<VectorSource<Pdu<float>>>();
+        source.data = v;
         auto& pdu_to_tagged = fg.emplaceBlock<PduToTaggedStream<float>>();
         const std::vector<float> leading = { 0.1f, 0.5f, 0.9f };
         const std::vector<float> trailing = { 0.8f, 0.2f };
-        auto& burst_shaper = fg.emplaceBlock<BurstShaper<float>>(leading, trailing);
+        auto& burst_shaper = fg.emplaceBlock<BurstShaper<float>>(
+            { { "leading_shape", leading }, { "trailing_shape", trailing } });
         auto& tagged_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<float>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<float>>>();
         expect(eq(ConnectionResult::SUCCESS,
@@ -39,10 +41,10 @@ boost::ut::suite BurstShaperTests = [] {
                   fg.connect<"out">(burst_shaper).to<"in">(tagged_to_pdu)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(tagged_to_pdu).to<"in">(sink)));
-        scheduler::Simple sched{ std::move(fg) };        
+        scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto pdus = sink.data();
-        expect(eq(pdus.size(), packet_lengths.size()));        
+        expect(eq(pdus.size(), packet_lengths.size()));
         for (size_t j = 0; j < packet_lengths.size(); ++j) {
             const auto& pdu = pdus[j];
             expect(eq(pdu.data.size(), packet_lengths[j]));

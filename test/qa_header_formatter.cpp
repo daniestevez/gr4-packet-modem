@@ -14,8 +14,8 @@ boost::ut::suite HeaderFormatterTests = [] {
     "header_formatter"_test = [] {
         Graph fg;
         const gr::property_map message = { { "packet_length", 1234 } };
-        auto& strobe =
-            fg.emplaceBlock<MessageStrobe<>>(message, std::chrono::milliseconds(10));
+        auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
+            { { "message", message }, { "interval_secs", 0.01 } });
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();

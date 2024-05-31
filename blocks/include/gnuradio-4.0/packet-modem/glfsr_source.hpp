@@ -25,19 +25,16 @@ public:
     using Description = Doc<R""(
 @brief GLFSR Source.
 
-This block uses a GLFSR of the degree indicated in the constructor to generate a
+This block uses a GLFSR of the degree indicated in the settings to generate a
 pseudo-random sequence of bits.
 
 )"">;
 
 private:
-    uint64_t d_mask;
-    uint64_t d_reg;
+    uint64_t _mask;
+    uint64_t _reg;
 
-public:
-    gr::PortOut<T> out;
-
-    static constexpr uint64_t polynomial_masks[] = {
+    static constexpr uint64_t _polynomial_masks[] = {
         0x00000000,
         0x00000001, // x^1 + 1
         0x00000003, // x^2 + x^1 + 1
@@ -73,21 +70,31 @@ public:
         0x80000057  // x^32 + x^7 + x^5 + x^3 + x^2 + x^1 + 1
     };
 
-    GlfsrSource(size_t degree, uint64_t seed = 0x1) : d_reg(seed)
+public:
+    gr::PortOut<T> out;
+    int degree = 32; // rather arbitrary default
+    uint64_t seed = 0x1;
+
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (degree > 32) {
-            throw std::invalid_argument(
-                fmt::format("{} degree {} too large", this->name, degree));
+            throw gr::exception(fmt::format("degree {} too large", degree));
         }
-        d_mask = polynomial_masks[degree];
+    }
+
+    void start()
+    {
+        _mask = _polynomial_masks[degree];
+        _reg = seed;
     }
 
     [[nodiscard]] constexpr T processOne() noexcept
     {
-        const uint8_t bit = d_reg & 1;
-        d_reg >>= 1;
+        const uint8_t bit = _reg & 1;
+        _reg >>= 1;
         if (bit) {
-            d_reg ^= d_mask;
+            _reg ^= _mask;
         }
         return T{ bit };
     }
@@ -95,6 +102,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::GlfsrSource, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::GlfsrSource, out, degree, seed);
 
 #endif // _GR4_PACKET_MODEM_GLFSR_SOURCE

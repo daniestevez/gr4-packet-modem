@@ -41,27 +41,26 @@ parameter to a non-zero value that indicates the maximum number of items that
 )"">;
 
 private:
-    const double d_sample_rate;
-    const std::chrono::duration<double> d_sample_period;
-    const size_t d_maximum_items_per_chunk;
-    uint64_t d_total_items;
-    ClockSourceType::time_point d_start;
+    std::chrono::duration<double> _sample_period;
+    uint64_t _total_items;
+    ClockSourceType::time_point _start;
 
 public:
     gr::PortIn<T> in;
     gr::PortOut<T> out;
+    double sample_rate;
+    size_t maximum_items_per_chunk = 0;
 
-    Throttle(double sample_rate, size_t maximum_items_per_chunk = 0)
-        : d_sample_rate(sample_rate),
-          d_sample_period(1.0 / sample_rate),
-          d_maximum_items_per_chunk(maximum_items_per_chunk)
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
+        _sample_period = std::chrono::duration<double>(1.0 / sample_rate);
     }
 
     void start()
     {
-        d_total_items = 0;
-        d_start = ClockSourceType::now();
+        _total_items = 0;
+        _start = ClockSourceType::now();
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
@@ -75,8 +74,8 @@ public:
 #endif
 
         size_t items_per_chunk = std::min(inSpan.size(), outSpan.size());
-        if (d_maximum_items_per_chunk) {
-            items_per_chunk = std::min(items_per_chunk, d_maximum_items_per_chunk);
+        if (maximum_items_per_chunk) {
+            items_per_chunk = std::min(items_per_chunk, maximum_items_per_chunk);
         }
 
         std::ranges::copy_n(
@@ -84,7 +83,7 @@ public:
 
         const auto now = ClockSourceType::now();
         const auto expected_time =
-            d_start + d_sample_period * (d_total_items + items_per_chunk);
+            _start + _sample_period * (_total_items + items_per_chunk);
         if (expected_time > now) {
             const auto duration = expected_time - now;
             constexpr auto limit_duration =
@@ -97,7 +96,7 @@ public:
             std::this_thread::sleep_for(duration);
         }
 
-        d_total_items += items_per_chunk;
+        _total_items += items_per_chunk;
         std::ignore = inSpan.consume(items_per_chunk);
         outSpan.publish(items_per_chunk);
 
@@ -107,6 +106,7 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Throttle, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::Throttle, in, out, sample_rate, maximum_items_per_chunk);
 
 #endif // _GR4_PACKET_MODEM_THROTTLE

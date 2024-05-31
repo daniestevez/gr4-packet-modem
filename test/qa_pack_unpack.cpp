@@ -23,9 +23,11 @@ boost::ut::suite PackUnpackTests = [] {
             1, 0, 1, 0, 1, 0, 1, 0, //
             0, 1, 0, 1, 0, 1, 0, 1, //
         };
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v);
-        auto& pack_msb = fg.emplaceBlock<PackBits<>>(8U);
-        auto& pack_lsb = fg.emplaceBlock<PackBits<Endianness::LSB>>(8U);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        auto& pack_msb = fg.emplaceBlock<PackBits<>>({ { "inputs_per_output", 8UZ } });
+        auto& pack_lsb =
+            fg.emplaceBlock<PackBits<Endianness::LSB>>({ { "inputs_per_output", 8UZ } });
         auto& sink_msb = fg.emplaceBlock<VectorSink<uint8_t>>();
         auto& sink_lsb = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(
@@ -51,9 +53,12 @@ boost::ut::suite PackUnpackTests = [] {
     "unpack_8bits_fixed"_test = [] {
         Graph fg;
         std::vector<uint8_t> v = { 0xab, 0x00, 0xff, 0x12, 0x34, 0x55 };
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v);
-        auto& unpack_msb = fg.emplaceBlock<UnpackBits<>>(8U);
-        auto& unpack_lsb = fg.emplaceBlock<UnpackBits<Endianness::LSB>>(8U);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        auto& unpack_msb =
+            fg.emplaceBlock<UnpackBits<>>({ { "outputs_per_input", 8UZ } });
+        auto& unpack_lsb = fg.emplaceBlock<UnpackBits<Endianness::LSB>>(
+            { { "outputs_per_input", 8UZ } });
         auto& sink_msb = fg.emplaceBlock<VectorSink<uint8_t>>();
         auto& sink_lsb = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(eq(ConnectionResult::SUCCESS,
@@ -93,16 +98,23 @@ boost::ut::suite PackUnpackTests = [] {
         Graph fg;
         constexpr auto num_items = 120000_ul;
         auto& source = fg.emplaceBlock<RandomSource<uint8_t>>(
-            uint8_t{ 0 }, uint8_t{ 255 }, static_cast<size_t>(num_items), false);
+            { { "minimum", uint8_t{ 0 } },
+              { "maximum", uint8_t{ 255 } },
+              { "num_items", static_cast<size_t>(num_items) },
+              { "repeat", false } });
         auto& data_sink = fg.emplaceBlock<VectorSink<uint8_t>>();
-        auto& pack_msb =
-            fg.emplaceBlock<PackBits<Endianness::MSB>>(packed_nibbles, bits_per_nibble);
-        auto& pack_lsb =
-            fg.emplaceBlock<PackBits<Endianness::LSB>>(packed_nibbles, bits_per_nibble);
-        auto& unpack_msb =
-            fg.emplaceBlock<UnpackBits<Endianness::MSB>>(packed_nibbles, bits_per_nibble);
-        auto& unpack_lsb =
-            fg.emplaceBlock<UnpackBits<Endianness::LSB>>(packed_nibbles, bits_per_nibble);
+        auto& pack_msb = fg.emplaceBlock<PackBits<Endianness::MSB>>(
+            { { "inputs_per_output", packed_nibbles },
+              { "bits_per_input", bits_per_nibble } });
+        auto& pack_lsb = fg.emplaceBlock<PackBits<Endianness::LSB>>(
+            { { "inputs_per_output", packed_nibbles },
+              { "bits_per_input", bits_per_nibble } });
+        auto& unpack_msb = fg.emplaceBlock<UnpackBits<Endianness::MSB>>(
+            { { "outputs_per_input", packed_nibbles },
+              { "bits_per_output", bits_per_nibble } });
+        auto& unpack_lsb = fg.emplaceBlock<UnpackBits<Endianness::LSB>>(
+            { { "outputs_per_input", packed_nibbles },
+              { "bits_per_output", bits_per_nibble } });
         auto& sink_msb = fg.emplaceBlock<VectorSink<uint8_t>>();
         auto& sink_lsb = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(

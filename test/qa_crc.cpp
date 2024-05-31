@@ -25,9 +25,16 @@ boost::ut::suite CrcTests = [] {
         Graph fg;
         const std::vector<uint8_t> v(packet_len);
         const std::vector<Tag> t = { { 0, { { "packet_len", packet_len } } } };
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v, false, t);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        source.tags = t;
         auto& crc_append =
-            fg.emplaceBlock<CrcAppend<>>(16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true);
+            fg.emplaceBlock<CrcAppend<>>({ { "num_bits", 16U },
+                                           { "poly", uint64_t{ 0x1021 } },
+                                           { "initial_value", uint64_t{ 0xFFFF } },
+                                           { "final_xor", uint64_t{ 0xFFFF } },
+                                           { "input_reflected", true },
+                                           { "result_reflected", true } });
         auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(crc_append)));
@@ -61,9 +68,17 @@ boost::ut::suite CrcTests = [] {
             v.push_back(static_cast<uint8_t>((crc16 >> 8) & 0xFF));
             v.push_back(static_cast<uint8_t>(crc16 & 0xFF));
             const std::vector<Tag> t = { { 0, { { "packet_len", packet_len + 2U } } } };
-            auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v, false, t);
-            auto& crc_check = fg.emplaceBlock<CrcCheck<>>(
-                16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true, discard);
+            auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+            source.data = v;
+            source.tags = t;
+            auto& crc_check =
+                fg.emplaceBlock<CrcCheck<>>({ { "num_bits", 16U },
+                                              { "poly", uint64_t{ 0x1021 } },
+                                              { "initial_value", uint64_t{ 0xFFFF } },
+                                              { "final_xor", uint64_t{ 0xFFFF } },
+                                              { "input_reflected", true },
+                                              { "result_reflected", true },
+                                              { "discard_crc", discard } });
             auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
             expect(eq(gr::ConnectionResult::SUCCESS,
                       fg.connect<"out">(source).to<"in">(crc_check)));

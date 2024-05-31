@@ -22,7 +22,9 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
             { 73, { { "d", std::vector<int>{ 1, 2, 3 } }, { "e", 0.0f } } },
             { std::ssize(v) - 1, { { "f", pmtv::pmt_null() } } }
         };
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v, false, tags);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        source.tags = tags;
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
@@ -37,7 +39,8 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
         constexpr auto num_items = 1000000_ul;
         std::vector<int> v(static_cast<size_t>(num_items));
         std::iota(v.begin(), v.end(), 0);
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
@@ -53,10 +56,12 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
         const std::vector<Tag> tags = { { 0, { { "begin", pmtv::pmt_null() } } },
                                         { std::ssize(v) - 1,
                                           { { "end", pmtv::pmt_null() } } } };
-        const auto repetitions = 1000UZ;
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v, true, tags);
-        auto& head =
-            fg.emplaceBlock<Head<int>>(static_cast<size_t>(num_items) * repetitions);
+        const uint64_t repetitions = 1000;
+        auto& source = fg.emplaceBlock<VectorSource<int>>({ { "repeat", true } });
+        source.data = v;
+        source.tags = tags;
+        auto& head = fg.emplaceBlock<Head<int>>(
+            { { "num_items", static_cast<uint64_t>(num_items) * repetitions } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink)));
@@ -87,10 +92,11 @@ boost::ut::suite VectorSourceAndSinkTests = [] {
         constexpr auto num_items = 1000000_ul;
         constexpr auto min = 1872_i;
         constexpr auto max = 2873_i;
-        auto& source = fg.emplaceBlock<RandomSource<int>>(static_cast<int>(min),
-                                                          static_cast<int>(max),
-                                                          static_cast<size_t>(num_items),
-                                                          false);
+        auto& source = fg.emplaceBlock<RandomSource<int>>(
+            { { "minimum", static_cast<int>(min) },
+              { "maximum", static_cast<int>(max) },
+              { "num_items", static_cast<size_t>(num_items) },
+              { "repeat", false } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };

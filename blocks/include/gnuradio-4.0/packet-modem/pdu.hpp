@@ -20,4 +20,6 @@ struct Pdu {
 
 } // namespace gr::packet_modem
 
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Pdu, data);
+
 #endif // _GR4_PACKET_MODEM_PDU

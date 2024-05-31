@@ -16,8 +16,9 @@ boost::ut::suite MapperTests = [] {
         const std::vector<float> map = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f };
         std::vector<uint8_t> v(16);
         std::iota(v.begin(), v.end(), uint8_t{ 0 });
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v);
-        auto& mapper = fg.emplaceBlock<Mapper<uint8_t, float>>(map);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        auto& mapper = fg.emplaceBlock<Mapper<uint8_t, float>>({ { "map", map } });
         auto& sink = fg.emplaceBlock<VectorSink<float>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(mapper)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(mapper).to<"in">(sink)));

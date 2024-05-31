@@ -20,9 +20,13 @@ int main()
 
     const double samp_rate = 100e3;
     auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
-        25U, std::chrono::milliseconds(100), "packet_len", false);
+        { { "packet_len", uint64_t{ 25 } },
+          { "interval_secs", 0.01 },
+          { "packet_len_tag_key", "packet_len" },
+          { "sleep", false } });
     auto& packet_to_stream = fg.emplaceBlock<gr::packet_modem::PacketToStream<int>>();
-    auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(samp_rate, 1000U);
+    auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(
+        { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000U } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(source).to<"in">(packet_to_stream)));

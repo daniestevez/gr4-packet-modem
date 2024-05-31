@@ -17,7 +17,8 @@ boost::ut::suite PduTests = [] {
                                          { { 0, { { "foo", "bar" }, { "baz", 7 } } } } },
                                        { { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 },
                                          { { 3, { { "a", "b" } } } } } };
-        auto& source = fg.emplaceBlock<VectorSource<Pdu<int>>>(pdus);
+        auto& source = fg.emplaceBlock<VectorSource<Pdu<int>>>();
+        source.data = pdus;
         auto& pdu_to_stream = fg.emplaceBlock<PduToTaggedStream<int>>();
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS,
@@ -44,7 +45,9 @@ boost::ut::suite PduTests = [] {
         const std::vector<Tag> tags = { { 0, { { "packet_len", 10 } } },
                                         { 3, { { "foo", "bar" } } },
                                         { 10, { { "packet_len", 20 } } } };
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v, false, tags);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        source.tags = tags;
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<int>>();
         auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<Pdu<int>>>();
         expect(eq(gr::ConnectionResult::SUCCESS,

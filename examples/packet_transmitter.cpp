@@ -21,15 +21,19 @@ int main(int argc, char* argv[])
 
     gr::Graph fg;
     auto& random_source = fg.emplaceBlock<gr::packet_modem::RandomSource<uint8_t>>(
-        uint8_t{ 0 }, uint8_t{ 255 }, 1000000UZ);
+        { { "minimum", uint8_t{ 0 } },
+          { "maximum", uint8_t{ 255 } },
+          { "num_items", 1000000UZ },
+          { "repeat", true } });
     random_source.name = "RandomSource";
-    const size_t packet_length = 1500;
+    const uint64_t packet_length = 1500;
     auto& stream_to_tagged =
-        fg.emplaceBlock<gr::packet_modem::StreamToTaggedStream<uint8_t>>(packet_length);
+        fg.emplaceBlock<gr::packet_modem::StreamToTaggedStream<uint8_t>>(
+            { { "packet_length", packet_length } });
     auto packet_transmitter = gr::packet_modem::PacketTransmitter(fg);
-    auto& sink = fg.emplaceBlock<gr::packet_modem::FileSink<c64>>(argv[1]);
-    auto& probe_rate =
-        fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>(std::chrono::seconds(1));
+    auto& sink =
+        fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", argv[1] } });
+    auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(random_source).to<"in">(stream_to_tagged)));

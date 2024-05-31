@@ -16,7 +16,9 @@ boost::ut::suite HeaderFecEncoderTests = [] {
                                          0x6b, 0x11, 0x2d, 0x72 };
         const std::vector<Tag> tags = { { 0, { { "packet_len", 4UZ } } },
                                         { 4, { { "packet_len", 4UZ } } } };
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v, false, tags);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        source.tags = tags;
         auto& fec = fg.emplaceBlock<HeaderFecEncoder>();
         auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(fec)));

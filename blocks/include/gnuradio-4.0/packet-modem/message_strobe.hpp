@@ -24,32 +24,31 @@ constructor, and then repeats.
 )"">;
 
 private:
-    const gr::property_map d_message;
-    const ClockSourceType::duration d_interval;
-    std::condition_variable d_cv;
-    bool d_stop;
-    std::mutex d_mutex;
-    std::thread d_thread;
+    std::condition_variable _cv;
+    bool _stop;
+    std::mutex _mutex;
+    std::thread _thread;
 
     void start_thread()
     {
         {
-            std::lock_guard lock(d_mutex);
-            d_stop = false;
+            std::lock_guard lock(_mutex);
+            _stop = false;
         }
-        d_thread = std::thread([this]() {
+        _thread = std::thread([this]() {
             while (true) {
                 // Use gr::message::Command::Invalid, since none of the OpenCMW
                 // commands is appropriate for GNU Radio 3.10-style message passing.
-                gr::sendMessage<gr::message::Command::Invalid>(strobe, "", "", d_message);
-                // Sleep for d_interval or until stop is set to true and the
+                gr::sendMessage<gr::message::Command::Invalid>(strobe, "", "", message);
+                // Sleep for interval_secs or until stop is set to true and the
                 // condition variable is notified.
-                std::unique_lock lock(d_mutex);
-                const auto wakeup = ClockSourceType::now() + d_interval;
-                d_cv.wait_for(lock, d_interval, [this, wakeup]() {
-                    return d_stop || ClockSourceType::now() >= wakeup;
+                std::unique_lock lock(_mutex);
+                const auto interval = std::chrono::duration<double>(interval_secs);
+                const auto wakeup = ClockSourceType::now() + interval;
+                _cv.wait_for(lock, interval, [this, wakeup]() {
+                    return _stop || ClockSourceType::now() >= wakeup;
                 });
-                if (d_stop) {
+                if (_stop) {
                     return;
                 }
             }
@@ -59,20 +58,17 @@ private:
     void stop_thread()
     {
         {
-            std::lock_guard lock(d_mutex);
-            d_stop = true;
+            std::lock_guard lock(_mutex);
+            _stop = true;
         }
-        d_cv.notify_one();
-        d_thread.join();
+        _cv.notify_one();
+        _thread.join();
     }
 
 public:
     gr::MsgPortOut strobe;
-
-    MessageStrobe(const gr::property_map& message, ClockSourceType::duration interval)
-        : d_message(message), d_interval(interval)
-    {
-    }
+    gr::property_map message;
+    double interval_secs = 1.0;
 
     void start() { start_thread(); }
 
@@ -97,6 +93,7 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::MessageStrobe, fake_in, strobe);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::MessageStrobe, fake_in, strobe, message, interval_secs);
 
 #endif // _GR4_PACKET_MODEM_MESSAGE_DEBUG

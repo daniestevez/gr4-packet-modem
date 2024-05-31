@@ -30,9 +30,15 @@ boost::ut::suite AdditiveScramblerTests = [] {
         Graph fg;
         constexpr auto num_items = 100000_ul;
         auto& source = fg.emplaceBlock<RandomSource<uint8_t>>(
-            uint8_t{ 0 }, uint8_t{ 1 }, static_cast<size_t>(num_items), false);
+            { { "minimum", uint8_t{ 0 } },
+              { "maximum", uint8_t{ 1 } },
+              { "num_items", static_cast<size_t>(num_items) },
+              { "repeat", false } });
         auto& input_sink = fg.emplaceBlock<VectorSink<uint8_t>>();
-        auto& scrambler = fg.emplaceBlock<AdditiveScrambler<uint8_t>>(0xA9U, 0xFFU, 7U);
+        auto& scrambler =
+            fg.emplaceBlock<AdditiveScrambler<uint8_t>>({ { "mask", uint64_t{ 0xA9 } },
+                                                          { "seed", uint64_t{ 0xFF } },
+                                                          { "length", uint64_t{ 7 } } });
         auto& output_sink = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(input_sink)));
@@ -59,9 +65,12 @@ boost::ut::suite AdditiveScramblerTests = [] {
                                                 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1,
                                                 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1 };
         const std::vector<uint8_t> v(expected.size());
-        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>(v);
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
         auto& scrambler =
-            fg.emplaceBlock<AdditiveScrambler<uint8_t>>(0x4001U, 0x18E38U, 16U);
+            fg.emplaceBlock<AdditiveScrambler<uint8_t>>({ { "mask", uint64_t{ 0x4001 } },
+                                                          { "seed", uint64_t{ 0x18E38 } },
+                                                          { "length", uint64_t{ 16 } } });
         auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(scrambler)));
@@ -77,11 +86,15 @@ boost::ut::suite AdditiveScramblerTests = [] {
         constexpr auto num_items = 100000_ul;
         constexpr auto num_reset = 100_ul;
         auto& source = fg.emplaceBlock<NullSource<uint8_t>>();
-        auto& head = fg.emplaceBlock<Head<uint8_t>>(static_cast<uint64_t>(num_items));
+        auto& head = fg.emplaceBlock<Head<uint8_t>>(
+            { { "num_items", static_cast<uint64_t>(num_items) } });
         auto& add_tags = fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(
-            static_cast<uint64_t>(num_reset));
+            { { "packet_length", static_cast<uint64_t>(num_reset) } });
         auto& scrambler = fg.emplaceBlock<AdditiveScrambler<uint8_t>>(
-            0xA9U, 0xFFU, 7U, 0U, "packet_len");
+            { { "mask", uint64_t{ 0xA9 } },
+              { "seed", uint64_t{ 0xFF } },
+              { "length", uint64_t{ 7 } },
+              { "reset_tag_key", "packet_len" } });
         auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(add_tags)));

@@ -34,12 +34,12 @@ class Crc
 {
 private:
     std::array<T, 256> d_table;
-    const unsigned d_num_bits;
-    const T d_mask;
-    const T d_initial_value;
-    const T d_final_xor;
-    const bool d_input_reflected;
-    const bool d_result_reflected;
+    unsigned d_num_bits;
+    T d_mask;
+    T d_initial_value;
+    T d_final_xor;
+    bool d_input_reflected;
+    bool d_result_reflected;
     T d_rem;
 
     constexpr T reflect(T word) const

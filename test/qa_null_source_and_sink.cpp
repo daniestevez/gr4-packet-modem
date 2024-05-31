@@ -39,7 +39,8 @@ boost::ut::suite NullSourceAndSinkTests = [] {
         constexpr auto num_items = 100000_ul;
         std::vector<int> items(static_cast<size_t>(num_items));
         std::iota(items.begin(), items.end(), 0);
-        auto& source = fg.emplaceBlock<VectorSource<int>>(items);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = items;
         auto& null_sink = fg.emplaceBlock<NullSink<int>>();
         auto& vector_sink = fg.emplaceBlock<VectorSink<int>>();
         expect(

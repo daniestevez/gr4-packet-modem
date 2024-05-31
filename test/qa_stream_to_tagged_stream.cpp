@@ -16,9 +16,10 @@ boost::ut::suite StreamToTaggedStreamTests = [] {
         constexpr auto packet_len = 100_ul;
         std::vector<int> v(static_cast<size_t>(num_items));
         std::iota(v.begin(), v.end(), 0);
-        auto& source = fg.emplaceBlock<VectorSource<int>>(v);
-        auto& stream_to_tagged =
-            fg.emplaceBlock<StreamToTaggedStream<int>>(static_cast<size_t>(packet_len));
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        auto& stream_to_tagged = fg.emplaceBlock<StreamToTaggedStream<int>>(
+            { { "packet_length", static_cast<uint64_t>(packet_len) } });
         auto& sink = fg.emplaceBlock<VectorSink<int>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(stream_to_tagged)));

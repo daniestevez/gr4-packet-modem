@@ -28,28 +28,39 @@ the same relative positions of the data.
 )"">;
 
 private:
-    const std::vector<T> d_vector;
-    const bool d_repeat;
-    const std::vector<gr::Tag> d_tags;
-    ssize_t d_position = 0;
+    ssize_t _position;
 
-public:
-    gr::PortOut<T> out;
-
-    VectorSource(const std::vector<T>& data,
-                 bool repeat = false,
-                 const std::vector<gr::Tag>& tags = std::vector<gr::Tag>())
-        : d_vector(data), d_repeat(repeat), d_tags(tags)
+    void check_vector()
     {
-        if (d_vector.empty()) {
-            throw std::invalid_argument(fmt::format("{} data is empty", this->name));
+        if (data.empty()) {
+            throw gr::exception("data is empty");
         }
         for (const auto& tag : tags) {
             if (tag.index < 0 || static_cast<size_t>(tag.index) >= data.size()) {
-                throw std::invalid_argument(fmt::format(
-                    "{} tag {} has invalid index {}", this->name, tag.map, tag.index));
+                throw gr::exception(
+                    fmt::format("tag {} has invalid index {}", tag.map, tag.index));
             }
         }
+    }
+
+public:
+    gr::PortOut<T> out;
+    std::vector<T> data;
+    bool repeat = false;
+    // this cannot be update through settings because gr::Tag cannot be
+    // converted to pmtv
+    std::vector<gr::Tag> tags;
+
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        check_vector();
+    }
+
+    void start()
+    {
+        check_vector();
+        _position = 0;
     }
 
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
@@ -58,33 +69,33 @@ public:
         fmt::println("{}::processBulk(outSpan.size() = {})", this->name, outSpan.size());
 #endif
         // copy what remains of the current "loop" of the vector
-        const auto n = std::min(std::ssize(d_vector) - d_position, std::ssize(outSpan));
+        const auto n = std::min(std::ssize(data) - _position, std::ssize(outSpan));
         auto output = outSpan.begin();
-        std::ranges::copy(d_vector | std::views::drop(d_position) | std::views::take(n),
+        std::ranges::copy(data | std::views::drop(_position) | std::views::take(n),
                           output);
-        for (const auto& tag : d_tags) {
-            if (tag.index >= d_position && tag.index - d_position < n) {
-                out.publishTag(tag.map, tag.index - d_position);
+        for (const auto& tag : tags) {
+            if (tag.index >= _position && tag.index - _position < n) {
+                out.publishTag(tag.map, tag.index - _position);
             }
         }
         output += n;
-        d_position += n;
+        _position += n;
 
         // exit here if we don't repeat
-        if (!d_repeat) {
+        if (!repeat) {
             outSpan.publish(static_cast<size_t>(n));
 #ifdef TRACE
-            if (d_position == std::ssize(d_vector)) {
+            if (_position == std::ssize(data)) {
                 fmt::println("{}::processBulk returning DONE", this->name);
             } else {
                 fmt::println("{}::processBulk returning OK", this->name);
             }
 #endif
-            return d_position == std::ssize(d_vector) ? gr::work::Status::DONE
-                                                      : gr::work::Status::OK;
+            return _position == std::ssize(data) ? gr::work::Status::DONE
+                                                 : gr::work::Status::OK;
         }
 
-        if (d_position != std::ssize(d_vector)) {
+        if (_position != std::ssize(data)) {
             // there is no more output
             outSpan.publish(static_cast<size_t>(n));
 #ifdef TRACE
@@ -94,22 +105,22 @@ public:
         }
 
         // fill the rest of the output with full loops of the vector
-        while (outSpan.end() - output >= std::ssize(d_vector)) {
-            std::ranges::copy(d_vector, output);
-            for (const auto& tag : d_tags) {
+        while (outSpan.end() - output >= std::ssize(data)) {
+            std::ranges::copy(data, output);
+            for (const auto& tag : tags) {
                 out.publishTag(tag.map, output - outSpan.begin() + tag.index);
             }
-            output += std::ssize(d_vector);
+            output += std::ssize(data);
         }
         // fill the end of the output with a partial loop
-        d_position = outSpan.end() - output;
-        std::ranges::copy(d_vector | std::views::take(d_position), output);
-        for (const auto& tag : d_tags) {
-            if (tag.index < d_position) {
+        _position = outSpan.end() - output;
+        std::ranges::copy(data | std::views::take(_position), output);
+        for (const auto& tag : tags) {
+            if (tag.index < _position) {
                 out.publishTag(tag.map, output - outSpan.begin() + tag.index);
             }
         }
-        output += d_position;
+        output += _position;
 
         outSpan.publish(outSpan.size());
 #ifdef TRACE
@@ -121,6 +132,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::VectorSource, out);
+// currently `data` is disabled from reflection because VectorSource is often
+// used with Pdu<T>, which is not convertible to PMT because gr::Tag is not
+// convertible to PMT
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::VectorSource, out, /*data,*/ repeat);
 
 #endif // _GR4_PACKET_MODEM_VECTOR_SOURCE
