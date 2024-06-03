@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
+option(ADDRESS_SANITIZER "Enable address sanitizer" OFF)
+option(UB_SANITIZER "Enable undefined behavior sanitizer" OFF)
+option(THREAD_SANITIZER "Enable thread sanitizer" OFF)
+
 set(CMAKE_EXT_DEP_WARNING_GUARD "")
 if(DISABLE_EXTERNAL_DEPS_WARNINGS) # enable warnings for external dependencies
     set(CMAKE_EXT_DEP_WARNING_GUARD SYSTEM)
@@ -43,6 +47,27 @@ if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang") # set default C++ STL to Clang's lib
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
 endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)")
+    # Validate that only one sanitizer option is enabled
+    if ((ADDRESS_SANITIZER AND UB_SANITIZER) OR (ADDRESS_SANITIZER AND THREAD_SANITIZER) OR (UB_SANITIZER AND THREAD_SANITIZER))
+        message(FATAL_ERROR "Only one of ADDRESS_SANITIZER, UB_SANITIZER, or THREAD_SANITIZER can be enabled at the same time.")
+    endif ()
+
+    if (ADDRESS_SANITIZER)
+        add_compile_options(-fsanitize=address)
+        add_link_options(-fsanitize=address)
+        message(STATUS "Enable ADDRESS_SANITIZER: ${ADDRESS_SANITIZER}")
+    elseif (UB_SANITIZER)
+        add_compile_options(-fsanitize=undefined)
+        add_link_options(-fsanitize=undefined)
+        message(STATUS "Enable UB_SANITIZER: ${UB_SANITIZER}")
+    elseif (THREAD_SANITIZER)
+        add_compile_options(-fsanitize=thread)
+        add_link_options(-fsanitize=thread)
+        message(STATUS "Enable THREAD_SANITIZER: ${THREAD_SANITIZER}")
+    endif ()
+endif ()
 
 # Mainly for FMT
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
