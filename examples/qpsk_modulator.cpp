@@ -34,8 +34,8 @@ int main(int argc, char* argv[])
         { a, a }, { a, -a }, { -a, a }, { -a, -a }
     };
     auto& constellation_modulator =
-        fg.emplaceBlock<gr::packet_modem::Mapper<uint8_t, c64>>(
-            { { "map", qpsk_constellation } });
+        fg.emplaceBlock<gr::packet_modem::Mapper<uint8_t, c64>>();
+    constellation_modulator.map = qpsk_constellation;
     const size_t sps = 4;
     const size_t ntaps = sps * 11;
     const auto rrc_taps = gr::packet_modem::firdes::root_raised_cosine(

@@ -86,8 +86,8 @@ public:
             fg.emplaceBlock<PackBits<>>({ { "inputs_per_output", 2UZ },
                                           { "bits_per_input", uint8_t{ 1 } },
                                           { "packet_len_tag_key", packet_len_tag_key } });
-        auto& qpsk_modulator =
-            fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", qpsk_constellation } });
+        auto& qpsk_modulator = fg.emplaceBlock<Mapper<uint8_t, c64>>();
+        qpsk_modulator.map = qpsk_constellation;
 
         // syncword (64-bit CCSDS syncword)
         const std::vector<uint8_t> syncword = {
@@ -114,8 +114,8 @@ public:
         syncword_source.tags = syncword_tags;
         syncword_source.name = "PacketTransmitter(syncword_source)";
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
-        auto& syncword_bpsk_modulator =
-            fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", bpsk_constellation } });
+        auto& syncword_bpsk_modulator = fg.emplaceBlock<Mapper<uint8_t, c64>>();
+        syncword_bpsk_modulator.map = bpsk_constellation;
 
         // TODO: replace by stream PacketMux
         auto& syncword_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
@@ -147,8 +147,8 @@ public:
                 { { "inputs_per_output", 2UZ },
                   { "bits_per_input", uint8_t{ 1 } },
                   { "packet_len_tag_key", packet_len_tag_key } });
-            auto& ramp_down_modulator =
-                fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", qpsk_constellation } });
+            auto& ramp_down_modulator = fg.emplaceBlock<Mapper<uint8_t, c64>>();
+            ramp_down_modulator.map = qpsk_constellation;
             auto& ramp_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
                 { { "packet_len_tag_key", packet_len_tag_key } });
             ramp_symbols_to_pdu.name = "PacketTransmitter(ramp_symbols_to_pdu)";
