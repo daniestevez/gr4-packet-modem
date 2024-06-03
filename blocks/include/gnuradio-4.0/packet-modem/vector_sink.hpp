@@ -51,7 +51,13 @@ public:
             _tags.emplace_back(_vector.size(), this->mergedInputTag().map);
         }
 
+#ifdef __cpp_lib_containers_ranges
         _vector.append_range(inSpan);
+#else
+        // gcc-14 doesn't support append_range()
+        _vector.insert(_vector.end(), inSpan.begin(), inSpan.end());
+#endif
+
         return gr::work::Status::OK;
     }
 
