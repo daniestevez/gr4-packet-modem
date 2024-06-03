@@ -34,7 +34,7 @@ int main()
 
     stopper.join();
 
-    std::print("vector sink contains {} items\n", sink.data().size());
+    fmt::print("vector sink contains {} items\n", sink.data().size());
 
     return 0;
 }

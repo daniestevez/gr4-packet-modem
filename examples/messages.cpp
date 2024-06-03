@@ -24,7 +24,7 @@ int main()
 
     std::thread stopper([&toScheduler]() {
         std::this_thread::sleep_for(std::chrono::seconds(10));
-        std::print("sending REQUEST_STOP to scheduler\n");
+        fmt::print("sending REQUEST_STOP to scheduler\n");
         gr::sendMessage<gr::message::Command::Set>(toScheduler,
                                                    "",
                                                    gr::block::property::kLifeCycleState,
@@ -34,7 +34,7 @@ int main()
     expect(sched.runAndWait().has_value());
     stopper.join();
 
-    std::print("MessageDebug stored these messages:\n");
+    fmt::print("MessageDebug stored these messages:\n");
     for (const auto& m : debug.messages()) {
         fmt::print("{}\n", m);
     }

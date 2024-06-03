@@ -47,31 +47,31 @@ int main()
     gr::scheduler::Simple sched{ std::move(fg) };
     expect(sched.runAndWait().has_value());
 
-    std::print("PACKED VECTOR SINK\n");
-    std::print("==================\n");
+    fmt::print("PACKED VECTOR SINK\n");
+    fmt::print("==================\n");
     const auto data = sink.data();
-    std::print("vector sink contains {} items\n", data.size());
-    std::print("vector sink items:\n");
+    fmt::print("vector sink contains {} items\n", data.size());
+    fmt::print("vector sink items:\n");
     for (const auto n : data) {
-        std::print("{} ", n);
+        fmt::print("{} ", n);
     }
-    std::print("\n");
-    std::print("vector sink tags:\n");
+    fmt::print("\n");
+    fmt::print("vector sink tags:\n");
     for (const auto& t : sink.tags()) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
     }
-    std::print("\n");
+    fmt::print("\n");
 
-    std::print("UNPACKED VECTOR SINK\n");
-    std::print("====================\n");
+    fmt::print("UNPACKED VECTOR SINK\n");
+    fmt::print("====================\n");
     const auto data_unpacked = sink_unpacked.data();
-    std::print("vector sink contains {} items\n", data_unpacked.size());
-    std::print("vector sink items:\n");
+    fmt::print("vector sink contains {} items\n", data_unpacked.size());
+    fmt::print("vector sink items:\n");
     for (const auto n : data_unpacked) {
-        std::print("{} ", n);
+        fmt::print("{} ", n);
     }
-    std::print("\n");
-    std::print("vector sink tags:\n");
+    fmt::print("\n");
+    fmt::print("vector sink tags:\n");
     for (const auto& t : sink_unpacked.tags()) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
     }

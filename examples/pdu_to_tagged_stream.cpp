@@ -34,13 +34,13 @@ int main()
     expect(sched.runAndWait().has_value());
 
     const auto data = sink.data();
-    std::print("vector sink contains {} items\n", data.size());
-    std::print("vector sink items:\n");
+    fmt::print("vector sink contains {} items\n", data.size());
+    fmt::print("vector sink items:\n");
     for (const auto n : data) {
-        std::print("{} ", n);
+        fmt::print("{} ", n);
     }
-    std::print("\n");
-    std::print("vector sink tags:\n");
+    fmt::print("\n");
+    fmt::print("vector sink tags:\n");
     const auto sink_tags = sink.tags();
     for (const auto& t : sink_tags) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
