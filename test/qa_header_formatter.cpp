@@ -15,7 +15,7 @@ boost::ut::suite HeaderFormatterTests = [] {
         Graph fg;
         const gr::property_map message = { { "packet_length", 1234 } };
         auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
-            { { "message", message }, { "interval_secs", 0.01 } });
+            { { "message", message }, { "interval_secs", 0.1 } });
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
@@ -29,7 +29,7 @@ boost::ut::suite HeaderFormatterTests = [] {
         MsgPortOut toScheduler;
         expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
         std::thread stopper([&toScheduler]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             sendMessage<message::Command::Set>(toScheduler,
                                                "",
                                                block::property::kLifeCycleState,
