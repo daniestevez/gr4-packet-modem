@@ -39,7 +39,7 @@ boost::ut::suite HeaderFormatterTests = [] {
         stopper.join();
         const auto pdus = sink.data();
         // nominally, 10 PDUs are expected
-        expect(8 <= pdus.size() && pdus.size() <= 12);
+        expect(8_u <= pdus.size() && pdus.size() <= 12_u);
         std::vector<uint8_t> expected_header = { 0x04, 0xd2, 0x00, 0x55 };
         for (const auto& pdu : pdus) {
             expect(eq(pdu.data, expected_header));
