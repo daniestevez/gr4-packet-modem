@@ -45,9 +45,9 @@ public:
         in = &ingress.in;
 
         // header
-        auto& header_formatter = fg.emplaceBlock<HeaderFormatter>(
+        auto& header_formatter = fg.emplaceBlock<HeaderFormatter<>>(
             { { "packet_len_tag_key", packet_len_tag_key } });
-        auto& header_fec = fg.emplaceBlock<HeaderFecEncoder>(
+        auto& header_fec = fg.emplaceBlock<HeaderFecEncoder<>>(
             { { "packet_len_tag_key", packet_len_tag_key } });
 
         // payload

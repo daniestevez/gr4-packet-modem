@@ -2,13 +2,15 @@
 #define _GR4_PACKET_MODEM_HEADER_FEC_ENCODER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <algorithm>
 
 namespace gr::packet_modem {
 
+template <typename T = uint8_t>
 class HeaderFecEncoder
-    : public gr::Block<HeaderFecEncoder, gr::ResamplingRatio<8U, 1U, true>>
+    : public gr::Block<HeaderFecEncoder<T>, gr::ResamplingRatio<8U, 1U, true>>
 {
 public:
     using Description = Doc<R""(
@@ -21,7 +23,7 @@ packed format.
 
 )"">;
 
-private:
+public:
     static constexpr uint32_t _generator[] = {
         0x8ef9c844, 0x74ac6ee2, 0x3cfef71b, 0xb26263a9, 0x2dd63058, 0x007b3a60,
         0x31351305, 0xeaf6ef05, 0x05c7c06c, 0x14d54cea, 0x8b9a3a38, 0x014c7864,
@@ -113,8 +115,51 @@ public:
     }
 };
 
+template <>
+class HeaderFecEncoder<Pdu<uint8_t>> : public gr::Block<HeaderFecEncoder<Pdu<uint8_t>>>
+{
+public:
+    using Description = HeaderFecEncoder<uint8_t>::Description;
+
+public:
+    gr::PortIn<Pdu<uint8_t>> in;
+    gr::PortOut<Pdu<uint8_t>> out;
+    std::string packet_len_tag_key = "packet_len"; // unused
+
+    [[nodiscard]] Pdu<uint8_t> processOne(const Pdu<uint8_t>& header)
+    {
+        Pdu<uint8_t> encoded;
+
+        // systematic coding
+        encoded.data = header.data;
+
+        // dense generator LDPC encoding
+        const uint32_t info = (static_cast<uint32_t>(header.data[0]) << 24) |
+                              (static_cast<uint32_t>(header.data[1]) << 16) |
+                              (static_cast<uint32_t>(header.data[2]) << 8) |
+                              static_cast<uint32_t>(header.data[3]);
+        for (int k = 0; k < 12; ++k) {
+            uint8_t parity_bits = 0;
+            for (int l = 0; l < 8; ++l) {
+                const uint32_t row = HeaderFecEncoder<uint8_t>::_generator[8 * k + l];
+                const uint8_t parity = static_cast<uint8_t>(__builtin_parity(info & row));
+                parity_bits = static_cast<uint8_t>(parity_bits << 1) | parity;
+            }
+            encoded.data.push_back(parity_bits);
+        }
+
+        // repetition coding
+        encoded.data.insert(encoded.data.end(), encoded.data.cbegin(), encoded.data.cend());
+
+        return encoded;
+    }
+};
+
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::HeaderFecEncoder, in, out, packet_len_tag_key);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::HeaderFecEncoder,
+                               in,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_HEADER_FEC_ENCODER

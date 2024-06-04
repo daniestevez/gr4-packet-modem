@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_PACKET_INGRESS
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <ranges>
 
@@ -107,6 +108,57 @@ public:
         _remaining -= to_consume;
         assert(to_consume > 0);
 
+        return gr::work::Status::OK;
+    }
+};
+
+
+template <typename T>
+class PacketIngress<Pdu<T>> : public gr::Block<PacketIngress<Pdu<T>>>
+{
+public:
+    using Description = PacketIngress<T>::Description;
+
+public:
+    size_t _remaining;
+    bool _valid;
+
+public:
+    gr::PortIn<Pdu<T>> in;
+    gr::PortOut<Pdu<T>> out;
+    gr::MsgPortOut metadata;
+    std::string packet_len_tag_key = "packet_len";
+
+    gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
+                                 gr::PublishableSpan auto& outSpan)
+    {
+#ifdef TRACE
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size());
+#endif
+        assert(inSpan.size() > 0);
+        assert(inSpan.size() == outSpan.size());
+        size_t consumed = 0;
+        size_t produced = 0;
+        while (consumed < inSpan.size()) {
+            const uint64_t packet_length = inSpan[consumed].data.size();
+            if (packet_length <= std::numeric_limits<uint16_t>::max()) {
+                outSpan[produced] = inSpan[consumed];
+                // Use gr::message::Command::Invalid, since none of the OpenCMW
+                // commands is appropriate for GNU Radio 3.10-style message passing.
+                gr::sendMessage<gr::message::Command::Invalid>(
+                    metadata, "", "", { { "packet_length", packet_length } });
+                ++produced;
+            } else {
+                fmt::println("{} packet too long (length {}); dropping",
+                             this->name,
+                             packet_length);
+            }
+            ++consumed;
+        }
+        outSpan.publish(produced);
         return gr::work::Status::OK;
     }
 };

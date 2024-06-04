@@ -15,7 +15,7 @@ int main()
     const gr::property_map message = { { "packet_length", 1234 } };
     auto& strobe = fg.emplaceBlock<gr::packet_modem::MessageStrobe<>>(
         { { "message", message }, { "interval_secs", 0.1 } });
-    auto& header_formatter = fg.emplaceBlock<gr::packet_modem::HeaderFormatter>();
+    auto& header_formatter = fg.emplaceBlock<gr::packet_modem::HeaderFormatter<>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               strobe.strobe.connect(header_formatter.metadata)));

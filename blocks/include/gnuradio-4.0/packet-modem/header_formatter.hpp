@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_HEADER_FORMATTER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <pmtv/pmt.hpp>
 
@@ -9,8 +10,9 @@ namespace gr::packet_modem {
 
 static constexpr size_t HEADER_FORMATTER_HEADER_LEN = 4U;
 
-class HeaderFormatter
-    : public gr::Block<HeaderFormatter, gr::ResamplingRatio<HEADER_FORMATTER_HEADER_LEN>>
+template <typename T = uint8_t>
+class HeaderFormatter : public gr::Block<HeaderFormatter<T>,
+                                         gr::ResamplingRatio<HEADER_FORMATTER_HEADER_LEN>>
 {
 public:
     using Description = Doc<R""(
@@ -105,8 +107,58 @@ public:
     }
 };
 
+template <>
+class HeaderFormatter<Pdu<uint8_t>> : public gr::Block<HeaderFormatter<Pdu<uint8_t>>>
+{
+public:
+    using Description = HeaderFormatter<uint8_t>::Description;
+
+private:
+    static constexpr size_t HEADER_LEN = HEADER_FORMATTER_HEADER_LEN;
+
+public:
+    gr::PortIn<gr::Message> metadata;
+    gr::PortOut<Pdu<uint8_t>> out;
+    std::string packet_len_tag_key = "packet_len";
+
+public:
+    gr::property_map _packet_len_tag = { { packet_len_tag_key, HEADER_LEN } };
+
+public:
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        _packet_len_tag = { { packet_len_tag_key, HEADER_LEN } };
+    }
+
+    [[nodiscard]] Pdu<uint8_t> processOne(const gr::Message& meta)
+    {
+        uint64_t packet_length = 0;
+        try {
+            packet_length = pmtv::cast<uint64_t>(meta.data.value().at("packet_length"));
+        } catch (...) {
+            throw gr::exception("packet_length not present in metadata or cannot "
+                                "be cast to uint64_t");
+        }
+        if (packet_length > std::numeric_limits<uint16_t>::max()) {
+            throw gr::exception(
+                fmt::format("packet_length {} is too large", packet_length));
+        }
+
+        Pdu<uint8_t> header;
+        header.data.push_back((packet_length >> 8) & 0xff);
+        header.data.push_back(packet_length & 0xff);
+        header.data.push_back(0x00);
+        header.data.push_back(0x55);
+        return header;
+    }
+};
+
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::HeaderFormatter, metadata, out, packet_len_tag_key);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::HeaderFormatter,
+                               metadata,
+                               out,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_HEADER_FORMATTER
