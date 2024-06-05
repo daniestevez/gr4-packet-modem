@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_BURST_SHAPER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <algorithm>
 
@@ -120,6 +121,43 @@ public:
         outSpan.publish(n);
 
         return gr::work::Status::OK;
+    }
+};
+
+template <typename TIn, typename TOut, typename TShape>
+class BurstShaper<Pdu<TIn>, Pdu<TOut>, TShape>
+    : public gr::Block<BurstShaper<Pdu<TIn>, Pdu<TOut>, TShape>>
+{
+public:
+    using Description = BurstShaper<TIn, TOut, TShape>::Description;
+
+public:
+    gr::PortIn<Pdu<TIn>> in;
+    gr::PortOut<Pdu<TOut>> out;
+    std::vector<TShape> leading_shape;
+    std::vector<TShape> trailing_shape;
+    std::string packet_len_tag_key = "packet_len";
+
+    [[nodiscard]] Pdu<TOut> processOne(const Pdu<TIn>& pdu) const
+    {
+        Pdu<TOut> pdu_out = pdu;
+
+        // multiply samples by leading shape
+        size_t n = std::min(leading_shape.size(), pdu.data.size());
+        for (size_t j = 0; j < n; ++j) {
+            pdu_out.data[j] *= leading_shape[j];
+        }
+        // multiply samples by trailing edge
+        if (pdu.data.size() > leading_shape.size()) {
+            const size_t m =
+                std::min(pdu.data.size() - leading_shape.size(), trailing_shape.size());
+            for (size_t j = trailing_shape.size() - m; j < trailing_shape.size(); ++j) {
+                const size_t k = pdu.data.size() - trailing_shape.size() + j;
+                pdu_out.data[k] *= trailing_shape[j];
+            }
+        }
+
+        return pdu_out;
     }
 };
 
