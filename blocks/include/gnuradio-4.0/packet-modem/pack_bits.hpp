@@ -3,6 +3,7 @@
 
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/endianness.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <ranges>
 #include <stdexcept>
@@ -132,6 +133,75 @@ public:
         }
 
         return gr::work::Status::OK;
+    }
+};
+
+template <Endianness endianness, typename TIn, typename TOut>
+class PackBits<endianness, Pdu<TIn>, Pdu<TOut>>
+    : public gr::Block<PackBits<endianness, Pdu<TIn>, Pdu<TOut>>>
+{
+public:
+    using Description = PackBits<endianness, TIn, TOut>::Description;
+
+public:
+    TIn _mask = TIn{ 1 };
+
+public:
+    gr::PortIn<Pdu<TIn>> in;
+    gr::PortOut<Pdu<TOut>> out;
+    size_t inputs_per_output = 1;
+    TIn bits_per_input = TIn{ 1 };
+    std::string packet_len_tag_key = "";
+
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        if (inputs_per_output <= 0) {
+            throw gr::exception(fmt::format("inputs_per_output must be positive; got {}",
+                                            inputs_per_output));
+        }
+        if (bits_per_input <= 0) {
+            throw gr::exception(
+                fmt::format("bits_per_input must be positive; got {}", bits_per_input));
+        }
+        _mask = static_cast<TIn>(TIn{ 1 } << bits_per_input) - TIn{ 1 };
+    }
+
+    static constexpr Endianness kEndianness = endianness;
+
+    [[nodiscard]] Pdu<TOut> processOne(const Pdu<TIn>& pdu)
+    {
+        if (pdu.data.size() % inputs_per_output != 0) {
+            throw gr::exception("input PDU size not divisible by inputs_per_output");
+        }
+        Pdu<TOut> pdu_out;
+        pdu_out.data.reserve(pdu.data.size() / inputs_per_output);
+        pdu_out.tags.reserve(pdu.tags.size());
+
+        auto in_item = pdu.data.cbegin();
+        while (in_item != pdu.data.cend()) {
+            TOut join = TOut{ 0 };
+            TOut shift = TOut{ 0 };
+            for (size_t j = 0; j < inputs_per_output; ++j) {
+                const TOut chunk = static_cast<TOut>(*in_item++) & _mask;
+                if constexpr (kEndianness == Endianness::MSB) {
+                    join = static_cast<TOut>(join << static_cast<TOut>(bits_per_input)) |
+                           chunk;
+                } else {
+                    static_assert(kEndianness == Endianness::LSB);
+                    join |= chunk << shift;
+                    shift += static_cast<TOut>(bits_per_input);
+                }
+            }
+            pdu_out.data.push_back(join);
+        }
+
+        for (auto tag : pdu.tags) {
+            tag.index /= inputs_per_output;
+            pdu_out.tags.push_back(tag);
+        }
+
+        return pdu_out;
     }
 };
 

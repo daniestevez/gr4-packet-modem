@@ -3,6 +3,7 @@
 
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/endianness.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <ranges>
 #include <stdexcept>
@@ -85,15 +86,11 @@ public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
-        const auto to_consume =
-            std::min(inSpan.size(), outSpan.size() / outputs_per_input);
 #ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                     "to_consume = {}",
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
                      this->name,
                      inSpan.size(),
-                     outSpan.size(),
-                     to_consume);
+                     outSpan.size());
 #endif
         assert(inSpan.size() == outSpan.size() / outputs_per_input);
         assert(inSpan.size() > 0);
@@ -127,6 +124,71 @@ public:
         }
 
         return gr::work::Status::OK;
+    }
+};
+
+template <Endianness endianness, typename TIn, typename TOut>
+class UnpackBits<endianness, Pdu<TIn>, Pdu<TOut>>
+    : public gr::Block<UnpackBits<endianness, Pdu<TIn>, Pdu<TOut>>>
+{
+public:
+    using Description = UnpackBits<endianness, TIn, TOut>::Description;
+
+public:
+    TIn _mask;
+
+public:
+    gr::PortIn<Pdu<TIn>> in;
+    gr::PortOut<Pdu<TOut>> out;
+    size_t outputs_per_input = 1;
+    TIn bits_per_output = 1;
+    std::string packet_len_tag_key = "";
+
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        if (outputs_per_input <= 0) {
+            throw gr::exception(fmt::format("outputs_per_input must be positive; got {}",
+                                            outputs_per_input));
+        }
+        if (bits_per_output <= 0) {
+            throw gr::exception(
+                fmt::format("bits_per_output must be positive; got {}", bits_per_output));
+        }
+        _mask = static_cast<TIn>(TIn{ 1 } << bits_per_output) - TIn{ 1 };
+    }
+
+    static constexpr Endianness kEndianness = endianness;
+
+    [[nodiscard]] Pdu<TOut> processOne(const Pdu<TIn>& pdu)
+    {
+        Pdu<TOut> pdu_out;
+        pdu_out.data.reserve(pdu.data.size() * outputs_per_input);
+        pdu_out.tags.reserve(pdu.tags.size());
+
+        for (const auto& in_item : pdu.data) {
+            if constexpr (kEndianness == Endianness::MSB) {
+                TIn shift = bits_per_output * static_cast<TIn>(outputs_per_input - 1U);
+                for (size_t j = 0; j < outputs_per_input; ++j) {
+                    pdu_out.data.push_back(static_cast<TOut>((in_item >> shift) & _mask));
+                    shift -= bits_per_output;
+                }
+            } else {
+                static_assert(kEndianness == Endianness::LSB);
+                TIn item = in_item;
+                for (size_t j = 0; j < outputs_per_input; ++j) {
+                    pdu_out.data.push_back(static_cast<TOut>(item & _mask));
+                    item >>= bits_per_output;
+                }
+            }
+        }
+
+        for (auto tag : pdu.tags) {
+            tag.index *= outputs_per_input;
+            pdu_out.tags.push_back(tag);
+        }
+
+        return pdu_out;
     }
 };
 
