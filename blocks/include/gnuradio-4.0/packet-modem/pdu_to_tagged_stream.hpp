@@ -21,7 +21,8 @@ stream of items of type `T` by using packet-length tags to delimit the packets.
 The tags in the `tag` vector of the `Pdu`s are attached to the corresponding
 items in the output stream.
 
-Tags in the input stream are discarded.
+Tags in the input stream are discarded. If `packet_len_tag_key` is the empty
+string, packet-length tags delimiting the packets are not inserted.
 
 )"">;
 
@@ -65,8 +66,10 @@ public:
                     this->requestStop();
                     return gr::work::Status::ERROR;
                 }
-                out.publishTag({ { packet_len_tag_key, packet_len } },
-                               out_item - outSpan.begin());
+                if (!packet_len_tag_key.empty()) {
+                    out.publishTag({ { packet_len_tag_key, packet_len } },
+                                   out_item - outSpan.begin());
+                }
             }
             const auto n =
                 std::min(std::ssize(in_item->data) - _index, outSpan.end() - out_item);

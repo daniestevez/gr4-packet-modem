@@ -13,6 +13,7 @@
 #define _GR4_PACKET_MODEM_ADDITIVE_SCRAMBLER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <type_traits>
 #include <algorithm>
@@ -87,6 +88,61 @@ public:
         } else {
             return lfsr_bit ? -a : a;
         }
+    }
+};
+
+template <typename T>
+class AdditiveScrambler<Pdu<T>> : public gr::Block<AdditiveScrambler<Pdu<T>>>
+{
+public:
+    using Description = AdditiveScrambler<T>::Description;
+
+public:
+    uint64_t _current_count;
+    uint64_t _reg;
+
+public:
+    gr::PortIn<Pdu<T>> in;
+    gr::PortOut<Pdu<T>> out;
+    // The defaults for mask, seed and length correspond to a particular
+    // scrambler implementation (the same as in GNU Radio 3.10)
+    uint64_t mask = 0x8a;
+    uint64_t seed = 0x7f;
+    uint64_t length = 7;
+    uint64_t count = 0;
+    std::string reset_tag_key = "";
+
+    static constexpr bool is_hard_symbol = std::is_same<T, uint8_t>();
+
+    void start() { reset_lfsr(); }
+
+    void reset_lfsr()
+    {
+        _reg = seed;
+        _current_count = 0;
+    }
+
+    [[nodiscard]] Pdu<T> processOne(const Pdu<T>& pdu)
+    {
+        // reset LFSR at the beginning of the packet
+        reset_lfsr();
+        Pdu<T> pdu_out = pdu;
+        for (auto& a : pdu_out.data) {
+            if ((count != 0 && _current_count == count)) {
+                reset_lfsr();
+            }
+            const uint8_t lfsr_bit = _reg & 1;
+            const uint64_t shift_in =
+                static_cast<uint64_t>(__builtin_parityl(_reg & mask));
+            _reg = (shift_in << length) | (_reg >> 1);
+            ++_current_count;
+            if constexpr (is_hard_symbol) {
+                a = a ^ lfsr_bit;
+            } else {
+                a = lfsr_bit ? -a : a;
+            }
+        }
+        return pdu_out;
     }
 };
 

@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_MAPPER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <vector>
 
@@ -57,6 +58,52 @@ public:
     [[nodiscard]] constexpr auto processOne(TIn a) const noexcept
     {
         return map[static_cast<size_t>(a) & _mask];
+    }
+};
+
+template <typename TIn, typename TOut>
+class Mapper<Pdu<TIn>, Pdu<TOut>> : public gr::Block<Mapper<Pdu<TIn>, Pdu<TOut>>>
+{
+public:
+    using Description = Mapper<TIn, TOut>::Description;
+
+public:
+    size_t _mask;
+
+public:
+    gr::PortIn<Pdu<TIn>> in;
+    gr::PortOut<Pdu<TOut>> out;
+    std::vector<TOut> map;
+
+    // void settingsChanged(const gr::property_map& /* old_settings */,
+    //                      const gr::property_map& /* new_settings */)
+    // {
+    //     if (!std::has_single_bit(map.size())) {
+    //         throw gr::exception(
+    //             fmt::format("the map size must be a power of 2 (got {})", map.size()));
+    //     }
+    //     _mask = map.size() - 1;
+    // }
+
+    // When 'map' can be enabled again in reflection, use settingsChanged()
+    // instead of start()
+    void start()
+    {
+        if (!std::has_single_bit(map.size())) {
+            throw gr::exception(
+                fmt::format("the map size must be a power of 2 (got {})", map.size()));
+        }
+        _mask = map.size() - 1;
+    }
+
+    [[nodiscard]] constexpr Pdu<TOut> processOne(const Pdu<TIn>& pdu) const
+    {
+        Pdu<TOut> pdu_out = { {}, pdu.tags };
+        pdu_out.data.reserve(pdu.data.size());
+        for (size_t j = 0; j < pdu.data.size(); ++j) {
+            pdu_out.data.push_back(map[static_cast<size_t>(pdu.data[j]) & _mask]);
+        }
+        return pdu_out;
     }
 };
 

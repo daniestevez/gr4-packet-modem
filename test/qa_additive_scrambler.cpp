@@ -3,8 +3,10 @@
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
 #include <gnuradio-4.0/packet-modem/null_source.hpp>
+#include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/random_source.hpp>
 #include <gnuradio-4.0/packet-modem/stream_to_tagged_stream.hpp>
+#include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <boost/ut.hpp>
 #include <array>
@@ -102,6 +104,43 @@ boost::ut::suite AdditiveScramblerTests = [] {
                   fg.connect<"out">(add_tags).to<"in">(scrambler)));
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(scrambler).to<"in">(sink)));
+        scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto data = sink.data();
+        expect(eq(data.size(), num_items));
+        for (size_t j = 0; j < static_cast<size_t>(num_items); ++j) {
+            expect(eq(data[j],
+                      ccsds_scrambling_sequence[j % static_cast<size_t>(num_reset)]));
+        }
+    };
+
+    "additive_scrambler_pdu"_test = [] {
+        Graph fg;
+        constexpr auto num_items = 100000_ul;
+        constexpr auto num_reset = 100_ul;
+        auto& source = fg.emplaceBlock<NullSource<uint8_t>>();
+        auto& head = fg.emplaceBlock<Head<uint8_t>>(
+            { { "num_items", static_cast<uint64_t>(num_items) } });
+        auto& add_tags = fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(
+            { { "packet_length", static_cast<uint64_t>(num_reset) } });
+        auto& to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
+        auto& scrambler = fg.emplaceBlock<AdditiveScrambler<Pdu<uint8_t>>>(
+            { { "mask", uint64_t{ 0xA9 } },
+              { "seed", uint64_t{ 0xFF } },
+              { "length", uint64_t{ 7 } },
+              { "reset_tag_key", "packet_len" } });
+        auto& to_stream = fg.emplaceBlock<PduToTaggedStream<uint8_t>>();
+        auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(head)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(add_tags)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(add_tags).to<"in">(to_pdu)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(to_pdu).to<"in">(scrambler)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect<"out">(scrambler).to<"in">(to_stream)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(to_stream).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto data = sink.data();

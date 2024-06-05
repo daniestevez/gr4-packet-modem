@@ -149,7 +149,8 @@ public:
         }
 
         // repetition coding
-        encoded.data.insert(encoded.data.end(), encoded.data.cbegin(), encoded.data.cend());
+        encoded.data.insert(
+            encoded.data.end(), encoded.data.cbegin(), encoded.data.cend());
 
         return encoded;
     }

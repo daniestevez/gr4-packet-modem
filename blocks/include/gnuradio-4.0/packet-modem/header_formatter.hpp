@@ -133,13 +133,8 @@ public:
 
     [[nodiscard]] Pdu<uint8_t> processOne(const gr::Message& meta)
     {
-        uint64_t packet_length = 0;
-        try {
-            packet_length = pmtv::cast<uint64_t>(meta.data.value().at("packet_length"));
-        } catch (...) {
-            throw gr::exception("packet_length not present in metadata or cannot "
-                                "be cast to uint64_t");
-        }
+        const auto packet_length =
+            pmtv::cast<uint64_t>(meta.data.value().at("packet_length"));
         if (packet_length > std::numeric_limits<uint16_t>::max()) {
             throw gr::exception(
                 fmt::format("packet_length {} is too large", packet_length));

@@ -3,8 +3,7 @@
 #include <gnuradio-4.0/packet-modem/crc.hpp>
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
 #include <gnuradio-4.0/packet-modem/crc_check.hpp>
-#include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
-#include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <boost/ut.hpp>
@@ -54,6 +53,39 @@ boost::ut::suite CrcTests = [] {
         expect(eq(tags.size(), 1_u));
         expect(eq(tags[0].index, 0_i));
         expect(tags[0].map == property_map{ { "packet_len", packet_len + 2U } });
+    } | std::vector<size_t>{ 1U, 4U, 10U, 100U, 65536U, 100000U };
+
+    "crc_append_one_packet_pdu"_test = [](size_t packet_len) {
+        Graph fg;
+        const std::vector<uint8_t> v(packet_len);
+        const Pdu<uint8_t> pdu = { v, {} };
+        auto& source = fg.emplaceBlock<VectorSource<Pdu<uint8_t>>>();
+        source.data = std::vector<Pdu<uint8_t>>{ pdu };
+        auto& crc_append = fg.emplaceBlock<CrcAppend<Pdu<uint8_t>, uint64_t>>(
+            { { "num_bits", 16U },
+              { "poly", uint64_t{ 0x1021 } },
+              { "initial_value", uint64_t{ 0xFFFF } },
+              { "final_xor", uint64_t{ 0xFFFF } },
+              { "input_reflected", true },
+              { "result_reflected", true } });
+        auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<Pdu<uint8_t>>>();
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(source).to<"in">(crc_append)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(crc_append).to<"in">(sink)));
+        gr::scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto data = sink.data();
+        expect(eq(data.size(), 1_u));
+        const auto pdu_out = data.at(0);
+        expect(eq(pdu_out.data.size(), packet_len + 2U));
+        std::vector<uint8_t> expected(v);
+        auto crc_calc = Crc(16U, 0x1021U, 0xFFFFU, 0xFFFFU, true, true);
+        const auto crc16 = crc_calc.compute(v);
+        expected.push_back(static_cast<uint8_t>((crc16 >> 8) & 0xFF));
+        expected.push_back(static_cast<uint8_t>(crc16 & 0xFF));
+        expect(eq(pdu_out.data, expected));
+        expect(pdu_out.tags == pdu.tags);
     } | std::vector<size_t>{ 1U, 4U, 10U, 100U, 65536U, 100000U };
 
     "crc_check_one_packet"_test =

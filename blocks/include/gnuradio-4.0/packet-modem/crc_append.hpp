@@ -13,14 +13,15 @@
 
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/crc.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <cstdint>
 #include <ranges>
 
 namespace gr::packet_modem {
 
-template <typename CrcType = uint64_t>
-class CrcAppend : public gr::Block<CrcAppend<CrcType>>
+template <typename T = uint8_t, typename CrcType = uint64_t>
+class CrcAppend : public gr::Block<CrcAppend<T, CrcType>>
 {
 public:
     using Description = Doc<R""(
@@ -58,6 +59,9 @@ private:
 
 public:
     gr::PortIn<uint8_t> in;
+    // this port is Async because the scheduler doesn't understand that the
+    // crc_append usually produces a few more output items than input items
+    // consumed
     gr::PortOut<uint8_t, gr::Async> out;
     // These defaults correspond to CRC-32, which is also the default in the GNU
     // Radio 3.10 block
@@ -201,6 +205,81 @@ public:
                                        : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         return gr::work::Status::OK;
+    }
+};
+
+template <typename CrcType>
+class CrcAppend<Pdu<uint8_t>, CrcType>
+    : public gr::Block<CrcAppend<Pdu<uint8_t>, CrcType>>
+{
+public:
+    using Description = CrcAppend<uint8_t, CrcType>::Description;
+
+public:
+    unsigned _crc_num_bytes;
+    // std::optional because it is constructed later
+    std::optional<Crc<CrcType>> _crc;
+
+private:
+    void _set_crc()
+    {
+        _crc = Crc(
+            num_bits, poly, initial_value, final_xor, input_reflected, result_reflected);
+        _crc_num_bytes = num_bits / 8;
+    }
+
+public:
+    gr::PortIn<Pdu<uint8_t>> in;
+    gr::PortOut<Pdu<uint8_t>> out;
+    // These defaults correspond to CRC-32, which is also the default in the GNU
+    // Radio 3.10 block
+    unsigned num_bits = 32;
+    CrcType poly = 0x4C11DB7;
+    CrcType initial_value = 0xFFFFFFFF;
+    CrcType final_xor = 0xFFFFFFFF;
+    bool input_reflected = true;
+    bool result_reflected = true;
+    bool swap_endianness = false;
+    uint64_t skip_header_bytes = 0;
+    std::string packet_len_tag_key = "packet_len";
+
+    constexpr static gr::TagPropagationPolicy tag_policy =
+        gr::TagPropagationPolicy::TPP_CUSTOM;
+
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        if (num_bits % 8 != 0) {
+            throw gr::exception("CRC number of bits must be a multiple of 8");
+        }
+        _set_crc();
+    }
+
+    void start() { _set_crc(); }
+
+    [[nodiscard]] Pdu<uint8_t> processOne(const Pdu<uint8_t>& packet)
+    {
+        if (packet.data.size() <= skip_header_bytes) {
+            fmt::println("{} WARNING: received packet shorter than header "
+                         "(length {})",
+                         this->name,
+                         packet.data.size());
+        }
+        const auto crc = _crc->compute(packet.data | std::views::drop(skip_header_bytes));
+        Pdu<uint8_t> out_packet = packet;
+        if (swap_endianness) {
+            for (size_t crc_remaining = _crc_num_bytes; crc_remaining > 0;
+                 --crc_remaining) {
+                out_packet.data.push_back(
+                    (crc >> (8 * (_crc_num_bytes - crc_remaining))) & 0xff);
+            }
+        } else {
+            for (size_t crc_remaining = _crc_num_bytes; crc_remaining > 0;
+                 --crc_remaining) {
+                out_packet.data.push_back((crc >> (8 * (crc_remaining - 1))) & 0xff);
+            }
+        }
+        return out_packet;
     }
 };
 
