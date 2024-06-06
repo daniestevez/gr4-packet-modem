@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
     expect(fatal(argc == 2));
 
     gr::Graph fg;
-    const uint64_t packet_length = 500;
+    const uint64_t packet_length = 1500;
     const std::vector<uint8_t> v(packet_length);
     const gr::packet_modem::Pdu<uint8_t> pdu = { v, {} };
     auto& vector_source =
@@ -29,7 +29,10 @@ int main(int argc, char* argv[])
             { { "repeat", true } });
     vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ pdu };
     const bool stream_mode = false;
-    auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(fg, stream_mode);
+    const size_t samples_per_symbol = 4U;
+    const size_t max_in_samples = 1U;
+    auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
+        fg, stream_mode, samples_per_symbol, max_in_samples);
     auto& sink =
         fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", argv[1] } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
@@ -40,6 +43,9 @@ int main(int argc, char* argv[])
         // do not produce tags in PduToTaggedStream
         auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
             { { "packet_len_tag_key", "" } });
+        if (max_in_samples) {
+            pdu_to_stream.in.max_samples = max_in_samples;
+        }
         expect(eq(gr::ConnectionResult::SUCCESS,
                   packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
         expect(eq(gr::ConnectionResult::SUCCESS,

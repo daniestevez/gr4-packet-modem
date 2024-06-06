@@ -39,31 +39,54 @@ public:
 
     PacketTransmitterPdu(gr::Graph& fg,
                          bool stream_mode = false,
-                         size_t samples_per_symbol = 4U)
+                         size_t samples_per_symbol = 4U,
+                         size_t max_in_samples = 0U)
     {
         auto& ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
+        if (max_in_samples) {
+            ingress.in.max_samples = max_in_samples;
+        }
         in = &ingress.in;
 
         // header
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<Pdu<uint8_t>>>();
+        if (max_in_samples) {
+            header_formatter.metadata.max_samples = max_in_samples;
+        }
         auto& header_fec = fg.emplaceBlock<HeaderFecEncoder<Pdu<uint8_t>>>();
+        if (max_in_samples) {
+            header_fec.in.max_samples = max_in_samples;
+        }
 
         // payload
         auto& crc_append = fg.emplaceBlock<CrcAppend<Pdu<uint8_t>>>();
+        if (max_in_samples) {
+            crc_append.in.max_samples = max_in_samples;
+        }
         // a payload FEC encoder block would be instantiated here
 
         auto& header_payload_mux =
             fg.emplaceBlock<PacketMux<Pdu<uint8_t>>>({ { "num_inputs", 2UZ } });
         header_payload_mux.name = "PacketTransmitter(header_payload_mux)";
+        if (max_in_samples) {
+            header_payload_mux.in.at(0).max_samples = max_in_samples;
+            header_payload_mux.in.at(1).max_samples = max_in_samples;
+        }
 
         auto& scrambler_unpack =
             fg.emplaceBlock<UnpackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
                 { { "outputs_per_input", 8UZ } });
+        if (max_in_samples) {
+            scrambler_unpack.in.max_samples = max_in_samples;
+        }
         // 17-bit CCSDS scrambler defined in CCSDS 131.0-B-5 (September 2023)
         auto& scrambler = fg.emplaceBlock<AdditiveScrambler<Pdu<uint8_t>>>(
             { { "mask", uint64_t{ 0x4001U } },
               { "seed", uint64_t{ 0x18E38U } },
               { "length", uint64_t{ 16U } } });
+        if (max_in_samples) {
+            scrambler.in.max_samples = max_in_samples;
+        }
         const float a = std::sqrt(2.0f) / 2.0f;
         const std::vector<c64> qpsk_constellation = {
             { a, a }, { a, -a }, { -a, a }, { -a, -a }
@@ -71,7 +94,13 @@ public:
         auto& qpsk_pack =
             fg.emplaceBlock<PackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
                 { { "inputs_per_output", 2UZ }, { "bits_per_input", uint8_t{ 1 } } });
+        if (max_in_samples) {
+            qpsk_pack.in.max_samples = max_in_samples;
+        }
         auto& qpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+        if (max_in_samples) {
+            qpsk_modulator.in.max_samples = max_in_samples;
+        }
         qpsk_modulator.map = qpsk_constellation;
 
         // syncword (64-bit CCSDS syncword)
@@ -97,11 +126,19 @@ public:
         syncword_source.name = "PacketTransmitter(syncword_source)";
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
         auto& syncword_bpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+        if (max_in_samples) {
+            syncword_bpsk_modulator.in.max_samples = max_in_samples;
+        }
         syncword_bpsk_modulator.map = bpsk_constellation;
 
         auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(
             { { "num_inputs", stream_mode ? 2UZ : 4UZ } });
         symbols_mux.name = "PacketTransmitter(symbols_mux)";
+        if (max_in_samples) {
+            for (auto& in_port : symbols_mux.in) {
+                in_port.max_samples = max_in_samples;
+            }
+        }
 
         constexpr auto connection_error = "connection_error";
 
@@ -118,7 +155,13 @@ public:
             auto& ramp_down_pack =
                 fg.emplaceBlock<PackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
                     { { "inputs_per_output", 2UZ }, { "bits_per_input", uint8_t{ 1 } } });
+            if (max_in_samples) {
+                ramp_down_pack.in.max_samples = max_in_samples;
+            }
             auto& ramp_down_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+            if (max_in_samples) {
+                ramp_down_modulator.in.max_samples = max_in_samples;
+            }
             ramp_down_modulator.map = qpsk_constellation;
 
             const std::vector<c64> flush_vector(rrc_flush_nsymbols);
@@ -172,6 +215,9 @@ public:
             auto& rrc_interp =
                 fg.emplaceBlock<InterpolatingFirFilter<Pdu<c64>, Pdu<c64>, float>>(
                     { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
+            if (max_in_samples) {
+                rrc_interp.in.max_samples = max_in_samples;
+            }
             // burst shaper
             const size_t ramp_symbols = 4U;
             const size_t ramp_samples = ramp_symbols * samples_per_symbol;
@@ -191,6 +237,9 @@ public:
             auto& burst_shaper = fg.emplaceBlock<BurstShaper<Pdu<c64>, Pdu<c64>, float>>(
                 { { "leading_shape", leading_ramp },
                   { "trailing_shape", trailing_ramp } });
+            if (max_in_samples) {
+                burst_shaper.in.max_samples = max_in_samples;
+            }
             if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
@@ -204,6 +253,9 @@ public:
             // do not produce tags in PduToTaggedStream
             auto& pdu_to_stream =
                 fg.emplaceBlock<PduToTaggedStream<c64>>({ { "packet_len_tag_key", "" } });
+            if (max_in_samples) {
+                pdu_to_stream.in.max_samples = max_in_samples;
+            }
             auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
                 { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
             if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=
