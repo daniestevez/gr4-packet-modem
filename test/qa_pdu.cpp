@@ -1,6 +1,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
+#include <gnuradio-4.0/packet-modem/stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
@@ -66,6 +67,33 @@ boost::ut::suite PduTests = [] {
         const std::vector<Tag> tags_0 = { { 3, { { "foo", "bar" } } } };
         expect(pdus[0].tags == tags_0);
         expect(pdus[1].tags.empty());
+    };
+
+    "stream_to_pdu_fixed"_test = [] {
+        Graph fg;
+        std::vector<int> v(100);
+        std::iota(v.begin(), v.end(), 0);
+        auto& source = fg.emplaceBlock<VectorSource<int>>();
+        source.data = v;
+        auto& stream_to_pdu =
+            fg.emplaceBlock<StreamToPdu<int>>({ { "packet_length", 10UZ } });
+        auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<Pdu<int>>>();
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(source).to<"in">(stream_to_pdu)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(stream_to_pdu).to<"in">(sink)));
+        gr::scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto pdus = sink.data();
+        expect(sink.tags().empty());
+        expect(eq(pdus.size(), 10_u));
+        for (size_t j = 0; j < 10; ++j) {
+            const auto& pdu = pdus[j];
+            const std::vector<int> expected(v.cbegin() + static_cast<ssize_t>(10 * j),
+                                            v.cbegin() + static_cast<ssize_t>(10 * (j + 1)));
+            expect(eq(pdu.data, expected));
+            expect(pdu.tags.empty());
+        }
     };
 };
 

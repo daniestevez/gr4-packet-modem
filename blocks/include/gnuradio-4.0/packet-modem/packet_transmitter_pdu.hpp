@@ -18,7 +18,7 @@
 #include <gnuradio-4.0/packet-modem/packet_ingress.hpp>
 #include <gnuradio-4.0/packet-modem/packet_mux.hpp>
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
-#include <gnuradio-4.0/packet-modem/stream_to_tagged_stream.hpp>
+#include <gnuradio-4.0/packet-modem/stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/unpack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
@@ -30,15 +30,17 @@ namespace gr::packet_modem {
 class PacketTransmitterPdu
 {
 public:
+    using c64 = std::complex<float>;
     gr::PortIn<Pdu<uint8_t>>* in;
-    gr::PortOut<std::complex<float>>* out;
+    // only used when stream_mode = true
+    gr::PortOut<c64>* out_stream;
+    // only used when stream_mode = false
+    gr::PortOut<Pdu<c64>>* out_packet;
 
     PacketTransmitterPdu(gr::Graph& fg,
                          bool stream_mode = false,
                          size_t samples_per_symbol = 4U)
     {
-        using c64 = std::complex<float>;
-
         auto& ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
         in = &ingress.in;
 
@@ -105,67 +107,47 @@ public:
 
         const size_t rrc_flush_nsymbols = 11;
         if (!stream_mode) {
-            throw gr::exception("packet mode not supported yet");
-            // // ramp-down sequence
-            // auto& ramp_down_source = fg.emplaceBlock<GlfsrSource<>>({ { "degree", 32 }
-            // });
-            // // 9 symbols used for ramp down. 5 to clear the RRC filter and 4 to
-            // // actually perform the amplitude ramp-down
-            // const size_t ramp_down_nsymbols = 9;
-            // const size_t ramp_down_nbits = 2U * ramp_down_nsymbols;
-            // auto& ramp_down_tags = fg.emplaceBlock<StreamToTaggedStream<uint8_t>>(
-            //     { { "packet_length", static_cast<uint64_t>(ramp_down_nbits) } });
-            // auto& ramp_down_pack = fg.emplaceBlock<PackBits<>>(
-            //     { { "inputs_per_output", 2UZ },
-            //       { "bits_per_input", uint8_t{ 1 } },
-            //       { "packet_len_tag_key", packet_len_tag_key } });
-            // auto& ramp_down_modulator = fg.emplaceBlock<Mapper<uint8_t, c64>>();
-            // ramp_down_modulator.map = qpsk_constellation;
-            // auto& ramp_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-            //     { { "packet_len_tag_key", packet_len_tag_key } });
-            // ramp_symbols_to_pdu.name = "PacketTransmitter(ramp_symbols_to_pdu)";
+            // ramp-down sequence
+            auto& ramp_down_source = fg.emplaceBlock<GlfsrSource<>>({ { "degree", 32 } });
+            // 9 symbols used for ramp down. 5 to clear the RRC filter and 4 to
+            // actually perform the amplitude ramp-down
+            const size_t ramp_down_nsymbols = 9;
+            const size_t ramp_down_nbits = 2U * ramp_down_nsymbols;
+            auto& ramp_down_to_pdu = fg.emplaceBlock<StreamToPdu<uint8_t>>(
+                { { "packet_length", ramp_down_nbits } });
+            auto& ramp_down_pack =
+                fg.emplaceBlock<PackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
+                    { { "inputs_per_output", 2UZ }, { "bits_per_input", uint8_t{ 1 } } });
+            auto& ramp_down_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+            ramp_down_modulator.map = qpsk_constellation;
 
-            // auto& rrc_flush_source = fg.emplaceBlock<NullSource<c64>>();
-            // auto& rrc_flush_tags = fg.emplaceBlock<StreamToTaggedStream<c64>>(
-            //     { { "packet_length", static_cast<uint64_t>(rrc_flush_nsymbols) } });
-            // auto& flush_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-            //     { { "packet_len_tag_key", packet_len_tag_key } });
-            // flush_symbols_to_pdu.name = "PacketTransmitter(flush_symbols_to_pdu)";
+            const std::vector<c64> flush_vector(rrc_flush_nsymbols);
+            const Pdu<c64> flush_pdu = { flush_vector, {} };
+            auto& rrc_flush_source =
+                fg.emplaceBlock<VectorSource<Pdu<c64>>>({ { "repeat", true } });
+            rrc_flush_source.data = std::vector<Pdu<c64>>{ flush_pdu };
 
-            // if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_tags) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect<"out">(ramp_down_tags).to<"in">(ramp_down_pack) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect<"out">(ramp_down_pack).to<"in">(ramp_down_modulator) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect<"out">(ramp_down_modulator).to<"in">(ramp_symbols_to_pdu) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect(ramp_symbols_to_pdu, { "out" }, symbols_mux, { "in", 2 }) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
+            if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_to_pdu) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(ramp_down_to_pdu).to<"in">(ramp_down_pack) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(ramp_down_pack).to<"in">(ramp_down_modulator) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect(ramp_down_modulator, { "out" }, symbols_mux, { "in", 2 }) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
 
-            // if (fg.connect<"out">(rrc_flush_source).to<"in">(rrc_flush_tags) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect<"out">(rrc_flush_tags).to<"in">(flush_symbols_to_pdu) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // if (fg.connect(flush_symbols_to_pdu, { "out" }, symbols_mux, { "in", 3 })
-            // !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
+            if (fg.connect(rrc_flush_source, { "out" }, symbols_mux, { "in", 3 }) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
         }
 
         const size_t ntaps = samples_per_symbol * 11U;
@@ -185,42 +167,54 @@ public:
         for (auto& x : rrc_taps) {
             x *= scale / rrc_taps_sum_abs_max;
         }
-        // do not produce tags in PduToTaggedStream
-        auto& pdu_to_stream =
-            fg.emplaceBlock<PduToTaggedStream<c64>>({ { "packet_len_tag_key", "" } });
-        auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
-            { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
 
         if (!stream_mode) {
-            // // burst shaper
-            // const size_t ramp_symbols = 4U;
-            // const size_t ramp_samples = ramp_symbols * samples_per_symbol;
-            // // offset to compensate group delay of RRC filter
-            // const size_t offset = 4U * samples_per_symbol;
-            // std::vector<float> leading_ramp(offset + ramp_samples);
-            // for (size_t j = 0; j < ramp_samples; ++j) {
-            //     leading_ramp[offset + j] = static_cast<float>(
-            //         std::sin(static_cast<double>(j + 1) /
-            //                  static_cast<double>(ramp_samples) * 0.5 *
-            //                  std::numbers::pi));
-            // }
-            // std::vector<float> trailing_ramp(rrc_flush_nsymbols *
-            // samples_per_symbol -
-            //                                  offset + ramp_samples);
-            // for (size_t j = 0; j < ramp_samples; ++j) {
-            //     trailing_ramp[j] = leading_ramp[leading_ramp.size() - 1 - j];
-            // }
-            // auto& burst_shaper = fg.emplaceBlock<BurstShaper<c64, c64, float>>(
-            //     { { "leading_shape", leading_ramp },
-            //       { "trailing_shape", trailing_ramp },
-            //       { "packet_len_tag_key", packet_len_tag_key } });
-            // if (fg.connect<"out">(rrc_interp_mult_tag).to<"in">(burst_shaper) !=
-            //     ConnectionResult::SUCCESS) {
-            //     throw std::runtime_error(connection_error);
-            // }
-            // out = &burst_shaper.out;
+            auto& rrc_interp =
+                fg.emplaceBlock<InterpolatingFirFilter<Pdu<c64>, Pdu<c64>, float>>(
+                    { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
+            // burst shaper
+            const size_t ramp_symbols = 4U;
+            const size_t ramp_samples = ramp_symbols * samples_per_symbol;
+            // offset to compensate group delay of RRC filter
+            const size_t offset = 4U * samples_per_symbol;
+            std::vector<float> leading_ramp(offset + ramp_samples);
+            for (size_t j = 0; j < ramp_samples; ++j) {
+                leading_ramp[offset + j] = static_cast<float>(
+                    std::sin(static_cast<double>(j + 1) /
+                             static_cast<double>(ramp_samples) * 0.5 * std::numbers::pi));
+            }
+            std::vector<float> trailing_ramp(rrc_flush_nsymbols * samples_per_symbol -
+                                             offset + ramp_samples);
+            for (size_t j = 0; j < ramp_samples; ++j) {
+                trailing_ramp[j] = leading_ramp[leading_ramp.size() - 1 - j];
+            }
+            auto& burst_shaper = fg.emplaceBlock<BurstShaper<Pdu<c64>, Pdu<c64>, float>>(
+                { { "leading_shape", leading_ramp },
+                  { "trailing_shape", trailing_ramp } });
+            if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(rrc_interp).to<"in">(burst_shaper) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            out_packet = &burst_shaper.out;
         } else {
-            out = &rrc_interp.out;
+            // do not produce tags in PduToTaggedStream
+            auto& pdu_to_stream =
+                fg.emplaceBlock<PduToTaggedStream<c64>>({ { "packet_len_tag_key", "" } });
+            auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
+                { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
+            if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(pdu_to_stream).to<"in">(rrc_interp) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            out_stream = &rrc_interp.out;
         }
 
         if (fg.connect<"out">(ingress).to<"in">(crc_append) !=
@@ -269,14 +263,6 @@ public:
             throw std::runtime_error(connection_error);
         }
         if (fg.connect(qpsk_modulator, { "out" }, symbols_mux, { "in", 1 }) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(pdu_to_stream).to<"in">(rrc_interp) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

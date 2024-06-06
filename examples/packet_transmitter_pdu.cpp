@@ -4,6 +4,7 @@
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
+#include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <boost/ut.hpp>
@@ -20,25 +21,38 @@ int main(int argc, char* argv[])
     expect(fatal(argc == 2));
 
     gr::Graph fg;
-    const uint64_t packet_length = 1500;
+    const uint64_t packet_length = 500;
     const std::vector<uint8_t> v(packet_length);
     const gr::packet_modem::Pdu<uint8_t> pdu = { v, {} };
     auto& vector_source =
         fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<uint8_t>>>(
             { { "repeat", true } });
     vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ pdu };
-    const bool stream_mode = true;
+    const bool stream_mode = false;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(fg, stream_mode);
     auto& sink =
         fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", argv[1] } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
-    auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+
     expect(eq(gr::ConnectionResult::SUCCESS,
               vector_source.out.connect(*packet_transmitter_pdu.in)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, packet_transmitter_pdu.out->connect(sink.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_transmitter_pdu.out->connect(probe_rate.in)));
+    if (!stream_mode) {
+        // do not produce tags in PduToTaggedStream
+        auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
+            { { "packet_len_tag_key", "" } });
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(pdu_to_stream).to<"in">(sink)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(pdu_to_stream).to<"in">(probe_rate)));
+    } else {
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_stream->connect(sink.in)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_stream->connect(probe_rate.in)));
+    }
+    auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(
         eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
 
