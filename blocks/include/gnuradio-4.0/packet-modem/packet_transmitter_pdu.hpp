@@ -40,11 +40,17 @@ public:
     PacketTransmitterPdu(gr::Graph& fg,
                          bool stream_mode = false,
                          size_t samples_per_symbol = 4U,
-                         size_t max_in_samples = 0U)
+                         size_t max_in_samples = 0U,
+                         size_t out_buff_size = 0U)
     {
         auto& ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
         if (max_in_samples) {
             ingress.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (ingress.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
         in = &ingress.in;
 
@@ -53,15 +59,31 @@ public:
         if (max_in_samples) {
             header_formatter.metadata.max_samples = max_in_samples;
         }
+        if (out_buff_size) {
+            if (header_formatter.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
+        }
         auto& header_fec = fg.emplaceBlock<HeaderFecEncoder<Pdu<uint8_t>>>();
         if (max_in_samples) {
             header_fec.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (header_fec.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
 
         // payload
         auto& crc_append = fg.emplaceBlock<CrcAppend<Pdu<uint8_t>>>();
         if (max_in_samples) {
             crc_append.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (crc_append.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
         // a payload FEC encoder block would be instantiated here
 
@@ -72,12 +94,24 @@ public:
             header_payload_mux.in.at(0).max_samples = max_in_samples;
             header_payload_mux.in.at(1).max_samples = max_in_samples;
         }
+        if (out_buff_size) {
+            if (header_payload_mux.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
+        }
 
         auto& scrambler_unpack =
             fg.emplaceBlock<UnpackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
                 { { "outputs_per_input", 8UZ } });
         if (max_in_samples) {
             scrambler_unpack.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (scrambler_unpack.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
         // 17-bit CCSDS scrambler defined in CCSDS 131.0-B-5 (September 2023)
         auto& scrambler = fg.emplaceBlock<AdditiveScrambler<Pdu<uint8_t>>>(
@@ -86,6 +120,11 @@ public:
               { "length", uint64_t{ 16U } } });
         if (max_in_samples) {
             scrambler.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (scrambler.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
         const float a = std::sqrt(2.0f) / 2.0f;
         const std::vector<c64> qpsk_constellation = {
@@ -97,9 +136,20 @@ public:
         if (max_in_samples) {
             qpsk_pack.in.max_samples = max_in_samples;
         }
+        if (out_buff_size) {
+            if (qpsk_pack.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
+        }
         auto& qpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
         if (max_in_samples) {
             qpsk_modulator.in.max_samples = max_in_samples;
+        }
+        if (out_buff_size) {
+            if (qpsk_modulator.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
         }
         qpsk_modulator.map = qpsk_constellation;
 
@@ -129,6 +179,12 @@ public:
         if (max_in_samples) {
             syncword_bpsk_modulator.in.max_samples = max_in_samples;
         }
+        if (out_buff_size) {
+            if (syncword_bpsk_modulator.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
+            }
+        }
         syncword_bpsk_modulator.map = bpsk_constellation;
 
         auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(
@@ -137,6 +193,12 @@ public:
         if (max_in_samples) {
             for (auto& in_port : symbols_mux.in) {
                 in_port.max_samples = max_in_samples;
+            }
+        }
+        if (out_buff_size) {
+            if (symbols_mux.out.resizeBuffer(out_buff_size) !=
+                ConnectionResult::SUCCESS) {
+                throw gr::exception("resizeBuffer() failed");
             }
         }
 
@@ -152,15 +214,33 @@ public:
             const size_t ramp_down_nbits = 2U * ramp_down_nsymbols;
             auto& ramp_down_to_pdu = fg.emplaceBlock<StreamToPdu<uint8_t>>(
                 { { "packet_length", ramp_down_nbits } });
+            if (out_buff_size) {
+                if (ramp_down_to_pdu.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
+            }
             auto& ramp_down_pack =
                 fg.emplaceBlock<PackBits<Endianness::MSB, Pdu<uint8_t>, Pdu<uint8_t>>>(
                     { { "inputs_per_output", 2UZ }, { "bits_per_input", uint8_t{ 1 } } });
             if (max_in_samples) {
                 ramp_down_pack.in.max_samples = max_in_samples;
             }
+            if (out_buff_size) {
+                if (ramp_down_pack.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
+            }
             auto& ramp_down_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
             if (max_in_samples) {
                 ramp_down_modulator.in.max_samples = max_in_samples;
+            }
+            if (out_buff_size) {
+                if (ramp_down_modulator.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
             }
             ramp_down_modulator.map = qpsk_constellation;
 
@@ -168,6 +248,12 @@ public:
             const Pdu<c64> flush_pdu = { flush_vector, {} };
             auto& rrc_flush_source =
                 fg.emplaceBlock<VectorSource<Pdu<c64>>>({ { "repeat", true } });
+            if (out_buff_size) {
+                if (rrc_flush_source.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
+            }
             rrc_flush_source.data = std::vector<Pdu<c64>>{ flush_pdu };
 
             if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_to_pdu) !=
@@ -218,6 +304,12 @@ public:
             if (max_in_samples) {
                 rrc_interp.in.max_samples = max_in_samples;
             }
+            if (out_buff_size) {
+                if (rrc_interp.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
+            }
             // burst shaper
             const size_t ramp_symbols = 4U;
             const size_t ramp_samples = ramp_symbols * samples_per_symbol;
@@ -239,6 +331,12 @@ public:
                   { "trailing_shape", trailing_ramp } });
             if (max_in_samples) {
                 burst_shaper.in.max_samples = max_in_samples;
+            }
+            if (out_buff_size) {
+                if (burst_shaper.out.resizeBuffer(out_buff_size) !=
+                    ConnectionResult::SUCCESS) {
+                    throw gr::exception("resizeBuffer() failed");
+                }
             }
             if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
                 ConnectionResult::SUCCESS) {
