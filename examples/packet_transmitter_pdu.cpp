@@ -31,6 +31,9 @@ int main(int argc, char* argv[])
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
+    // note that buffer size is rounded up to a multiple of
+    // lcm(sizeof(Pdu<T>), getpagesize()), but different values that round up to
+    // the same number give slightly different performance
     const size_t out_buff_size = 1U;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
