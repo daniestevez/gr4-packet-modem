@@ -41,6 +41,10 @@ int main(int argc, char* argv[])
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
     auto& packet_to_stream =
         fg.emplaceBlock<gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
+    // Limit the number of samples that packet_to_stream can produce in one
+    // call. Otherwise it produces 65536 items on the first call, and then "it
+    // gets behind the Throttle block" by these many samples.
+    packet_to_stream.out.max_samples = 1000U;
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<c64>>(
         { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
     auto& sink =
