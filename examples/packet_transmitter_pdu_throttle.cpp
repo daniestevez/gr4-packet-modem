@@ -8,6 +8,7 @@
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
+#include <gnuradio-4.0/packet-modem/tun_source.hpp>
 #include <boost/ut.hpp>
 #include <complex>
 #include <cstdint>
@@ -22,14 +23,16 @@ int main(int argc, char* argv[])
     expect(fatal(argc == 2));
 
     gr::Graph fg;
-    const double samp_rate = 100e3;
+    const double samp_rate = 10000e3;
     const uint64_t packet_length = 1500;
     std::vector<uint8_t> v(packet_length);
     std::iota(v.begin(), v.end(), 0);
-    auto& strobe =
-        fg.emplaceBlock<gr::packet_modem::ItemStrobe<gr::packet_modem::Pdu<uint8_t>>>(
-            { { "interval_secs", 1.0 }, { "sleep", false } });
-    strobe.item = { v, {} };
+    // auto& source =
+    //     fg.emplaceBlock<gr::packet_modem::ItemStrobe<gr::packet_modem::Pdu<uint8_t>>>(
+    //         { { "interval_secs", 0.05 }, { "sleep", false } });
+    // source.item = { v, {} };
+    auto& source =
+        fg.emplaceBlock<gr::packet_modem::TunSource>({ { "tun_name", "gr4_tun" } });
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
@@ -52,7 +55,7 @@ int main(int argc, char* argv[])
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(eq(gr::ConnectionResult::SUCCESS,
-              strobe.out.connect(*packet_transmitter_pdu.in)));
+              source.out.connect(*packet_transmitter_pdu.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
