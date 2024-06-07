@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_PACKET_TO_STREAM
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <algorithm>
 #include <ranges>
@@ -48,6 +49,8 @@ public:
     gr::PortIn<T, gr::Async> in;
     gr::PortOut<T> out;
     std::string packet_len_tag_key = "packet_len";
+
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
 
     void start() { _remaining = 0; }
 
@@ -107,6 +110,93 @@ public:
 #ifdef TRACE
         fmt::println("{}::processBulk published = {} ", this->name, to_publish);
 #endif
+
+        return gr::work::Status::OK;
+    }
+};
+
+template <typename T>
+class PacketToStream<Pdu<T>> : public gr::Block<PacketToStream<Pdu<T>>>
+{
+public:
+    using Description = PacketToStream<T>::Description;
+
+public:
+    Pdu<T> _pdu;
+    size_t _remaining;
+
+public:
+    // The input port is declared as async to signal the runtime that we do not
+    // need an input on this port to produce an output.
+    gr::PortIn<Pdu<T>, gr::Async> in;
+    gr::PortOut<T> out;
+    std::string packet_len_tag_key = "packet_len";
+
+    void start() { _remaining = 0; }
+
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_DONT;
+
+    gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
+                                 gr::PublishableSpan auto& outSpan)
+    {
+#ifdef TRACE
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+                     "_remaining = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     _remaining);
+#endif
+        if (_remaining == 0 && inSpan.size() == 0) {
+            // We are not mid-packet and there is no input available. Fill the
+            // output with zeros and return.
+            std::ranges::fill(outSpan, T{ 0 });
+            return gr::work::Status::OK;
+        }
+
+        auto in_item = inSpan.begin();
+        auto out_item = outSpan.begin();
+        while (out_item < outSpan.end()) {
+            if (_remaining == 0) {
+                if (in_item >= inSpan.end()) {
+                    // At this point we return instead of trying to fill the rest of the
+                    // output with zeros. There might be a packet available on the input
+                    // but not present in inSpan because the scheduler calls processBulk()
+                    // with one packet at a time, since tags are always aligned to the
+                    // first item of inSpan.
+                    break;
+                }
+                // Fetch a PDU from the input
+                _pdu = *in_item++;
+                _remaining = _pdu.data.size();
+            }
+
+            const auto to_publish =
+                std::min({ static_cast<size_t>(outSpan.end() - out_item), _remaining });
+            std::ranges::copy_n(_pdu.data.cend() - static_cast<ssize_t>(_remaining),
+                                static_cast<ssize_t>(to_publish),
+                                out_item);
+            _remaining -= to_publish;
+            out_item += static_cast<ssize_t>(to_publish);
+        }
+
+#ifdef TRACE
+        fmt::println("{}::processBulk consumed = {} published = {} ",
+                     this->name,
+                     in_item - inSpan.begin(),
+                     out_item - outSpan.begin());
+        for (const auto& oi : outSpan | std::views::take(out_item - outSpan.begin())) {
+            if (oi != T{ 0 }) {
+                fmt::println("PacketToStream produced non-zero items!!!");
+                break;
+            }
+        }
+#endif
+
+        if (!inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()))) {
+            throw gr::exception("consume failed");
+        }
+        outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
 
         return gr::work::Status::OK;
     }

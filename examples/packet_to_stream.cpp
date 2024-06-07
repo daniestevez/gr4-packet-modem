@@ -1,6 +1,7 @@
 #include <fmt/core.h>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/item_strobe.hpp>
 #include <gnuradio-4.0/packet-modem/packet_strobe.hpp>
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
@@ -19,14 +20,21 @@ int main()
     gr::Graph fg;
 
     const double samp_rate = 100e3;
-    auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
-        { { "packet_len", uint64_t{ 25 } },
-          { "interval_secs", 0.01 },
-          { "packet_len_tag_key", "packet_len" },
-          { "sleep", false } });
-    auto& packet_to_stream = fg.emplaceBlock<gr::packet_modem::PacketToStream<int>>();
+    size_t packet_len = 25;
+    // auto& source = fg.emplaceBlock<gr::packet_modem::PacketStrobe<int>>(
+    //     { { "packet_len", uint64_t{ packet_len } },
+    //       { "interval_secs", 0.01 },
+    //       { "packet_len_tag_key", "packet_len" },
+    //       { "sleep", false } });
+    auto& source =
+        fg.emplaceBlock<gr::packet_modem::ItemStrobe<gr::packet_modem::Pdu<int>>>(
+            { { "interval_secs", 0.01 }, { "sleep", false } });
+    source.item = gr::packet_modem::Pdu<int>{ std::vector<int>(packet_len), {} };
+    // auto& packet_to_stream = fg.emplaceBlock<gr::packet_modem::PacketToStream<int>>();
+    auto& packet_to_stream =
+        fg.emplaceBlock<gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<int>>>();
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<int>>(
-        { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000U } });
+        { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<int>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(source).to<"in">(packet_to_stream)));

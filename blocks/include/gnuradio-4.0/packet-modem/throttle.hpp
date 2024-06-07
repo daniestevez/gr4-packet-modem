@@ -71,6 +71,12 @@ public:
                      this->name,
                      inSpan.size(),
                      outSpan.size());
+        for (const auto& in_item : inSpan) {
+            if (in_item != T{ 0 }) {
+                fmt::println("Throttle got non-zero items!!!");
+                break;
+            }
+        }
 #endif
 
         size_t items_per_chunk = std::min(inSpan.size(), outSpan.size());
