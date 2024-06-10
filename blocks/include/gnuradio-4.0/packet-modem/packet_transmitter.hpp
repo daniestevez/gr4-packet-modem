@@ -225,15 +225,17 @@ public:
             // offset to compensate group delay of RRC filter
             const size_t offset = 4U * samples_per_symbol;
             std::vector<float> leading_ramp(offset + ramp_samples);
-            for (size_t j = 0; j < ramp_samples; ++j) {
-                leading_ramp[offset + j] = static_cast<float>(
-                    std::sin(static_cast<double>(j + 1) /
-                             static_cast<double>(ramp_samples) * 0.5 * std::numbers::pi));
+            for (size_t j = 0; j < leading_ramp.size(); ++j) {
+                leading_ramp[j] = static_cast<float>(std::sin(
+                    static_cast<double>(j + 1) /
+                    static_cast<double>(leading_ramp.size()) * 0.5 * std::numbers::pi));
             }
             std::vector<float> trailing_ramp(rrc_flush_nsymbols * samples_per_symbol -
                                              offset + ramp_samples);
-            for (size_t j = 0; j < ramp_samples; ++j) {
-                trailing_ramp[j] = leading_ramp[leading_ramp.size() - 1 - j];
+            for (size_t j = 0; j < trailing_ramp.size(); ++j) {
+                trailing_ramp[trailing_ramp.size() - 1 - j] = static_cast<float>(std::sin(
+                    static_cast<double>(j + 1) /
+                    static_cast<double>(trailing_ramp.size()) * 0.5 * std::numbers::pi));
             }
             auto& burst_shaper = fg.emplaceBlock<BurstShaper<c64, c64, float>>(
                 { { "leading_shape", leading_ramp },
