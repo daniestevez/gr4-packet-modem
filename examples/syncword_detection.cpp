@@ -9,6 +9,7 @@
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/rotator.hpp>
+#include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_detection.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
@@ -44,7 +45,7 @@ int main()
         pdu_to_stream.in.max_samples = max_in_samples;
     }
     auto& rotator =
-        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.025f } });
+        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
 
     const std::vector<uint8_t> syncword = {
         uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 },
@@ -67,6 +68,15 @@ int main()
         1.0,
         0.35,
         samples_per_symbol * 11U);
+    // normalize RRC taps to unity RMS norm
+    float rrc_taps_norm = 0.0f;
+    for (auto x : rrc_taps) {
+        rrc_taps_norm += x * x;
+    }
+    rrc_taps_norm = std::sqrt(rrc_taps_norm);
+    for (auto& x : rrc_taps) {
+        x /= rrc_taps_norm;
+    }
     const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
     auto& syncword_detection =
         fg.emplaceBlock<gr::packet_modem::SyncwordDetection>({ { "rrc_taps", rrc_taps },
@@ -74,6 +84,9 @@ int main()
                                                                { "min_freq_bin", -4 },
                                                                { "max_freq_bin", 4 } });
     syncword_detection.constellation = bpsk_constellation;
+    auto& symbol_filter =
+        fg.emplaceBlock<gr::packet_modem::SymbolFilter<c64, c64, float>>(
+            { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
 
     auto& head =
         fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
@@ -90,7 +103,9 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rotator).to<"in">(syncword_detection)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(syncword_detection).to<"in">(head)));
+              fg.connect<"out">(syncword_detection).to<"in">(symbol_filter)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(symbol_filter).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(

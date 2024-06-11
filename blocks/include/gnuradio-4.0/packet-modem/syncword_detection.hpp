@@ -49,11 +49,16 @@ private:
 
     gr::property_map output_tag(const syncword_detection::HistoryItem& item) const
     {
+        // divide by fft_size to account for the fact that the IFFT is missing a
+        // 1/N factor
+        const float syncword_amplitude =
+            std::sqrt(item.correlation_power) /
+            (static_cast<float>(fft_size) * _syncword_self_corr);
         const double syncword_freq = static_cast<double>(item.freq_bin) *
                                      std::numbers::pi /
                                      static_cast<double>(_syncword_samples_size);
         return {
-            { "syncword_power", item.correlation_power },
+            { "syncword_amplitude", syncword_amplitude },
             { "syncword_phase", std::arg(item.correlation) },
             { "syncword_freq", syncword_freq },
             { "syncword_freq_bin", item.freq_bin },
@@ -65,6 +70,7 @@ public:
     FFT _fft;
     // one vector for each freq bin
     std::vector<std::vector<c64>> _syncword_fft_conj;
+    float _syncword_self_corr;
     float _best;
     uint64_t _best_idx;
     uint64_t _items_consumed;
@@ -96,20 +102,26 @@ public:
             throw gr::exception("fft_size too small");
         }
 
-        for (int freq_bin = min_freq_bin; freq_bin <= max_freq_bin; ++freq_bin) {
-            std::vector<c64> syncword_samples(_syncword_samples_size);
-            for (size_t j = 0; j < syncword.size(); ++j) {
-                for (size_t k = 0; k < rrc_taps.size(); ++k) {
-                    syncword_samples[j * samples_per_symbol + k] +=
-                        constellation[syncword[j]] * rrc_taps[k];
-                }
+        std::vector<c64> syncword_samples(_syncword_samples_size);
+        for (size_t j = 0; j < syncword.size(); ++j) {
+            for (size_t k = 0; k < rrc_taps.size(); ++k) {
+                syncword_samples[j * samples_per_symbol + k] +=
+                    constellation[syncword[j]] * rrc_taps[k];
             }
+        }
+        _syncword_self_corr = 0.0f;
+        for (auto x : syncword_samples) {
+            _syncword_self_corr += x.real() * x.real() + x.imag() * x.imag();
+        }
+
+        for (int freq_bin = min_freq_bin; freq_bin <= max_freq_bin; ++freq_bin) {
             // shift syncword samples in frequency; each frequency bin is 1/2 of
             // the coherent integration interval
             double phase = 0.0;
             const double phase_incr = static_cast<double>(freq_bin) * std::numbers::pi /
                                       static_cast<double>(_syncword_samples_size);
-            for (auto& x : syncword_samples) {
+            std::vector<c64> syncword_samples_shifted = syncword_samples;
+            for (auto& x : syncword_samples_shifted) {
                 x *= std::complex<float>{ static_cast<float>(std::cos(phase)),
                                           static_cast<float>(std::sin(phase)) };
                 phase += phase_incr;
@@ -119,8 +131,8 @@ public:
                     phase += 2.0 * std::numbers::pi;
                 }
             }
-            syncword_samples.resize(fft_size);
-            auto syncword_fft_conj = _fft.compute(syncword_samples);
+            syncword_samples_shifted.resize(fft_size);
+            auto syncword_fft_conj = _fft.compute(syncword_samples_shifted);
             for (auto& z : syncword_fft_conj) {
                 z = std::conj(z);
             }
