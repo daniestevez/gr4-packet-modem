@@ -23,7 +23,8 @@ receive a message containing the metadata from the decoded header in the
 `parsed_header` input port. This message indicates the payload length, and is
 included as a tag at the beginning of the payload. The payload symbols are
 passed to the output, but the remaining symbols after the payload (according to
-the `"packet_length"` in the header metadata) are dropped.
+the `"packet_length"` in the header metadata, which indicates the packet length
+in bytes) are dropped.
 
 The sizes of the syncword and header are indicated by the `syncword_size` and
 `header_size` parameters.
@@ -94,7 +95,6 @@ public:
         auto out_item = outSpan.begin();
         auto in_item = inSpan.begin();
         auto header_item = headerSpan.begin();
-        // TODO: rewrite to copy multiple items at a time
         while (out_item < outSpan.end() && in_item < inSpan.end()) {
             if (_position < syncword_size) {
                 // copy rest of syncword to output
@@ -136,8 +136,9 @@ public:
                     }
                     out.publishTag(meta, out_item - outSpan.begin());
                     // packet_length is in bytes, and we use QPSK modulation for the
-                    // packet
-                    _packet_symbols = packet_length * 4;
+                    // packet. We also need to add the CRC-32
+                    constexpr size_t crc_size_bytes = 4;
+                    _packet_symbols = (packet_length + crc_size_bytes) * 4;
 
                     const auto n =
                         std::min({ static_cast<size_t>(inSpan.end() - in_item),

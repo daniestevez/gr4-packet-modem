@@ -12,6 +12,7 @@
 #include <gnuradio-4.0/packet-modem/rotator.hpp>
 #include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_detection.hpp>
+#include <gnuradio-4.0/packet-modem/syncword_remove.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <boost/ut.hpp>
@@ -90,13 +91,15 @@ int main()
             { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
     auto& payload_metadata_insert =
         fg.emplaceBlock<gr::packet_modem::PayloadMetadataInsert<>>();
+    auto& syncword_remove = fg.emplaceBlock<gr::packet_modem::SyncwordRemove<>>();
 
     // temporary, for testing
     auto& header_decode_source =
         fg.emplaceBlock<gr::packet_modem::VectorSource<gr::Message>>(
             { { "repeat", true } });
     gr::Message header;
-    header.data = gr::property_map{ { "packet_length", packet_length }, { "constellation", "QPSK" } };
+    header.data = gr::property_map{ { "packet_length", packet_length },
+                                    { "constellation", "QPSK" } };
     header_decode_source.data = std::vector<gr::Message>{ header };
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(header_decode_source)
@@ -121,7 +124,9 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(symbol_filter).to<"in">(payload_metadata_insert)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(payload_metadata_insert).to<"in">(head)));
+              fg.connect<"out">(payload_metadata_insert).to<"in">(syncword_remove)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(syncword_remove).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(
