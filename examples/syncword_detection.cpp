@@ -1,5 +1,6 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/constellation_llr_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
@@ -92,6 +93,9 @@ int main()
     auto& payload_metadata_insert =
         fg.emplaceBlock<gr::packet_modem::PayloadMetadataInsert<>>();
     auto& syncword_remove = fg.emplaceBlock<gr::packet_modem::SyncwordRemove<>>();
+    auto& constellation_decoder =
+        fg.emplaceBlock<gr::packet_modem::ConstellationLLRDecoder<>>(
+            { { "noise_sigma", 0.1f }, { "constellation", "QPSK" } });
 
     // temporary, for testing
     auto& header_decode_source =
@@ -106,10 +110,10 @@ int main()
                   .to<"parsed_header">(payload_metadata_insert)));
 
     auto& head =
-        fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
-    auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<c64>>(
-        { { "filename", "syncword_detection.c64" } });
-    auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<c64>>();
+        fg.emplaceBlock<gr::packet_modem::Head<float>>({ { "num_items", 1000000UZ } });
+    auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
+        { { "filename", "syncword_detection.f32" } });
+    auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
 
     expect(eq(gr::ConnectionResult::SUCCESS,
               vector_source.out.connect(*packet_transmitter_pdu.in)));
@@ -126,7 +130,9 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(payload_metadata_insert).to<"in">(syncword_remove)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(syncword_remove).to<"in">(head)));
+              fg.connect<"out">(syncword_remove).to<"in">(constellation_decoder)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(constellation_decoder).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(
