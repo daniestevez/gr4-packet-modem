@@ -33,7 +33,7 @@ output items and taps respectively.
 )"">;
 
 private:
-    static constexpr std::string syncword_amplitude_key = "syncword_amplitude";
+    static constexpr char syncword_amplitude_key[] = "syncword_amplitude";
 
 public:
     // the history constructed here is a placeholder; an appropriate history is
