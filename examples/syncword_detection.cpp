@@ -6,6 +6,7 @@
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
+#include <gnuradio-4.0/packet-modem/payload_metadata_insert.hpp>
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/rotator.hpp>
@@ -87,6 +88,19 @@ int main()
     auto& symbol_filter =
         fg.emplaceBlock<gr::packet_modem::SymbolFilter<c64, c64, float>>(
             { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
+    auto& payload_metadata_insert =
+        fg.emplaceBlock<gr::packet_modem::PayloadMetadataInsert<>>();
+
+    // temporary, for testing
+    auto& header_decode_source =
+        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::Message>>(
+            { { "repeat", true } });
+    gr::Message header;
+    header.data = gr::property_map{ { "packet_length", packet_length }, { "constellation", "QPSK" } };
+    header_decode_source.data = std::vector<gr::Message>{ header };
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(header_decode_source)
+                  .to<"parsed_header">(payload_metadata_insert)));
 
     auto& head =
         fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
@@ -105,7 +119,9 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(syncword_detection).to<"in">(symbol_filter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(symbol_filter).to<"in">(head)));
+              fg.connect<"out">(symbol_filter).to<"in">(payload_metadata_insert)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(payload_metadata_insert).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(
