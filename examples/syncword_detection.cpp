@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
+#include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/header_payload_split.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
@@ -106,6 +107,7 @@ int main()
           { "reset_tag_key", "header_start" } });
     auto& header_payload_split =
         fg.emplaceBlock<gr::packet_modem::HeaderPayloadSplit<>>();
+    auto& header_fec_decoder = fg.emplaceBlock<gr::packet_modem::HeaderFecDecoder<>>();
 
     // temporary, for testing
     auto& header_decode_source =
@@ -123,10 +125,10 @@ int main()
         fg.emplaceBlock<gr::packet_modem::Head<float>>({ { "num_items", 1000000UZ } });
     auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
         { { "filename", "syncword_detection.f32" } });
-    auto& header_file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
-        { { "filename", "header_syncword_detection.f32" } });
+    auto& header_file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<uint8_t>>(
+        { { "filename", "header_syncword_detection.u8" } });
     auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
-    auto& header_vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
+    auto& header_vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
 
     expect(eq(gr::ConnectionResult::SUCCESS,
               vector_source.out.connect(*packet_transmitter_pdu.in)));
@@ -149,9 +151,11 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(descrambler).to<"in">(header_payload_split)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"header">(header_payload_split).to<"in">(header_file_sink)));
+              fg.connect<"header">(header_payload_split).to<"in">(header_fec_decoder)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"header">(header_payload_split).to<"in">(header_vector_sink)));
+              fg.connect<"out">(header_fec_decoder).to<"in">(header_file_sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(header_fec_decoder).to<"in">(header_vector_sink)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"payload">(header_payload_split).to<"in">(head)));
     expect(

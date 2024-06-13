@@ -62,7 +62,9 @@ public:
 #endif
 
         if (codewords == 0) {
-            std::ignore = inSpan.consume(0);
+            if (!inSpan.consume(0)) {
+                throw gr::exception("consume failed");
+            }
             outSpan.publish(0);
             return inSpan.size() < 4U ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
@@ -108,7 +110,9 @@ public:
             out_item += 32;
         }
 
-        std::ignore = inSpan.consume(codewords * 4U);
+        if (!inSpan.consume(codewords * 4U)) {
+            throw gr::exception("consume failed");
+        }
         outSpan.publish(codewords * 32U);
 
         return gr::work::Status::OK;
