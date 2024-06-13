@@ -1,5 +1,6 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/constellation_llr_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
@@ -27,12 +28,13 @@ int main()
 
     gr::Graph fg;
     const size_t packet_length = 1500;
-    const gr::packet_modem::Pdu<uint8_t> pdu = { std::vector<uint8_t>(packet_length),
-                                                 {} };
+    std::vector<uint8_t> v(packet_length);
+    std::iota(v.begin(), v.end(), 0);
+    const gr::packet_modem::Pdu<uint8_t> pdu = { std::move(v), {} };
     auto& vector_source =
         fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<uint8_t>>>(
             { { "repeat", true } });
-    vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ pdu };
+    vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ std::move(pdu) };
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
@@ -96,6 +98,11 @@ int main()
     auto& constellation_decoder =
         fg.emplaceBlock<gr::packet_modem::ConstellationLLRDecoder<>>(
             { { "noise_sigma", 0.1f }, { "constellation", "QPSK" } });
+    auto& descrambler = fg.emplaceBlock<gr::packet_modem::AdditiveScrambler<float>>(
+        { { "mask", uint64_t{ 0x4001U } },
+          { "seed", uint64_t{ 0x18E38U } },
+          { "length", uint64_t{ 16U } },
+          { "reset_tag_key", "header_start" } });
 
     // temporary, for testing
     auto& header_decode_source =
@@ -132,7 +139,9 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(syncword_remove).to<"in">(constellation_decoder)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(constellation_decoder).to<"in">(head)));
+              fg.connect<"out">(constellation_decoder).to<"in">(descrambler)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(descrambler).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(

@@ -35,6 +35,8 @@ public:
     bool _in_packet = false;
     uint64_t _position = 0;
     size_t _packet_symbols = 0;
+    gr::property_map _header_map = { { constellation_key, qpsk_key },
+                                     { header_start_key, pmtv::pmt_null() } };
 
 private:
     static constexpr char syncword_amplitude_key[] = "syncword_amplitude";
@@ -42,6 +44,7 @@ private:
     static constexpr char bpsk_key[] = "BPSK";
     static constexpr char qpsk_key[] = "QPSK";
     static constexpr char packet_length_key[] = "packet_length";
+    static constexpr char header_start_key[] = "header_start";
 
 public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
@@ -109,8 +112,7 @@ public:
 
             if (_position == syncword_size) {
                 // the header is QPSK modulated
-                out.publishTag({ { constellation_key, qpsk_key } },
-                               out_item - outSpan.begin());
+                out.publishTag(_header_map, out_item - outSpan.begin());
             }
 
             if (syncword_size <= _position && _position < syncword_size + header_size) {
