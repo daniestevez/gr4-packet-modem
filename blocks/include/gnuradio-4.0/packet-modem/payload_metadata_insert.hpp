@@ -46,6 +46,7 @@ private:
     static constexpr char packet_length_key[] = "packet_length";
     static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
+    static constexpr char invalid_header_key[] = "invalid_header";
 
 public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
@@ -137,6 +138,12 @@ public:
                 if (header_item < headerSpan.end()) {
                     // we have decoded the header corresponding to this payload
                     auto meta = header_item->data.value();
+                    if (meta.contains(invalid_header_key)) {
+                        // header decode failed; drop this packet
+                        _in_packet = false;
+                        ++header_item;
+                        break;
+                    }
                     const uint64_t packet_length =
                         pmtv::cast<uint64_t>(meta.at(packet_length_key));
                     if (packet_length == 0) {
@@ -158,6 +165,7 @@ public:
                     in_item += static_cast<ssize_t>(n);
                     out_item += static_cast<ssize_t>(n);
                     _position += n;
+                    ++header_item;
                 } else {
                     // the header for this payload has not been decoded
                     // yet. return to wait for it to be decoded

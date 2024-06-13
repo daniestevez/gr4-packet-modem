@@ -76,9 +76,10 @@ public:
                 header.publishTag(tag.map);
             }
         } else {
-            if (!_in_payload && _position >= header_size) {
-                throw gr::exception(
-                    fmt::format("expected {} tag not received", payload_bits_key));
+            if (!_in_payload && _position == header_size) {
+                // header decode has failed, so a payload_bits_key has not been inserted upstream
+                // and no payload symbols have been output. return to beginning of header
+                _position = 0;
             }
         }
 

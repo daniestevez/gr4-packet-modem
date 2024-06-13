@@ -6,6 +6,7 @@
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
 #include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
+#include <gnuradio-4.0/packet-modem/header_parser.hpp>
 #include <gnuradio-4.0/packet-modem/header_payload_split.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
@@ -53,6 +54,8 @@ int main()
     }
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
+    auto& head =
+        fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
 
     const std::vector<uint8_t> syncword = {
         uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 },
@@ -108,21 +111,8 @@ int main()
     auto& header_payload_split =
         fg.emplaceBlock<gr::packet_modem::HeaderPayloadSplit<>>();
     auto& header_fec_decoder = fg.emplaceBlock<gr::packet_modem::HeaderFecDecoder<>>();
+    auto& header_parser = fg.emplaceBlock<gr::packet_modem::HeaderParser<>>();
 
-    // temporary, for testing
-    auto& header_decode_source =
-        fg.emplaceBlock<gr::packet_modem::VectorSource<gr::Message>>(
-            { { "repeat", true } });
-    gr::Message header;
-    header.data = gr::property_map{ { "packet_length", packet_length },
-                                    { "constellation", "QPSK" } };
-    header_decode_source.data = std::vector<gr::Message>{ header };
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(header_decode_source)
-                  .to<"parsed_header">(payload_metadata_insert)));
-
-    auto& head =
-        fg.emplaceBlock<gr::packet_modem::Head<float>>({ { "num_items", 1000000UZ } });
     auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
         { { "filename", "syncword_detection.f32" } });
     auto& header_file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<uint8_t>>(
@@ -136,8 +126,9 @@ int main()
               packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
+    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(rotator).to<"in">(head)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(rotator).to<"in">(syncword_detection)));
+              fg.connect<"out">(head).to<"in">(syncword_detection)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(syncword_detection).to<"in">(symbol_filter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
@@ -157,16 +148,31 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(header_fec_decoder).to<"in">(header_vector_sink)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"payload">(header_payload_split).to<"in">(head)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(vector_sink)));
+              fg.connect<"out">(header_fec_decoder).to<"in">(header_parser)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"metadata">(header_parser)
+                  .to<"parsed_header">(payload_metadata_insert)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"payload">(header_payload_split).to<"in">(file_sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"payload">(header_payload_split).to<"in">(vector_sink)));
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)
     };
+    gr::MsgPortOut toScheduler;
+    expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+    std::thread stopper([&toScheduler]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        gr::sendMessage<gr::message::Command::Set>(toScheduler,
+                                                   "",
+                                                   gr::block::property::kLifeCycleState,
+                                                   { { "state", "REQUESTED_STOP" } });
+    });
+
     const auto ret = sched.runAndWait();
+    stopper.join();
+    expect(ret.has_value());
     if (!ret.has_value()) {
         fmt::println("scheduler error: {}", ret.error());
     }
