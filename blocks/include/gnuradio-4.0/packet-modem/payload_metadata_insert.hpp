@@ -34,7 +34,7 @@ The sizes of the syncword and header are indicated by the `syncword_size` and
 public:
     bool _in_packet = false;
     uint64_t _position = 0;
-    size_t _packet_symbols = 0;
+    size_t _payload_symbols = 0;
     gr::property_map _header_map = { { constellation_key, qpsk_key },
                                      { header_start_key, pmtv::pmt_null() } };
 
@@ -44,6 +44,7 @@ private:
     static constexpr char bpsk_key[] = "BPSK";
     static constexpr char qpsk_key[] = "QPSK";
     static constexpr char packet_length_key[] = "packet_length";
+    static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
 
 public:
@@ -56,6 +57,11 @@ public:
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
+    void start() {
+        _in_packet = false;
+        _position = 0;
+    }
+    
     gr::work::Status processBulk(const gr::ConsumableSpan auto& headerSpan,
                                  const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
@@ -130,22 +136,24 @@ public:
                 in_item < inSpan.end()) {
                 if (header_item < headerSpan.end()) {
                     // we have decoded the header corresponding to this payload
-                    const auto meta = header_item->data.value();
+                    auto meta = header_item->data.value();
                     const uint64_t packet_length =
                         pmtv::cast<uint64_t>(meta.at(packet_length_key));
                     if (packet_length == 0) {
                         throw gr::exception("received packet_length = 0");
                     }
-                    out.publishTag(meta, out_item - outSpan.begin());
                     // packet_length is in bytes, and we use QPSK modulation for the
                     // packet. We also need to add the CRC-32
                     constexpr size_t crc_size_bytes = 4;
-                    _packet_symbols = (packet_length + crc_size_bytes) * 4;
+                    _payload_symbols = (packet_length + crc_size_bytes) * 4;
+                    const uint64_t payload_bits = _payload_symbols * 2;
+                    meta[payload_bits_key] = pmtv::pmt(payload_bits);
+                    out.publishTag(meta, out_item - outSpan.begin());
 
                     const auto n =
                         std::min({ static_cast<size_t>(inSpan.end() - in_item),
                                    static_cast<size_t>(outSpan.end() - out_item),
-                                   _packet_symbols });
+                                   _payload_symbols });
                     std::copy_n(in_item, n, out_item);
                     in_item += static_cast<ssize_t>(n);
                     out_item += static_cast<ssize_t>(n);
@@ -158,18 +166,18 @@ public:
             }
 
             if (syncword_size + header_size < _position &&
-                _position < syncword_size + header_size + _packet_symbols) {
+                _position < syncword_size + header_size + _payload_symbols) {
                 // copy rest of payload
                 const auto n = std::min({ static_cast<size_t>(inSpan.end() - in_item),
                                           static_cast<size_t>(outSpan.end() - out_item),
-                                          _packet_symbols });
+                                          _payload_symbols });
                 std::copy_n(in_item, n, out_item);
                 in_item += static_cast<ssize_t>(n);
                 out_item += static_cast<ssize_t>(n);
                 _position += n;
             }
 
-            if (_position >= syncword_size + header_size + _packet_symbols) {
+            if (_position >= syncword_size + header_size + _payload_symbols) {
                 // end of packet
                 _in_packet = false;
                 break;

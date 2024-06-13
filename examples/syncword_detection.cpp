@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
+#include <gnuradio-4.0/packet-modem/header_payload_split.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
@@ -103,6 +104,8 @@ int main()
           { "seed", uint64_t{ 0x18E38U } },
           { "length", uint64_t{ 16U } },
           { "reset_tag_key", "header_start" } });
+    auto& header_payload_split =
+        fg.emplaceBlock<gr::packet_modem::HeaderPayloadSplit<>>();
 
     // temporary, for testing
     auto& header_decode_source =
@@ -120,7 +123,10 @@ int main()
         fg.emplaceBlock<gr::packet_modem::Head<float>>({ { "num_items", 1000000UZ } });
     auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
         { { "filename", "syncword_detection.f32" } });
+    auto& header_file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
+        { { "filename", "header_syncword_detection.f32" } });
     auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
+    auto& header_vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
 
     expect(eq(gr::ConnectionResult::SUCCESS,
               vector_source.out.connect(*packet_transmitter_pdu.in)));
@@ -140,8 +146,14 @@ int main()
               fg.connect<"out">(syncword_remove).to<"in">(constellation_decoder)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(constellation_decoder).to<"in">(descrambler)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(descrambler).to<"in">(head)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(descrambler).to<"in">(header_payload_split)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"header">(header_payload_split).to<"in">(header_file_sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"header">(header_payload_split).to<"in">(header_vector_sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"payload">(header_payload_split).to<"in">(head)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(file_sink)));
     expect(
@@ -155,7 +167,11 @@ int main()
         fmt::println("scheduler error: {}", ret.error());
     }
 
-    fmt::println("TAGS");
+    fmt::println("HEADER TAGS");
+    for (const auto& _tag : header_vector_sink.tags()) {
+        fmt::println("offset = {}, map = {}", _tag.index, _tag.map);
+    }
+    fmt::println("PAYLOAD TAGS");
     for (const auto& _tag : vector_sink.tags()) {
         fmt::println("offset = {}, map = {}", _tag.index, _tag.map);
     }
