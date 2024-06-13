@@ -11,7 +11,8 @@ static constexpr size_t HEADER_PARSER_HEADER_LEN = 4U;
 
 template <typename T = uint8_t>
 class HeaderParser
-    : public gr::Block<HeaderParser<T>, gr::ResamplingRatio<1U, HEADER_PARSER_HEADER_LEN, true>>
+    : public gr::Block<HeaderParser<T>,
+                       gr::ResamplingRatio<1U, HEADER_PARSER_HEADER_LEN, true>>
 {
 public:
     using Description = Doc<R""(
@@ -49,6 +50,9 @@ public:
             bool valid = true;
             const uint64_t packet_length = (static_cast<uint64_t>(header[0]) << 8) |
                                            static_cast<uint64_t>(header[1]);
+            if (packet_length == 0) {
+                valid = false;
+            }
             const uint8_t modcod_field = header[2];
             if (modcod_field != 0x00) {
                 // the only modcod field supported at the moment is 0x00, which is QPSK

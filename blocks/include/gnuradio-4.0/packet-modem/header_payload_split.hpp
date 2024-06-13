@@ -33,6 +33,7 @@ public:
     gr::PortOut<T> header;
     gr::PortOut<T> payload;
     size_t header_size = 256;
+    std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
@@ -48,19 +49,19 @@ public:
                                  gr::PublishableSpan auto& payloadSpan)
     {
 #ifdef TRACE
-        fmt::println(
-            "{}::processBulk(inSpan.size() = {}, headerSpan.size() = {}, "
-            "payloadSpan.size() = {}), _in_payload = {}, _position = {}, _payload_bits = {}",
-            this->name,
-            inSpan.size(),
-            headerSpan.size(),
-            payloadSpan.size(),
-            _in_payload,
-            _position,
-            _payload_bits);
+        fmt::println("{}::processBulk(inSpan.size() = {}, headerSpan.size() = {}, "
+                     "payloadSpan.size() = {}), _in_payload = {}, _position = {}, "
+                     "_payload_bits = {}",
+                     this->name,
+                     inSpan.size(),
+                     headerSpan.size(),
+                     payloadSpan.size(),
+                     _in_payload,
+                     _position,
+                     _payload_bits);
 #endif
         if (this->input_tags_present()) {
-            const auto tag = this->mergedInputTag();
+            auto tag = this->mergedInputTag();
             if (tag.map.contains(payload_bits_key)) {
                 if (_in_payload || _position != header_size) {
                     throw gr::exception(
@@ -69,18 +70,20 @@ public:
                 _in_payload = true;
                 _position = 0;
                 _payload_bits = pmtv::cast<uint64_t>(tag.map.at(payload_bits_key));
+                tag.map[packet_len_tag_key] = pmtv::pmt(_payload_bits);
             }
             if (_in_payload) {
                 payload.publishTag(tag.map);
             } else {
                 header.publishTag(tag.map);
             }
-        } else {
-            if (!_in_payload && _position == header_size) {
-                // header decode has failed, so a payload_bits_key has not been inserted upstream
-                // and no payload symbols have been output. return to beginning of header
-                _position = 0;
-            }
+        }
+
+        if (!_in_payload && _position == header_size) {
+            // header decode has failed, so a payload_bits_key has not been inserted
+            // upstream and no payload symbols have been output. return to beginning
+            // of header
+            _position = 0;
         }
 
         if (!_in_payload) {
@@ -121,7 +124,11 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(
-    gr::packet_modem::HeaderPayloadSplit, in, header, payload, header_size);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::HeaderPayloadSplit,
+                               in,
+                               header,
+                               payload,
+                               header_size,
+                               packet_len_tag_key);
 
 #endif // _GR4_PACKET_MODEM_HEADER_PAYLOAD_SPLIT

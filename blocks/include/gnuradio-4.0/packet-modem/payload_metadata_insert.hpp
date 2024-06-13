@@ -58,11 +58,12 @@ public:
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
 
-    void start() {
+    void start()
+    {
         _in_packet = false;
         _position = 0;
     }
-    
+
     gr::work::Status processBulk(const gr::ConsumableSpan auto& headerSpan,
                                  const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
@@ -141,6 +142,7 @@ public:
                     if (meta.contains(invalid_header_key)) {
                         // header decode failed; drop this packet
                         _in_packet = false;
+                        in_item = inSpan.end(); // consume remaining input
                         ++header_item;
                         break;
                     }
@@ -188,7 +190,7 @@ public:
             if (_position >= syncword_size + header_size + _payload_symbols) {
                 // end of packet
                 _in_packet = false;
-                break;
+                in_item = inSpan.end(); // consume remaining input
             }
         }
 

@@ -73,7 +73,7 @@ public:
             for (size_t k = 0; k < header_num_bytes; ++k) {
                 TOut byte = 0;
                 for (size_t n = 0; n < 8; ++n) {
-                    byte = static_cast<TOut>(byte << 1) | TOut { _llrs[8 * k + n] < 0 };
+                    byte = static_cast<TOut>(byte << 1) | TOut{ _llrs[8 * k + n] < 0 };
                 }
                 *out_item++ = byte;
             }

@@ -1,7 +1,9 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
+#include <gnuradio-4.0/packet-modem/binary_slicer.hpp>
 #include <gnuradio-4.0/packet-modem/constellation_llr_decoder.hpp>
+#include <gnuradio-4.0/packet-modem/crc_check.hpp>
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
@@ -30,14 +32,16 @@ int main()
     using c64 = std::complex<float>;
 
     gr::Graph fg;
-    const size_t packet_length = 1500;
-    std::vector<uint8_t> v(packet_length);
-    std::iota(v.begin(), v.end(), 0);
-    const gr::packet_modem::Pdu<uint8_t> pdu = { std::move(v), {} };
+    const std::vector<size_t> packet_lengths = { 10,  25,   100,  1500, 27,   38, 243,
+                                                 514, 1500, 1500, 1024, 1024, 42, 34 };
     auto& vector_source =
         fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<uint8_t>>>(
             { { "repeat", true } });
-    vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ std::move(pdu) };
+    for (auto len : packet_lengths) {
+        std::vector<uint8_t> v(len);
+        std::iota(v.begin(), v.end(), 0);
+        vector_source.data.emplace_back(std::move(v));
+    }
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
@@ -112,12 +116,19 @@ int main()
         fg.emplaceBlock<gr::packet_modem::HeaderPayloadSplit<>>();
     auto& header_fec_decoder = fg.emplaceBlock<gr::packet_modem::HeaderFecDecoder<>>();
     auto& header_parser = fg.emplaceBlock<gr::packet_modem::HeaderParser<>>();
+    auto& payload_slicer = fg.emplaceBlock<gr::packet_modem::BinarySlicer<true>>();
+    auto& payload_pack = fg.emplaceBlock<gr::packet_modem::PackBits<>>(
+        { { "inputs_per_output", 8UZ },
+          { "bits_per_input", uint8_t{ 1 } },
+          { "packet_len_tag_key", "packet_len" } });
+    auto& payload_crc_check =
+        fg.emplaceBlock<gr::packet_modem::CrcCheck<>>({ { "discard_crc", true } });
 
-    auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<float>>(
-        { { "filename", "syncword_detection.f32" } });
+    auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<uint8_t>>(
+        { { "filename", "syncword_detection.u8" } });
     auto& header_file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<uint8_t>>(
         { { "filename", "header_syncword_detection.u8" } });
-    auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<float>>();
+    auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     auto& header_vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
 
     expect(eq(gr::ConnectionResult::SUCCESS,
@@ -153,9 +164,15 @@ int main()
               fg.connect<"metadata">(header_parser)
                   .to<"parsed_header">(payload_metadata_insert)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"payload">(header_payload_split).to<"in">(file_sink)));
+              fg.connect<"payload">(header_payload_split).to<"in">(payload_slicer)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"payload">(header_payload_split).to<"in">(vector_sink)));
+              fg.connect<"out">(payload_slicer).to<"in">(payload_pack)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(payload_pack).to<"in">(payload_crc_check)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(payload_crc_check).to<"in">(file_sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(payload_crc_check).to<"in">(vector_sink)));
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)
