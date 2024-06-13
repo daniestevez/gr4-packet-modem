@@ -2,7 +2,6 @@
 #define _GR4_PACKET_MODEM_PACKET_TRANSMITTER
 
 #include <gnuradio-4.0/Graph.hpp>
-#include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/burst_shaper.hpp>
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
