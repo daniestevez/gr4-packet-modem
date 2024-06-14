@@ -10,6 +10,7 @@
 #include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/header_parser.hpp>
 #include <gnuradio-4.0/packet-modem/header_payload_split.hpp>
+#include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/pack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/payload_metadata_insert.hpp>
 #include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
@@ -26,7 +27,8 @@ public:
 
     PacketReceiver(gr::Graph& fg,
                    size_t samples_per_symbol = 4U,
-                   const std::string& packet_len_tag_key = "packet_len")
+                   const std::string& packet_len_tag_key = "packet_len",
+                   bool header_debug = false)
     {
         using c64 = std::complex<float>;
         const std::vector<uint8_t> syncword = {
@@ -92,6 +94,14 @@ public:
         out = &payload_crc_check.out;
 
         constexpr auto connection_error = "connection_error";
+
+        if (header_debug) {
+            auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+            if (header_parser.metadata.connect(message_debug.print) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+        }
 
         if (fg.connect<"out">(syncword_detection).to<"in">(symbol_filter) !=
             ConnectionResult::SUCCESS) {

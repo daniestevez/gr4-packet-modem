@@ -158,6 +158,21 @@ public:
                      inSpan.size(),
                      outSpan.size());
 #endif
+        // it seems that the scheduler isn't respecting the rules of min_samples when
+        // calling this block
+        if (inSpan.size() < fft_size) {
+            if (!inSpan.consume(0)) {
+                throw gr::exception("consume failed");
+            }
+            outSpan.publish(0);
+#ifdef TRACE
+            fmt::println("{} called with {} input items, but minimum is {}",
+                         this->name,
+                         inSpan.size(),
+                         in.min_samples);
+#endif
+            return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
+        }
         assert(inSpan.size() == outSpan.size());
         assert(inSpan.size() >= fft_size);
         const size_t num_freq_bins = static_cast<size_t>(max_freq_bin - min_freq_bin + 1);
