@@ -49,6 +49,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::TunSource, out, tun_name);
+ENABLE_REFLECTION(gr::packet_modem::TunSource, out, tun_name, netns_name);
 
 #endif // _GR4_PACKET_MODEM_TUN_SOURCE

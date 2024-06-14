@@ -20,8 +20,8 @@ int main()
     const double samp_rate = 100e3;
 
     gr::Graph fg;
-    auto& source =
-        fg.emplaceBlock<gr::packet_modem::TunSource>({ { "tun_name", "gr4_tun_tx" } });
+    auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
+        { { "tun_name", "gr4_tun_tx" }, { "netns_name", "gr4_tx" } });
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
@@ -44,8 +44,8 @@ int main()
     auto packet_receiver =
         gr::packet_modem::PacketReceiver(fg, samples_per_symbol, "packet_len", false);
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();
-    auto& sink =
-        fg.emplaceBlock<gr::packet_modem::TunSink>({ { "tun_name", "gr4_tun_rx" } });
+    auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
+        { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
     expect(eq(gr::ConnectionResult::SUCCESS,
               source.out.connect(*packet_transmitter_pdu.in)));

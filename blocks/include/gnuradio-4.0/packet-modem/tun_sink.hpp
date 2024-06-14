@@ -38,6 +38,6 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION(gr::packet_modem::TunSink, in, tun_name);
+ENABLE_REFLECTION(gr::packet_modem::TunSink, in, tun_name, netns_name);
 
 #endif // _GR4_PACKET_MODEM_TUN_SINK

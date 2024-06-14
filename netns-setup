@@ -1,0 +1,15 @@
+sudo ip netns add gr4_tx
+sudo ip netns add gr4_rx
+sudo ip -n gr4_tx tuntap add dev gr4_tun_tx mode tun
+sudo ip -n gr4_rx tuntap add dev gr4_tun_rx mode tun
+sudo ip -n gr4_tx link set gr4_tun_tx up
+sudo ip -n gr4_rx link set gr4_tun_rx up
+sudo ip -n gr4_tx addr add 192.168.10.1 dev gr4_tun_tx
+sudo ip -n gr4_tx route add 192.168.10.2 dev gr4_tun_tx
+sudo ip -n gr4_rx addr add 192.168.10.2 dev gr4_tun_rx
+sudo ip link add v_tx netns gr4_tx type veth peer v_rx netns gr4_rx
+sudo ip -n gr4_tx link set v_tx up
+sudo ip -n gr4_rx link set v_rx up
+sudo ip -n gr4_rx addr add 192.168.10.2/24 dev v_rx
+sudo ip netns exec gr4_rx sysctl -w net.ipv4.conf.gr4_tun_rx.rp_filter=0
+sudo ip netns exec gr4_tx sysctl -w net.ipv4.conf.v_tx.rp_filter=0
