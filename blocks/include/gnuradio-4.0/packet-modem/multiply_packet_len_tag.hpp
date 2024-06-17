@@ -36,6 +36,9 @@ public:
                 tag.map[packet_len_tag_key] = pmtv::pmt(static_cast<uint64_t>(
                     std::round(mult * static_cast<double>(packet_len))));
             }
+#ifdef TRACE
+            fmt::println("{} publishing tag: map = {}", this->name, tag.map);
+#endif
             out.publishTag(tag.map);
         }
         return a;

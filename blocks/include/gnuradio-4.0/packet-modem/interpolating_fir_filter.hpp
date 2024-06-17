@@ -79,6 +79,12 @@ public:
                      this->name,
                      inSpan.size(),
                      outSpan.size());
+        if (this->input_tags_present()) {
+            const auto tag = this->mergedInputTag();
+            fmt::println("{} tags present: map = {}", this->name, tag.map);
+        } else {
+            fmt::println("{} no tags present", this->name);
+        }
 #endif
         assert(inSpan.size() == outSpan.size() / interpolation);
         auto out_item = outSpan.begin();
