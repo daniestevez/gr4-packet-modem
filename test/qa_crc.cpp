@@ -148,10 +148,8 @@ boost::ut::suite CrcTests = [] {
             expect(tag.map == property_map{ { "packet_len", data.size() } });
         } |
         std::vector<std::tuple<size_t, bool>>{
-            { 1U, false }, { 4U, false }, { 10U, false }, { 100U, false },
-            /* { 100U, true },  this does not work because the data doesn't arrive to the
-               vector sink */
-            /* { 65536U, false}, this does not work because the data is
+            { 1U, false }, { 4U, false }, { 10U, false }, { 100U, false }, { 100U, true },
+            /* { 65535U, false}, this does not work because the data is
                never presented at once to the CrcCheck::processBulk() function */
         };
 };
