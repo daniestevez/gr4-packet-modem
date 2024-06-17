@@ -67,8 +67,12 @@ public:
                     return gr::work::Status::ERROR;
                 }
                 if (!packet_len_tag_key.empty()) {
-                    out.publishTag({ { packet_len_tag_key, packet_len } },
-                                   out_item - outSpan.begin());
+                    const gr::property_map map = { { packet_len_tag_key, packet_len } };
+                    const auto index = out_item - outSpan.begin();
+#ifdef TRACE
+                    fmt::println("{} publishTag({}, {})", this->name, map, index);
+#endif
+                    out.publishTag(map, index);
                 }
             }
             const auto n =
@@ -77,8 +81,11 @@ public:
                 in_item->data | std::views::drop(_index) | std::views::take(n), out_item);
             for (const auto& tag : in_item->tags) {
                 if (tag.index >= _index && tag.index - _index < n) {
-                    out.publishTag(tag.map,
-                                   tag.index - _index + (out_item - outSpan.begin()));
+                    const auto index = tag.index - _index + (out_item - outSpan.begin());
+#ifdef TRACE
+                    fmt::println("{} publishTag({}, {})", this->name, tag.map, index);
+#endif
+                    out.publishTag(tag.map, index);
                 }
             }
             out_item += n;

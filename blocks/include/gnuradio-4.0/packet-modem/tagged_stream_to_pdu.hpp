@@ -127,6 +127,14 @@ public:
         _index += to_consume;
 
         if (_remaining == 0) {
+#ifdef TRACE
+            if (!_pdu.tags.empty()) {
+                fmt::println("{} publishing PDU with tags:", this->name);
+                for (const auto& tag : _pdu.tags) {
+                    fmt::println("index = {}, map = {}", tag.index, tag.map);
+                }
+            }
+#endif
             outSpan[0] = std::move(_pdu);
             _pdu = {};
             outSpan.publish(1);
