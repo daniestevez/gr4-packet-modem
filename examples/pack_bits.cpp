@@ -18,13 +18,10 @@ int main()
     // This works as expected
     const std::vector<gr::Tag> tags = {
         { 0, { { "zero", pmtv::pmt_null() }, { "packet_len", 8 } } },
+        { 1, { { "one", pmtv::pmt_null() } } },
         { 2, { { "two", pmtv::pmt_null() } } },
         { 8, { { "packet_len", 4 } } },
     };
-    // This makes the scheduler loop forever. PackBits::processBulk() is never called
-    // const std::vector<gr::Tag> tags = {
-    //     { 1, { { "one", pmtv::pmt_null() } } },
-    // };
     auto& source = fg.emplaceBlock<gr::packet_modem::VectorSource<uint8_t>>();
     source.data = v;
     source.tags = tags;
@@ -35,7 +32,7 @@ int main()
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     auto& unpack = fg.emplaceBlock<gr::packet_modem::UnpackBits<>>(
         { { "outputs_per_input", 2UZ },
-          { "bits_per_input", uint8_t{ 1 } },
+          { "bits_per_output", uint8_t{ 1 } },
           { "packet_len_tag_key", "packet_len" } });
     auto& sink_unpacked = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(pack)));

@@ -63,6 +63,9 @@ public:
     TIn bits_per_input = TIn{ 1 };
     std::string packet_len_tag_key = "";
 
+    // this needs custom tag propagation because it overwrites tags
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
+
     void settingsChanged(const gr::property_map& /* old_settings */,
                          const gr::property_map& /* new_settings */)
     {
@@ -93,9 +96,9 @@ public:
 #endif
         assert(inSpan.size() / inputs_per_output == outSpan.size());
         assert(outSpan.size() > 0);
-        if (!packet_len_tag_key.empty() && this->input_tags_present()) {
+        if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            if (tag.map.contains(packet_len_tag_key)) {
+            if (!packet_len_tag_key.empty() && tag.map.contains(packet_len_tag_key)) {
                 // Adjust the packet_len tag value and overwrite the output tag
                 // that is automatically propagated by the runtime.
                 const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
@@ -110,8 +113,8 @@ public:
                     return gr::work::Status::ERROR;
                 }
                 tag.map[packet_len_tag_key] = pmtv::pmt(packet_len / inputs_per_output);
-                out.publishTag(tag.map, 0);
             }
+            out.publishTag(tag.map);
         }
 
         auto in_item = inSpan.begin();
