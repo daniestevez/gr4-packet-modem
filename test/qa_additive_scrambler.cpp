@@ -142,7 +142,20 @@ boost::ut::suite AdditiveScramblerTests = [] {
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(to_stream).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // PduToTaggedStream; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const auto data = sink.data();
         expect(eq(data.size(), num_items));
         for (size_t j = 0; j < static_cast<size_t>(num_items); ++j) {

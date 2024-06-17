@@ -54,6 +54,10 @@ public:
                      outSpan.size(),
                      _remaining,
                      _pdu.data.size());
+        if (this->input_tags_present()) {
+            const auto tag = this->mergedInputTag();
+            fmt::println("{} tags: index = {}, map = {}", this->name, tag.index, tag.map);
+        }
 #endif
         if (inSpan.size() == 0) {
             if (!inSpan.consume(0)) {

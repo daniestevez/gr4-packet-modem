@@ -42,7 +42,20 @@ boost::ut::suite BurstShaperTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(tagged_to_pdu).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // PduToTaggedStream; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const auto pdus = sink.data();
         expect(eq(pdus.size(), packet_lengths.size()));
         for (size_t j = 0; j < packet_lengths.size(); ++j) {

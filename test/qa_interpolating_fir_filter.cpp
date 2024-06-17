@@ -87,7 +87,20 @@ boost::ut::suite InterpolatingFirFilterTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_tagged).to<"in">(output_sink)));
         scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // PduToTaggedStream; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const auto input_data = input_sink.data();
         const auto output_data = output_sink.data();
         expect(eq(input_data.size(), num_items));

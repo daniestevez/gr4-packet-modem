@@ -27,7 +27,20 @@ boost::ut::suite PduTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_stream).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // PduToTaggedStream; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const std::vector<int> expected_data = { 1,  2,  3,  4,  5,  10, 11, 12,
                                                  13, 14, 15, 16, 17, 18, 19, 20 };
         expect(eq(sink.data(), expected_data));
@@ -90,7 +103,8 @@ boost::ut::suite PduTests = [] {
         for (size_t j = 0; j < 10; ++j) {
             const auto& pdu = pdus[j];
             const std::vector<int> expected(v.cbegin() + static_cast<ssize_t>(10 * j),
-                                            v.cbegin() + static_cast<ssize_t>(10 * (j + 1)));
+                                            v.cbegin() +
+                                                static_cast<ssize_t>(10 * (j + 1)));
             expect(eq(pdu.data, expected));
             expect(pdu.tags.empty());
         }

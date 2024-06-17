@@ -65,7 +65,20 @@ boost::ut::suite HeaderFecEncoderTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_stream).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // PduToTaggedStream; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const std::vector<uint8_t> expected_output = {
             0xeb, 0x59, 0x29, 0xd6, //
             0x35, 0xf1, 0xca, 0x33, 0x98, 0x48, 0xd8, 0x4d, 0x41, 0x24, 0xc1, 0x57,

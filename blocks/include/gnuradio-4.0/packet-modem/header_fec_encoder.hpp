@@ -48,6 +48,9 @@ public:
     gr::PortOut<uint8_t> out;
     std::string packet_len_tag_key = "packet_len";
 
+    // this needs custom tag propagation because it overwrites tags
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
+
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
@@ -70,15 +73,14 @@ public:
                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
 
-        if (!packet_len_tag_key.empty() && this->input_tags_present()) {
+        if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            if (tag.map.contains(packet_len_tag_key)) {
-                // Adjust the packet_len tag value and overwrite the output tag
-                // that is automatically propagated by the runtime.
+            if (!packet_len_tag_key.empty() && tag.map.contains(packet_len_tag_key)) {
+                // adjust the packet_len tag value
                 const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
                 tag.map[packet_len_tag_key] = pmtv::pmt(packet_len * 8U);
-                out.publishTag(tag.map, 0);
             }
+            out.publishTag(tag.map);
         }
 
         auto in_item = inSpan.begin();

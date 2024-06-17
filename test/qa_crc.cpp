@@ -40,7 +40,20 @@ boost::ut::suite CrcTests = [] {
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(crc_append).to<"in">(sink)));
         gr::scheduler::Simple sched{ std::move(fg) };
+        // this test doesn't terminate on its own because there is a
+        // CrcAppend block, which has Async output ; stop it manually
+        gr::MsgPortOut toScheduler;
+        expect(eq(gr::ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
+        std::thread stopper([&toScheduler]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            gr::sendMessage<gr::message::Command::Set>(
+                toScheduler,
+                "",
+                gr::block::property::kLifeCycleState,
+                { { "state", "REQUESTED_STOP" } });
+        });
         expect(sched.runAndWait().has_value());
+        stopper.join();
         const auto data = sink.data();
         expect(eq(data.size(), packet_len + 2U));
         std::vector<uint8_t> expected(v);

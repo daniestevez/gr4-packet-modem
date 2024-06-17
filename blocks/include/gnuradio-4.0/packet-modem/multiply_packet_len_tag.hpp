@@ -24,16 +24,19 @@ public:
     double mult = 1.0;
     std::string packet_len_tag_key = "packet_len";
 
+    // this needs custom tag propagation because it overwrites tags
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
+
     [[nodiscard]] constexpr T processOne(T a) noexcept
     {
         if (this->input_tags_present()) {
-            auto tags = this->mergedInputTag();
-            if (tags.map.contains(packet_len_tag_key)) {
-                uint64_t packet_len = pmtv::cast<uint64_t>(tags.map[packet_len_tag_key]);
-                tags.map[packet_len_tag_key] = pmtv::pmt(static_cast<uint64_t>(
+            auto tag = this->mergedInputTag();
+            if (tag.map.contains(packet_len_tag_key)) {
+                uint64_t packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
+                tag.map[packet_len_tag_key] = pmtv::pmt(static_cast<uint64_t>(
                     std::round(mult * static_cast<double>(packet_len))));
-                out.publishTag(tags.map, 0);
             }
+            out.publishTag(tag.map);
         }
         return a;
     }
