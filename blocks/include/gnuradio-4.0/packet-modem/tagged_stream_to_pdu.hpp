@@ -143,6 +143,10 @@ public:
 #endif
         } else {
             outSpan.publish(0);
+            // Clear input tags. This is needed because the block doesn't
+            // publish anything, so the input tags don't get cleared by the
+            // runtime.
+            this->_mergedInputTag.map.clear();
 #ifdef TRACE
             fmt::println("{} consume = {}, publish = 0, _remaining = {}, "
                          "_pdu.data.size() = {}",
