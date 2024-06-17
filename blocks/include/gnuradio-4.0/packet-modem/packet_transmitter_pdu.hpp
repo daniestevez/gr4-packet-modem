@@ -141,7 +141,8 @@ public:
                 throw gr::exception("resizeBuffer() failed");
             }
         }
-        auto& qpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+        auto& qpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>(
+            { { "map", qpsk_constellation } });
         if (max_in_samples) {
             qpsk_modulator.in.max_samples = max_in_samples;
         }
@@ -151,7 +152,6 @@ public:
                 throw gr::exception("resizeBuffer() failed");
             }
         }
-        qpsk_modulator.map = qpsk_constellation;
 
         // syncword (64-bit CCSDS syncword)
         const Pdu<uint8_t> syncword_pdu = {
@@ -175,7 +175,8 @@ public:
         syncword_source.data = std::vector<Pdu<uint8_t>>{ syncword_pdu };
         syncword_source.name = "PacketTransmitter(syncword_source)";
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
-        auto& syncword_bpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+        auto& syncword_bpsk_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>(
+            { { "map", bpsk_constellation } });
         if (max_in_samples) {
             syncword_bpsk_modulator.in.max_samples = max_in_samples;
         }
@@ -185,7 +186,6 @@ public:
                 throw gr::exception("resizeBuffer() failed");
             }
         }
-        syncword_bpsk_modulator.map = bpsk_constellation;
 
         auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(
             { { "num_inputs", stream_mode ? 2UZ : 4UZ } });
@@ -232,7 +232,8 @@ public:
                     throw gr::exception("resizeBuffer() failed");
                 }
             }
-            auto& ramp_down_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>();
+            auto& ramp_down_modulator = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<c64>>>(
+                { { "map", qpsk_constellation } });
             if (max_in_samples) {
                 ramp_down_modulator.in.max_samples = max_in_samples;
             }
@@ -242,7 +243,6 @@ public:
                     throw gr::exception("resizeBuffer() failed");
                 }
             }
-            ramp_down_modulator.map = qpsk_constellation;
 
             const std::vector<c64> flush_vector(rrc_flush_nsymbols);
             const Pdu<c64> flush_pdu = { flush_vector, {} };

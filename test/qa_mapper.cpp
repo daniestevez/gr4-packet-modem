@@ -18,8 +18,7 @@ boost::ut::suite MapperTests = [] {
         std::iota(v.begin(), v.end(), uint8_t{ 0 });
         auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
         source.data = v;
-        auto& mapper = fg.emplaceBlock<Mapper<uint8_t, float>>();
-        mapper.map = map;
+        auto& mapper = fg.emplaceBlock<Mapper<uint8_t, float>>({ { "map", map } });
         auto& sink = fg.emplaceBlock<VectorSink<float>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(mapper)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(mapper).to<"in">(sink)));
@@ -39,8 +38,8 @@ boost::ut::suite MapperTests = [] {
         Pdu<uint8_t> pdu = { v, {} };
         auto& source = fg.emplaceBlock<VectorSource<Pdu<uint8_t>>>();
         source.data = std::vector<Pdu<uint8_t>>{ pdu };
-        auto& mapper = fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<float>>>();
-        mapper.map = map;
+        auto& mapper =
+            fg.emplaceBlock<Mapper<Pdu<uint8_t>, Pdu<float>>>({ { "map", map } });
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<float>>>();
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(mapper)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(mapper).to<"in">(sink)));

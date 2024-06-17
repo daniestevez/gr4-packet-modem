@@ -34,19 +34,8 @@ public:
     gr::PortOut<TOut> out;
     std::vector<TOut> map;
 
-    // void settingsChanged(const gr::property_map& /* old_settings */,
-    //                      const gr::property_map& /* new_settings */)
-    // {
-    //     if (!std::has_single_bit(map.size())) {
-    //         throw gr::exception(
-    //             fmt::format("the map size must be a power of 2 (got {})", map.size()));
-    //     }
-    //     _mask = map.size() - 1;
-    // }
-
-    // When 'map' can be enabled again in reflection, use settingsChanged()
-    // instead of start()
-    void start()
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
     {
         if (!std::has_single_bit(map.size())) {
             throw gr::exception(
@@ -75,18 +64,16 @@ public:
     gr::PortOut<Pdu<TOut>> out;
     std::vector<TOut> map;
 
-    // void settingsChanged(const gr::property_map& /* old_settings */,
-    //                      const gr::property_map& /* new_settings */)
-    // {
-    //     if (!std::has_single_bit(map.size())) {
-    //         throw gr::exception(
-    //             fmt::format("the map size must be a power of 2 (got {})", map.size()));
-    //     }
-    //     _mask = map.size() - 1;
-    // }
+    void settingsChanged(const gr::property_map& /* old_settings */,
+                         const gr::property_map& /* new_settings */)
+    {
+        if (!std::has_single_bit(map.size())) {
+            throw gr::exception(
+                fmt::format("the map size must be a power of 2 (got {})", map.size()));
+        }
+        _mask = map.size() - 1;
+    }
 
-    // When 'map' can be enabled again in reflection, use settingsChanged()
-    // instead of start()
     void start()
     {
         if (!std::has_single_bit(map.size())) {
@@ -109,8 +96,6 @@ public:
 
 } // namespace gr::packet_modem
 
-// map is taken out of the reflection for the time being because the settings
-// do not support std::vector<std::complex<float>>
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Mapper, in, out /*, map*/);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::Mapper, in, out, map);
 
 #endif // _GR4_PACKET_MODEM_MAPPER
