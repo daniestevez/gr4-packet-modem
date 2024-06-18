@@ -47,6 +47,14 @@ public:
         assert(inSpan.size() > 0);
         auto header = inSpan.begin();
         for (auto& meta : outSpan) {
+#ifdef TRACE
+            fmt::println("{} header = {:02x} {:02x} {:02x} {:02x}",
+                         this->name,
+                         header[0],
+                         header[1],
+                         header[2],
+                         header[3]);
+#endif
             bool valid = true;
             const uint64_t packet_length = (static_cast<uint64_t>(header[0]) << 8) |
                                            static_cast<uint64_t>(header[1]);
@@ -66,6 +74,9 @@ public:
             } else {
                 msg.data = gr::property_map{ { "invalid_header", pmtv::pmt_null() } };
             }
+#ifdef TRACE
+            fmt::println("{} sending message data {}", this->name, msg.data);
+#endif
             meta = std::move(msg);
 
             header += HEADER_LEN;

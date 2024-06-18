@@ -100,6 +100,12 @@ public:
                 throw gr::exception("consume failed");
             }
             outSpan.publish(0);
+            if (inSpan.size() != 0) {
+                // Clear input tags. This is needed because the block doesn't
+                // publish anything, so the input tags don't get cleared by the
+                // runtime.
+                this->_mergedInputTag.map.clear();
+            }
             return gr::work::Status::OK;
         }
 
@@ -201,6 +207,12 @@ public:
             throw gr::exception("consume failed");
         }
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
+        
+        // TODO: not sure why this is needed here, since some output is being published
+        if (in_item != inSpan.begin()) {
+            this->_mergedInputTag.map.clear();
+        }
+        
 #ifdef TRACE
         fmt::println("{} consumed = {}, published = {}",
                      this->name,

@@ -80,10 +80,21 @@ public:
             in_item += static_cast<ssize_t>(n);
         } else {
             outSpan.publish(0);
+            if (in_item != inSpan.begin()) {
+                // Clear input tags. This is needed because the block doesn't
+                // publish anything, so the input tags don't get cleared by the
+                // runtime.
+                this->_mergedInputTag.map.clear();
+            }
         }
 
         if (!inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()))) {
             throw gr::exception("consume failed");
+        }
+        
+        // TODO: not sure why this is needed here, since some output is being published
+        if (in_item != inSpan.begin()) {
+            this->_mergedInputTag.map.clear();
         }
 
         return gr::work::Status::OK;

@@ -118,6 +118,9 @@ public:
             }
         }
 
+        // TODO: not sure why this is needed here, since some output is being published
+        this->_mergedInputTag.map.clear();
+
         return gr::work::Status::OK;
     }
 };
