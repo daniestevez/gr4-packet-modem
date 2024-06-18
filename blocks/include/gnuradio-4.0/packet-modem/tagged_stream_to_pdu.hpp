@@ -80,7 +80,7 @@ public:
             // Fetch the packet length tag to determine the length of the packet.
             auto not_found_error = [this]() {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
-                                       "expected packet-length tag not found");
+                                       fmt::format("{} expected packet-length tag not found", this->name));
                 this->requestStop();
                 return gr::work::Status::ERROR;
             };
@@ -94,7 +94,7 @@ public:
             _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
             if (_remaining == 0) {
                 this->emitErrorMessage(fmt::format("{}::processBulk", this->name),
-                                       "received packet-length equal to zero");
+                                       fmt::format("{} received packet-length equal to zero", this->name));
                 this->requestStop();
                 return gr::work::Status::ERROR;
             }

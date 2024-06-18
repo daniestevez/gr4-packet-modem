@@ -80,6 +80,9 @@ public:
                 const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
                 tag.map[packet_len_tag_key] = pmtv::pmt(packet_len * 8U);
             }
+#ifdef TRACE
+            fmt::println("{} publishTag(), map = {}", this->name, tag.map);
+#endif            
             out.publishTag(tag.map);
         }
 
