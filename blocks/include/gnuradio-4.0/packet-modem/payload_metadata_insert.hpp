@@ -70,13 +70,15 @@ public:
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(headerSpan.size() = {}, inSpan.size() = {}, "
-                     "outSpan.size() = {}), _in_packet = {}, _position = {}",
+                     "outSpan.size() = {}), _in_packet = {}, _position = {}, "
+                     "_payload_symbols = {}",
                      this->name,
                      headerSpan.size(),
                      inSpan.size(),
                      outSpan.size(),
                      _in_packet,
-                     _position);
+                     _position,
+                     _payload_symbols);
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
@@ -184,9 +186,10 @@ public:
             if (syncword_size + header_size < _position &&
                 _position < syncword_size + header_size + _payload_symbols) {
                 // copy rest of payload
-                const auto n = std::min({ static_cast<size_t>(inSpan.end() - in_item),
-                                          static_cast<size_t>(outSpan.end() - out_item),
-                                          _payload_symbols });
+                const auto n = std::min(
+                    { static_cast<size_t>(inSpan.end() - in_item),
+                      static_cast<size_t>(outSpan.end() - out_item),
+                      syncword_size + header_size + _payload_symbols - _position });
                 std::copy_n(in_item, n, out_item);
                 in_item += static_cast<ssize_t>(n);
                 out_item += static_cast<ssize_t>(n);
@@ -207,12 +210,12 @@ public:
             throw gr::exception("consume failed");
         }
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
-        
+
         // TODO: not sure why this is needed here, since some output is being published
         if (in_item != inSpan.begin()) {
             this->_mergedInputTag.map.clear();
         }
-        
+
 #ifdef TRACE
         fmt::println("{} consumed = {}, published = {}",
                      this->name,
