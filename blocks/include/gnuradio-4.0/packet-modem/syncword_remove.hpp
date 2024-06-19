@@ -91,7 +91,7 @@ public:
         if (!inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()))) {
             throw gr::exception("consume failed");
         }
-        
+
         // TODO: not sure why this is needed here, since some output is being published
         if (in_item != inSpan.begin()) {
             this->_mergedInputTag.map.clear();
