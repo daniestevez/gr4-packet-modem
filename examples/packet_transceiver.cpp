@@ -1,8 +1,10 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
+#include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/rotator.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
@@ -17,7 +19,7 @@ int main()
     using namespace boost::ut;
     using c64 = std::complex<float>;
 
-    const double samp_rate = 100e3;
+    const double samp_rate = 1e6;
 
     gr::Graph fg;
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
@@ -39,6 +41,8 @@ int main()
     packet_to_stream.out.max_samples = 1000U;
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<c64>>(
         { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
+    auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
+    auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
     auto packet_receiver =
@@ -53,6 +57,10 @@ int main()
               packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(throttle).to<"in">(probe_rate)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(throttle).to<"in">(rotator)));
     expect(eq(gr::ConnectionResult::SUCCESS, rotator.out.connect(*packet_receiver.in)));
