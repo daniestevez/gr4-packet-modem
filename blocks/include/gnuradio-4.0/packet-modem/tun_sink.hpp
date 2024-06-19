@@ -9,7 +9,7 @@
 
 namespace gr::packet_modem {
 
-class TunSink : public gr::Block<TunSink, gr::BlockingIO<true>>, public TunBlock
+class TunSink : public gr::Block<TunSink>, public TunBlock
 {
 public:
     using Description = Doc<R""(
