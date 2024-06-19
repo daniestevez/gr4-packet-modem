@@ -74,7 +74,7 @@ public:
         _current_count = 0;
     }
 
-    // processBulk() disabled temporarily because it is giving problems with tag
+    // processOne() disabled temporarily because it is giving problems with tag
     // propagation. Sometimes all the processOne() calls for the same work() see
     // the tag and reset the LFSR (only the first call should see the tag).
 
