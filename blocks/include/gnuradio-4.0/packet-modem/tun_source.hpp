@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_TUN_SOURCE
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/packet-modem/tun.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <sys/select.h>
