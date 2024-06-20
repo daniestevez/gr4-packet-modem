@@ -4,6 +4,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/binary_slicer.hpp>
+#include <gnuradio-4.0/packet-modem/coarse_frequency_correction.hpp>
 #include <gnuradio-4.0/packet-modem/constellation_llr_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/crc_check.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
@@ -69,6 +70,7 @@ public:
                                                  { "max_freq_bin", 4 } });
         syncword_detection.constellation = bpsk_constellation;
         in = &syncword_detection.in;
+        auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>();
         auto& symbol_filter = fg.emplaceBlock<SymbolFilter<c64, c64, float>>(
             { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
         auto& payload_metadata_insert = fg.emplaceBlock<PayloadMetadataInsert<>>();
@@ -103,7 +105,11 @@ public:
             }
         }
 
-        if (fg.connect<"out">(syncword_detection).to<"in">(symbol_filter) !=
+        if (fg.connect<"out">(syncword_detection).to<"in">(freq_correction) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"out">(freq_correction).to<"in">(symbol_filter) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
