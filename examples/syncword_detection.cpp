@@ -1,8 +1,10 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/add.hpp>
 #include <gnuradio-4.0/packet-modem/file_sink.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
+#include <gnuradio-4.0/packet-modem/noise_source.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
@@ -47,6 +49,9 @@ int main()
     }
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
+    auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
+        { { "noise_type", "gaussian" }, { "amplitude", 0.05f } });
+    auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();
     auto& head =
         fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
     auto packet_receiver = gr::packet_modem::PacketReceiver(fg, samples_per_symbol);
@@ -61,7 +66,12 @@ int main()
               packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
-    expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(rotator).to<"in">(head)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(rotator).to<"in0">(add_noise)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(noise_source).to<"in1">(add_noise)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(add_noise).to<"in">(head)));
     expect(eq(gr::ConnectionResult::SUCCESS, head.out.connect(*packet_receiver.in)));
     expect(eq(gr::ConnectionResult::SUCCESS, packet_receiver.out->connect(file_sink.in)));
     expect(
