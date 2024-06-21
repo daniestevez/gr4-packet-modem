@@ -17,10 +17,13 @@
 #include <complex>
 #include <cstdint>
 
-int main()
+int main(int argc, char** argv)
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+
+    expect(fatal(eq(argc, 2)));
+    const float freq_error = std::stof(argv[1]);
 
     gr::Graph fg;
     const std::vector<size_t> packet_lengths = { 10,  25,   100,  1500, 27,   38, 243,
@@ -48,7 +51,7 @@ int main()
         pdu_to_stream.in.max_samples = max_in_samples;
     }
     auto& rotator =
-        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
+        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
         { { "noise_type", "gaussian" }, { "amplitude", 0.05f } });
     auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();

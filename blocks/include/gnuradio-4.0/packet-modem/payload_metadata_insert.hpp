@@ -43,6 +43,7 @@ private:
     static constexpr char constellation_key[] = "constellation";
     static constexpr char bpsk_key[] = "BPSK";
     static constexpr char qpsk_key[] = "QPSK";
+    static constexpr char loop_bandwidth_key[] = "loop_bandwidth";
     static constexpr char packet_length_key[] = "packet_length";
     static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
@@ -54,6 +55,9 @@ public:
     gr::PortOut<T> out;
     size_t syncword_size = 64;
     size_t header_size = 128;
+    double syncword_costas_loop_bandwidth = 0.04;
+    double header_costas_loop_bandwidth = 0.03;
+    double payload_costas_loop_bandwidth = 0.008;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
@@ -90,6 +94,7 @@ public:
                 _position = 0;
                 // the syncword is BPSK modulated
                 tag.map[constellation_key] = bpsk_key;
+                tag.map[loop_bandwidth_key] = syncword_costas_loop_bandwidth;
                 out.publishTag(tag.map, 0);
             }
         }
@@ -128,7 +133,12 @@ public:
 
             if (_position == syncword_size) {
                 // the header is QPSK modulated
-                out.publishTag(_header_map, out_item - outSpan.begin());
+                const gr::property_map header_map = {
+                    { constellation_key, qpsk_key },
+                    { header_start_key, pmtv::pmt_null() },
+                    { loop_bandwidth_key, header_costas_loop_bandwidth },
+                };
+                out.publishTag(header_map, out_item - outSpan.begin());
             }
 
             if (syncword_size <= _position && _position < syncword_size + header_size) {
@@ -165,6 +175,7 @@ public:
                     _payload_symbols = (packet_length + crc_size_bytes) * 4;
                     const uint64_t payload_bits = _payload_symbols * 2;
                     meta[payload_bits_key] = pmtv::pmt(payload_bits);
+                    meta[loop_bandwidth_key] = payload_costas_loop_bandwidth;
                     out.publishTag(meta, out_item - outSpan.begin());
 
                     const auto n =
@@ -234,6 +245,9 @@ ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PayloadMetadataInsert,
                                in,
                                out,
                                syncword_size,
-                               header_size);
+                               header_size,
+                               syncword_costas_loop_bandwidth,
+                               header_costas_loop_bandwidth,
+                               payload_costas_loop_bandwidth);
 
 #endif // _GR4_PACKET_MODEM_PAYLOAD_METADATA_INSERT

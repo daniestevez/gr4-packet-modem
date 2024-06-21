@@ -6,6 +6,7 @@
 #include <gnuradio-4.0/packet-modem/binary_slicer.hpp>
 #include <gnuradio-4.0/packet-modem/coarse_frequency_correction.hpp>
 #include <gnuradio-4.0/packet-modem/constellation_llr_decoder.hpp>
+#include <gnuradio-4.0/packet-modem/costas_loop.hpp>
 #include <gnuradio-4.0/packet-modem/crc_check.hpp>
 #include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
@@ -74,6 +75,7 @@ public:
         auto& symbol_filter = fg.emplaceBlock<SymbolFilter<c64, c64, float>>(
             { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
         auto& payload_metadata_insert = fg.emplaceBlock<PayloadMetadataInsert<>>();
+        auto& costas_loop = fg.emplaceBlock<CostasLoop<>>();
         auto& syncword_remove = fg.emplaceBlock<SyncwordRemove<>>();
         auto& constellation_decoder = fg.emplaceBlock<ConstellationLLRDecoder<>>(
             { { "noise_sigma", 0.1f }, { "constellation", "QPSK" } });
@@ -117,7 +119,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(payload_metadata_insert).to<"in">(syncword_remove) !=
+        if (fg.connect<"out">(payload_metadata_insert).to<"in">(costas_loop) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"out">(costas_loop).to<"in">(syncword_remove) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
