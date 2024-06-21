@@ -2,7 +2,9 @@
 #define _GR4_PACKET_MODEM_COSTAS_LOOP
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/constellation.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <magic_enum.hpp>
 #include <cmath>
 #include <complex>
 #include <numbers>
@@ -24,13 +26,10 @@ public:
     // Loop coefficients K_1 and K_2
     T _k1 = 0;
     T _k2 = 0;
-    bool _qpsk = false;
 
 private:
     static constexpr char syncword_phase_key[] = "syncword_phase";
     static constexpr char constellation_key[] = "constellation";
-    static constexpr char bpsk_key[] = "BPSK";
-    static constexpr char qpsk_key[] = "QPSK";
 
     void set_phase(T phase)
     {
@@ -46,7 +45,8 @@ public:
     gr::PortOut<std::complex<T>> out;
     // B_L * T loop bandwidth parameter
     double loop_bandwidth = 0.01;
-    std::string constellation = bpsk_key;
+    Constellation _constellation = Constellation::BPSK;
+    std::string constellation{ magic_enum::enum_name(_constellation) };
 
     void settingsChanged(const gr::property_map& /* old_settings */,
                          const gr::property_map& /* new_settings */)
@@ -55,14 +55,12 @@ public:
         fmt::println(
             "{}::settingsChanged() constellation = {}", this->name, constellation);
 #endif
+        _constellation = magic_enum::enum_cast<Constellation>(
+                             constellation, magic_enum::case_insensitive)
+                             .value();
         double discriminant_gain = 1.0;
-        if (constellation == bpsk_key) {
-            _qpsk = false;
-        } else if (constellation == qpsk_key) {
-            _qpsk = true;
+        if (_constellation == Constellation::QPSK) {
             discriminant_gain = std::numbers::sqrt2;
-        } else {
-            throw gr::exception(fmt::format("invalid constellation {}", constellation));
         }
 
         // Solve cubic equation in terms of loop_bandwidth to get K_1 and K_2
@@ -117,15 +115,25 @@ public:
             const std::complex<T> z_out = inSpan[j] * lo;
             outSpan[j] = z_out;
             T error = 0;
-            if (_qpsk) {
+            switch (_constellation) {
+            case Constellation::PILOT:
+                // phase discriminant for pure pilot is Q
+                error = z_out.imag();
+                break;
+            case Constellation::BPSK:
+                // phase discriminant for BPSK is I*Q
+                error = z_out.real() * z_out.imag();
+                break;
+            case Constellation::QPSK:
                 // Phase discriminant for QPSK is (Q - I))/sqrt(2) assuming the
                 // signal is in the first quadrant. The /sqrt(2) term is taken
                 // into account in the calculation of _k1 and _k2.
                 error = (z_out.real() > 0 ? z_out.imag() : -z_out.imag()) +
                         (z_out.imag() > 0 ? -z_out.real() : z_out.real());
-            } else {
-                // phase discriminant for BPSK is I*Q
-                error = z_out.real() * z_out.imag();
+                break;
+            default:
+                // should not be reached
+                abort();
             }
             _freq += static_cast<TPhase>(_k2 * error);
             _phase += static_cast<TPhase>(_k1 * error) + _freq;

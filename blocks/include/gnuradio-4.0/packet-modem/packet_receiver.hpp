@@ -18,6 +18,7 @@
 #include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_detection.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_remove.hpp>
+#include <gnuradio-4.0/packet-modem/syncword_wipeoff.hpp>
 
 namespace gr::packet_modem {
 
@@ -74,6 +75,12 @@ public:
         auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>();
         auto& symbol_filter = fg.emplaceBlock<SymbolFilter<c64, c64, float>>(
             { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
+        std::vector<float> syncword_bipolar;
+        for (auto x : syncword) {
+            syncword_bipolar.push_back(x ? -1.0f : 1.0f);
+        }
+        auto& syncword_wipeoff =
+            fg.emplaceBlock<SyncwordWipeoff<>>({ { "syncword", syncword_bipolar } });
         auto& payload_metadata_insert = fg.emplaceBlock<PayloadMetadataInsert<>>();
         auto& costas_loop = fg.emplaceBlock<CostasLoop<>>();
         auto& syncword_remove = fg.emplaceBlock<SyncwordRemove<>>();
@@ -115,7 +122,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(symbol_filter).to<"in">(payload_metadata_insert) !=
+        if (fg.connect<"out">(symbol_filter).to<"in">(syncword_wipeoff) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"out">(syncword_wipeoff).to<"in">(payload_metadata_insert) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

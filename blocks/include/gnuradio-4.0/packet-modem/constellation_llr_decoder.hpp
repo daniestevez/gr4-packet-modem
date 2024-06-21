@@ -2,7 +2,9 @@
 #define _GR4_PACKET_MODEM_CONSTELLATION_LLR_DECODER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/constellation.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <magic_enum.hpp>
 #include <complex>
 
 namespace gr::packet_modem {
@@ -41,7 +43,8 @@ public:
     // standard deviation of the noise in the real part (and also imaginary
     // part) of the complex input AGWN
     T noise_sigma = T{ 1 };
-    std::string constellation = "BPSK";
+    Constellation _constellation = Constellation::BPSK;
+    std::string constellation{ magic_enum::enum_name(_constellation) };
 
     // use custom tag propagation policy because the runtime isn't smart enough
     // to propagate tags correctly with the `this->numerator` changes done by
@@ -57,11 +60,17 @@ public:
             "{}::settingsChanged(), constellation = {}", this->name, constellation);
 #endif
         // set resampling ratio for the scheduler
-        if (constellation == "BPSK") {
+        _constellation = magic_enum::enum_cast<Constellation>(
+                             constellation, magic_enum::case_insensitive)
+                             .value();
+        switch (_constellation) {
+        case Constellation::BPSK:
             this->numerator = 1;
-        } else if (constellation == "QPSK") {
+            break;
+        case Constellation::QPSK:
             this->numerator = 2;
-        } else {
+            break;
+        default:
             throw gr::exception(
                 fmt::format("constellation {} not supported", constellation));
         }
@@ -92,18 +101,21 @@ public:
 
         auto out_item = outSpan.begin();
         auto input = inSpan | std::views::take(n);
-        if (constellation == "BPSK") {
+        switch (_constellation) {
+        case Constellation::BPSK:
             for (auto& in_item : input) {
                 *out_item++ = _scale * in_item.real();
             }
-        } else if (constellation == "QPSK") {
+            break;
+        case Constellation::QPSK:
             for (auto& in_item : input) {
                 *out_item++ = _scale * in_item.real();
                 *out_item++ = _scale * in_item.imag();
             }
-        } else {
-            throw gr::exception(
-                fmt::format("constellation {} not supported", constellation));
+            break;
+        default:
+            // should not be reached
+            abort();
         }
 
         if (!inSpan.consume(n)) {

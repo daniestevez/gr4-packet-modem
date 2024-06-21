@@ -2,7 +2,9 @@
 #define _GR4_PACKET_MODEM_PAYLOAD_METADATA_INSERT
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/constellation.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <magic_enum.hpp>
 #include <complex>
 
 namespace gr::packet_modem {
@@ -35,19 +37,18 @@ public:
     bool _in_packet = false;
     uint64_t _position = 0;
     size_t _payload_symbols = 0;
-    gr::property_map _header_map = { { constellation_key, qpsk_key },
-                                     { header_start_key, pmtv::pmt_null() } };
 
 private:
     static constexpr char syncword_amplitude_key[] = "syncword_amplitude";
     static constexpr char constellation_key[] = "constellation";
-    static constexpr char bpsk_key[] = "BPSK";
-    static constexpr char qpsk_key[] = "QPSK";
     static constexpr char loop_bandwidth_key[] = "loop_bandwidth";
     static constexpr char packet_length_key[] = "packet_length";
     static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
     static constexpr char invalid_header_key[] = "invalid_header";
+    static constexpr std::string _pilot_key{ magic_enum::enum_name(
+        Constellation::PILOT) };
+    static constexpr std::string _qpsk_key{ magic_enum::enum_name(Constellation::QPSK) };
 
 public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
@@ -92,8 +93,9 @@ public:
 #endif
                 _in_packet = true;
                 _position = 0;
-                // the syncword is BPSK modulated
-                tag.map[constellation_key] = bpsk_key;
+                // the syncword modulation has been wiped off, so it is pure
+                // pilot
+                tag.map[constellation_key] = _pilot_key;
                 tag.map[loop_bandwidth_key] = syncword_costas_loop_bandwidth;
                 out.publishTag(tag.map, 0);
             }
@@ -134,7 +136,7 @@ public:
             if (_position == syncword_size) {
                 // the header is QPSK modulated
                 const gr::property_map header_map = {
-                    { constellation_key, qpsk_key },
+                    { constellation_key, _qpsk_key },
                     { header_start_key, pmtv::pmt_null() },
                     { loop_bandwidth_key, header_costas_loop_bandwidth },
                 };
