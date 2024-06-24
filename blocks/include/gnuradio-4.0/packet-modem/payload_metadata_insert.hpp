@@ -46,9 +46,10 @@ private:
     static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
     static constexpr char invalid_header_key[] = "invalid_header";
-    static constexpr std::string _pilot_key{ magic_enum::enum_name(
-        Constellation::PILOT) };
-    static constexpr std::string _qpsk_key{ magic_enum::enum_name(Constellation::QPSK) };
+
+public:
+    const std::string _pilot_key{ magic_enum::enum_name(Constellation::PILOT) };
+    const std::string _qpsk_key{ magic_enum::enum_name(Constellation::QPSK) };
 
 public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
