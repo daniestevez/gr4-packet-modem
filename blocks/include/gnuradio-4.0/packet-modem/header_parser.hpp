@@ -59,7 +59,7 @@ public:
             if (this->input_tags_present() &&
                 this->mergedInputTag().map.contains("invalid_header")) {
 #ifdef TRACE
-              fmt::println("{} LDPC decoder error", this->name);
+                fmt::println("{} LDPC decoder error", this->name);
 #endif
                 // LDPC decoder error
                 valid = false;
