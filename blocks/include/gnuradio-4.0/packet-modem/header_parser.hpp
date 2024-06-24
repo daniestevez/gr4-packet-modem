@@ -56,6 +56,14 @@ public:
                          header[3]);
 #endif
             bool valid = true;
+            if (this->input_tags_present() &&
+                this->mergedInputTag().map.contains("invalid_header")) {
+#ifdef TRACE
+              fmt::println("{} LDPC decoder error", this->name);
+#endif
+                // LDPC decoder error
+                valid = false;
+            }
             const uint64_t packet_length = (static_cast<uint64_t>(header[0]) << 8) |
                                            static_cast<uint64_t>(header[1]);
             if (packet_length == 0) {

@@ -93,7 +93,7 @@ public:
               { "reset_tag_key", "header_start" } });
         auto& header_payload_split = fg.emplaceBlock<HeaderPayloadSplit<>>(
             { { "packet_len_tag_key", packet_len_tag_key } });
-        auto& header_fec_decoder = fg.emplaceBlock<HeaderFecDecoder<>>();
+        auto& header_fec_decoder = fg.emplaceBlock<HeaderFecDecoder>();
         auto& header_parser = fg.emplaceBlock<HeaderParser<>>();
         auto& payload_slicer = fg.emplaceBlock<BinarySlicer<true>>();
         auto& payload_pack =

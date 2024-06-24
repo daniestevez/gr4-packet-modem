@@ -9,6 +9,22 @@ option(ADDRESS_SANITIZER "Enable address sanitizer" OFF)
 option(UB_SANITIZER "Enable undefined behavior sanitizer" OFF)
 option(THREAD_SANITIZER "Enable thread sanitizer" OFF)
 
+# Corrosion
+include(FetchContent)
+FetchContent_Declare(
+    Corrosion
+    GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+    GIT_TAG v0.5 # Optionally specify a commit hash, version tag or branch here
+)
+FetchContent_Declare(
+    ldpc-toolbox
+    GIT_REPOSITORY https://github.com/daniestevez/ldpc-toolbox.git
+    GIT_TAG v0.6.3
+)
+# Set any global configuration variables such as `Rust_TOOLCHAIN` before this line!
+FetchContent_MakeAvailable(Corrosion ldpc-toolbox)
+corrosion_import_crate(MANIFEST_PATH ${ldpc-toolbox_SOURCE_DIR}/Cargo.toml)
+
 set(CMAKE_EXT_DEP_WARNING_GUARD "")
 if(DISABLE_EXTERNAL_DEPS_WARNINGS) # enable warnings for external dependencies
     set(CMAKE_EXT_DEP_WARNING_GUARD SYSTEM)
