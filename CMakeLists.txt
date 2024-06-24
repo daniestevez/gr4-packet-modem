@@ -25,6 +25,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Corrosion ldpc-toolbox)
 corrosion_import_crate(MANIFEST_PATH ${ldpc-toolbox_SOURCE_DIR}/Cargo.toml)
 
+# Make sure our local CMake Modules path comes first
+list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake/Modules)
+
+# Some blocks use ZMQ
+find_package(ZeroMQ MODULE REQUIRED)
+
 set(CMAKE_EXT_DEP_WARNING_GUARD "")
 if(DISABLE_EXTERNAL_DEPS_WARNINGS) # enable warnings for external dependencies
     set(CMAKE_EXT_DEP_WARNING_GUARD SYSTEM)
