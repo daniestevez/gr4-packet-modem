@@ -37,16 +37,18 @@ jobs:
           CXX: "${{ matrix.compiler.cxx }}"
           CMAKE_EXPORT_COMPILE_COMMANDS: "ON"
         run: |
+          source /opt/rust/env
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake-build-type }} ${{ matrix.compiler.cmake_flags }} ..
       - name: Build
         shell: bash
         run: |
+          source /opt/rust/env
           cd build
           make -j$(nproc)
       - name: Test
         shell: bash
-        run: |
+        run: |          
           cd build
           ctest --output-on-failure
