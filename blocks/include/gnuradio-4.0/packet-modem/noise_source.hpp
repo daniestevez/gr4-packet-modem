@@ -42,6 +42,7 @@ public:
     NoiseType _noise_type = NoiseType::UNIFORM;
     std::string noise_type = std::string(magic_enum::enum_name(_noise_type));
     float amplitude = 1.0;
+    float _amplitude_complex = amplitude / std::numbers::sqrt2_v<float>;
     uint64_t seed = 0;
 
     void settingsChanged(const property_map& /*oldSettings*/,
@@ -50,6 +51,7 @@ public:
         _noise_type =
             magic_enum::enum_cast<NoiseType>(noise_type, magic_enum::case_insensitive)
                 .value();
+        _amplitude_complex = amplitude / std::numbers::sqrt2_v<float>;
     }
 
     void start() { _rng = random(seed); }
@@ -63,13 +65,14 @@ public:
             switch (_noise_type) {
             case NoiseType::UNIFORM:
                 for (auto& x : outSpan) {
-                    x = std::complex<float>(amplitude * ((_rng.ran1() * 2.0f) - 1.0f),
-                                            amplitude * ((_rng.ran1() * 2.0f) - 1.0f));
+                    x = std::complex<float>(
+                        _amplitude_complex * ((_rng.ran1() * 2.0f) - 1.0f),
+                        _amplitude_complex * ((_rng.ran1() * 2.0f) - 1.0f));
                 }
                 break;
             case NoiseType::GAUSSIAN:
                 for (auto& x : outSpan) {
-                    x = amplitude * _rng.rayleigh_complex();
+                    x = _amplitude_complex * _rng.rayleigh_complex();
                 }
                 break;
             default:
