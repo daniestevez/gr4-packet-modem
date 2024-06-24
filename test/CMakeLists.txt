@@ -1,7 +1,8 @@
 function(setup_test_no_asan TEST_NAME)
   target_link_libraries(${TEST_NAME} PRIVATE
     gr4-packet-modem-blocks gnuradio-options gnuradio-core fmt refl-cpp
-    yaml-cpp::yaml-cpp fftw gr-basic gr-testing ut)
+    yaml-cpp::yaml-cpp fftw gr-basic gr-testing ut
+    PRIVATE ZeroMQ::ZeroMQ)
   add_test(NAME ${TEST_NAME} COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
   set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 30)
 endfunction()
