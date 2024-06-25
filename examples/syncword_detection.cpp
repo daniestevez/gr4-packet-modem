@@ -57,7 +57,10 @@ int main(int argc, char** argv)
     auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();
     auto& head =
         fg.emplaceBlock<gr::packet_modem::Head<c64>>({ { "num_items", 1000000UZ } });
-    auto packet_receiver = gr::packet_modem::PacketReceiver(fg, samples_per_symbol);
+    const bool header_debug = true;
+    const bool zmq_output = false;
+    auto packet_receiver = gr::packet_modem::PacketReceiver(
+        fg, samples_per_symbol, "packet_len", header_debug, zmq_output);
 
     auto& file_sink = fg.emplaceBlock<gr::packet_modem::FileSink<uint8_t>>(
         { { "filename", "syncword_detection.u8" } });

@@ -1,6 +1,8 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/add.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
+#include <gnuradio-4.0/packet-modem/noise_source.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
@@ -44,9 +46,14 @@ int main()
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     auto& rotator =
-        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.0f } });
-    auto packet_receiver =
-        gr::packet_modem::PacketReceiver(fg, samples_per_symbol, "packet_len", false);
+        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.002f } });
+    auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
+        { { "noise_type", "gaussian" }, { "amplitude", 0.05f } });
+    auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();
+    const bool header_debug = false;
+    const bool zmq_output = true;
+    auto packet_receiver = gr::packet_modem::PacketReceiver(
+        fg, samples_per_symbol, "packet_len", header_debug, zmq_output);
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
@@ -63,7 +70,11 @@ int main()
         eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(throttle).to<"in">(rotator)));
-    expect(eq(gr::ConnectionResult::SUCCESS, rotator.out.connect(*packet_receiver.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(rotator).to<"in0">(add_noise)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(noise_source).to<"in1">(add_noise)));
+    expect(eq(gr::ConnectionResult::SUCCESS, add_noise.out.connect(*packet_receiver.in)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, packet_receiver.out->connect(tag_to_pdu.in)));
     expect(

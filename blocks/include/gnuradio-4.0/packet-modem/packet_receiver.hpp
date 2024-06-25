@@ -19,6 +19,8 @@
 #include <gnuradio-4.0/packet-modem/syncword_detection.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_remove.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_wipeoff.hpp>
+#include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
+#include <gnuradio-4.0/packet-modem/zmq_pdu_pub_sink.hpp>
 
 namespace gr::packet_modem {
 
@@ -31,7 +33,8 @@ public:
     PacketReceiver(gr::Graph& fg,
                    size_t samples_per_symbol = 4U,
                    const std::string& packet_len_tag_key = "packet_len",
-                   bool header_debug = false)
+                   bool header_debug = false,
+                   bool zmq_output = false)
     {
         using c64 = std::complex<float>;
         const std::vector<uint8_t> syncword = {
@@ -109,6 +112,38 @@ public:
         if (header_debug) {
             auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
             if (header_parser.metadata.connect(message_debug.print) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+        }
+
+        if (zmq_output) {
+            auto& symbols_split = fg.emplaceBlock<HeaderPayloadSplit<c64>>(
+                { { "header_size", 128UZ },
+                  { "payload_length_key", "payload_symbols" } });
+            auto& header_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>();
+            auto& payload_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>();
+            auto& zmq_header_sink =
+                fg.emplaceBlock<ZmqPduPubSink<c64>>({ { "endpoint", "tcp://*:5000" } });
+            auto& zmq_payload_sink =
+                fg.emplaceBlock<ZmqPduPubSink<c64>>({ { "endpoint", "tcp://*:5001" } });
+            if (fg.connect<"out">(syncword_remove).to<"in">(symbols_split) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"header">(symbols_split).to<"in">(header_to_pdu) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"payload">(symbols_split).to<"in">(payload_to_pdu) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(header_to_pdu).to<"in">(zmq_header_sink) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(payload_to_pdu).to<"in">(zmq_payload_sink) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }

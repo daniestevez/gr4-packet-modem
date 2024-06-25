@@ -43,6 +43,7 @@ private:
     static constexpr char constellation_key[] = "constellation";
     static constexpr char loop_bandwidth_key[] = "loop_bandwidth";
     static constexpr char packet_length_key[] = "packet_length";
+    static constexpr char payload_symbols_key[] = "payload_symbols";
     static constexpr char payload_bits_key[] = "payload_bits";
     static constexpr char header_start_key[] = "header_start";
     static constexpr char invalid_header_key[] = "invalid_header";
@@ -177,6 +178,8 @@ public:
                     constexpr size_t crc_size_bytes = 4;
                     _payload_symbols = (packet_length + crc_size_bytes) * 4;
                     const uint64_t payload_bits = _payload_symbols * 2;
+                    meta[payload_symbols_key] =
+                        pmtv::pmt(static_cast<uint64_t>(_payload_symbols));
                     meta[payload_bits_key] = pmtv::pmt(payload_bits);
                     meta[loop_bandwidth_key] = payload_costas_loop_bandwidth;
                     out.publishTag(meta, out_item - outSpan.begin());
