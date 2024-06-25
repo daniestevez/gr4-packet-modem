@@ -89,7 +89,7 @@ public:
     int min_freq_bin = 0;
     int max_freq_bin = 0;
     uint64_t time_threshold = 768;
-    float power_threshold = 20.0;
+    float power_threshold = 10.0;
 
     void start()
     {

@@ -87,8 +87,10 @@ public:
         auto& payload_metadata_insert = fg.emplaceBlock<PayloadMetadataInsert<>>();
         auto& costas_loop = fg.emplaceBlock<CostasLoop<>>();
         auto& syncword_remove = fg.emplaceBlock<SyncwordRemove<>>();
+        // noise_sigma set for an Es/N0 of 0 dB, which is the worst design case
+        // for header decoding
         auto& constellation_decoder = fg.emplaceBlock<ConstellationLLRDecoder<>>(
-            { { "noise_sigma", 0.1f }, { "constellation", "QPSK" } });
+            { { "noise_sigma", 0.7f }, { "constellation", "QPSK" } });
         auto& descrambler = fg.emplaceBlock<AdditiveScrambler<float>>(
             { { "mask", uint64_t{ 0x4001U } },
               { "seed", uint64_t{ 0x18E38U } },

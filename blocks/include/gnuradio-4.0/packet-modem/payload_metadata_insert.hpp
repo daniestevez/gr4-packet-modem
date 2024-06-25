@@ -58,8 +58,8 @@ public:
     gr::PortOut<T> out;
     size_t syncword_size = 64;
     size_t header_size = 128;
-    double syncword_costas_loop_bandwidth = 0.04;
-    double header_costas_loop_bandwidth = 0.03;
+    double syncword_costas_loop_bandwidth = 0.025;
+    double header_costas_loop_bandwidth = 0.015;
     double payload_costas_loop_bandwidth = 0.008;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
@@ -89,7 +89,10 @@ public:
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            if (tag.map.contains(syncword_amplitude_key)) {
+            // If we are already inside a packet, we ignore a
+            // syncword_amplitude_key (this can happen due to false syncword
+            // detections)
+            if (!_in_packet && tag.map.contains(syncword_amplitude_key)) {
 #ifdef TRACE
                 fmt::println("{} got {} tag", this->name, syncword_amplitude_key);
 #endif

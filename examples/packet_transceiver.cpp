@@ -16,10 +16,19 @@
 #include <complex>
 #include <cstdint>
 
-int main()
+int main(int argc, char** argv)
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+
+    expect(fatal(eq(argc, 3)));
+    const double esn0_db = std::stod(argv[1]);
+    const float freq_error = std::stof(argv[2]);
+    const double tx_power = 0.32; // measured from packet_transmitter_pdu output
+    const size_t samples_per_symbol = 4U;
+    const double n0 = tx_power * static_cast<double>(samples_per_symbol) *
+                      std::pow(10.0, -0.1 * esn0_db);
+    const float noise_amplitude = static_cast<float>(std::sqrt(n0));
 
     const double samp_rate = 1e6;
 
@@ -27,7 +36,6 @@ int main()
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
         { { "tun_name", "gr4_tun_tx" }, { "netns_name", "gr4_tx" } });
     const bool stream_mode = false;
-    const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
     // note that buffer size is rounded up to a multiple of
     // lcm(sizeof(Pdu<T>), getpagesize()), but different values that round up to
@@ -46,9 +54,9 @@ int main()
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     auto& rotator =
-        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", 0.002f } });
+        fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
-        { { "noise_type", "gaussian" }, { "amplitude", 0.05f } });
+        { { "noise_type", "gaussian" }, { "amplitude", noise_amplitude } });
     auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();
     const bool header_debug = false;
     const bool zmq_output = true;
