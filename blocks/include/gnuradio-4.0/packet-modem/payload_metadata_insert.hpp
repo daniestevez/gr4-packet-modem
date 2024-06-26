@@ -37,6 +37,7 @@ public:
     bool _in_packet = false;
     uint64_t _position = 0;
     size_t _payload_symbols = 0;
+    uint64_t _num_packet = 0;
 
 private:
     static constexpr char syncword_amplitude_key[] = "syncword_amplitude";
@@ -61,6 +62,7 @@ public:
     double syncword_costas_loop_bandwidth = 0.025;
     double header_costas_loop_bandwidth = 0.015;
     double payload_costas_loop_bandwidth = 0.008;
+    bool log = false;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
@@ -89,20 +91,37 @@ public:
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
-            // If we are already inside a packet, we ignore a
-            // syncword_amplitude_key (this can happen due to false syncword
-            // detections)
-            if (!_in_packet && tag.map.contains(syncword_amplitude_key)) {
+            if (tag.map.contains(syncword_amplitude_key)) {
 #ifdef TRACE
                 fmt::println("{} got {} tag", this->name, syncword_amplitude_key);
 #endif
-                _in_packet = true;
-                _position = 0;
-                // the syncword modulation has been wiped off, so it is pure
-                // pilot
-                tag.map[constellation_key] = _pilot_key;
-                tag.map[loop_bandwidth_key] = syncword_costas_loop_bandwidth;
-                out.publishTag(tag.map, 0);
+                // If we are already inside a packet, we ignore a
+                // syncword_amplitude_key (this can happen due to false syncword
+                // detections)
+                if (!_in_packet) {
+                    _in_packet = true;
+                    _position = 0;
+                    ++_num_packet;
+                    // the syncword modulation has been wiped off, so it is pure
+                    // pilot
+                    tag.map[constellation_key] = _pilot_key;
+                    tag.map[loop_bandwidth_key] = syncword_costas_loop_bandwidth;
+                    out.publishTag(tag.map, 0);
+                    if (log) {
+                        fmt::println(
+                            "syncword received for packet {}: amplitude = {:.3}, "
+                            "frequency = {:.3} (bin {})",
+                            _num_packet,
+                            pmtv::cast<float>(tag.map["syncword_amplitude"]),
+                            pmtv::cast<double>(tag.map["syncword_freq"]),
+                            pmtv::cast<int>(tag.map["syncword_freq_bin"]));
+                    }
+                } else {
+                    if (log) {
+                        fmt::println("syncword received inside packet {}; ignoring",
+                                     _num_packet);
+                    }
+                }
             }
         }
         if (!_in_packet) {
@@ -169,6 +188,10 @@ public:
                         _in_packet = false;
                         in_item = inSpan.end(); // consume remaining input
                         ++header_item;
+                        if (log) {
+                            fmt::println("header decoded failed for packet {}",
+                                         _num_packet);
+                        }
                         break;
                     }
                     const uint64_t packet_length =
@@ -186,6 +209,11 @@ public:
                     meta[payload_bits_key] = pmtv::pmt(payload_bits);
                     meta[loop_bandwidth_key] = payload_costas_loop_bandwidth;
                     out.publishTag(meta, out_item - outSpan.begin());
+                    if (log) {
+                        fmt::println("header for packet {}: packet_length = {}",
+                                     _num_packet,
+                                     packet_length);
+                    }
 
                     const auto n =
                         std::min({ static_cast<size_t>(inSpan.end() - in_item),
@@ -231,7 +259,8 @@ public:
         }
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
 
-        // TODO: not sure why this is needed here, since some output is being published
+        // TODO: not sure why this is needed here, since some output is being
+        // published
         if (in_item != inSpan.begin()) {
             this->_mergedInputTag.map.clear();
         }
@@ -257,6 +286,7 @@ ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PayloadMetadataInsert,
                                header_size,
                                syncword_costas_loop_bandwidth,
                                header_costas_loop_bandwidth,
-                               payload_costas_loop_bandwidth);
+                               payload_costas_loop_bandwidth,
+                               log);
 
 #endif // _GR4_PACKET_MODEM_PAYLOAD_METADATA_INSERT

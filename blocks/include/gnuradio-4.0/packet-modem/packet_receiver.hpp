@@ -34,7 +34,8 @@ public:
                    size_t samples_per_symbol = 4U,
                    const std::string& packet_len_tag_key = "packet_len",
                    bool header_debug = false,
-                   bool zmq_output = false)
+                   bool zmq_output = false,
+                   bool log = false)
     {
         using c64 = std::complex<float>;
         const std::vector<uint8_t> syncword = {
@@ -84,7 +85,8 @@ public:
         }
         auto& syncword_wipeoff =
             fg.emplaceBlock<SyncwordWipeoff<>>({ { "syncword", syncword_bipolar } });
-        auto& payload_metadata_insert = fg.emplaceBlock<PayloadMetadataInsert<>>();
+        auto& payload_metadata_insert =
+            fg.emplaceBlock<PayloadMetadataInsert<>>({ { "log", log } });
         auto& costas_loop = fg.emplaceBlock<CostasLoop<>>();
         auto& syncword_remove = fg.emplaceBlock<SyncwordRemove<>>();
         // noise_sigma set for an Es/N0 of 0 dB, which is the worst design case

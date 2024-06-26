@@ -60,8 +60,9 @@ int main(int argc, char** argv)
     auto& add_noise = fg.emplaceBlock<gr::packet_modem::Add<c64>>();
     const bool header_debug = false;
     const bool zmq_output = true;
+    const bool log = true;
     auto packet_receiver = gr::packet_modem::PacketReceiver(
-        fg, samples_per_symbol, "packet_len", header_debug, zmq_output);
+        fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
