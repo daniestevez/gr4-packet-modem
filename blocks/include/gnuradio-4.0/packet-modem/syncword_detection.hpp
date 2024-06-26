@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/HistoryBuffer.hpp>
 #include <gnuradio-4.0/algorithm/fourier/fftw.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <algorithm>
 #include <complex>
 #include <numbers>
 #include <numeric>
@@ -17,6 +18,10 @@ struct HistoryItem {
     using c64 = std::complex<float>;
     c64 sample;
     float correlation_power;
+    // correlation power in adjacent bins; used for quadratic interpolation
+    // for finer frequency estimate
+    float correlation_power_left;
+    float correlation_power_right;
     c64 correlation;
     int freq_bin;
     bool detection = false;
@@ -54,12 +59,31 @@ private:
         const float syncword_amplitude =
             std::sqrt(item.correlation_power) /
             (static_cast<float>(fft_size) * _syncword_self_corr);
-        const double syncword_freq = static_cast<double>(item.freq_bin) *
-                                     std::numbers::pi /
-                                     static_cast<double>(_syncword_samples_size);
+        const double bin_spacing =
+            std::numbers::pi / static_cast<double>(_syncword_samples_size);
+        double syncword_freq = static_cast<double>(item.freq_bin) * bin_spacing;
+        float syncword_phase = std::arg(item.correlation);
+        if (item.freq_bin > min_freq_bin && item.freq_bin < max_freq_bin) {
+            // perform quadratic interpolation to get a finer frequency estimate
+            const double a = static_cast<double>(item.correlation_power_left);
+            const double b = static_cast<double>(item.correlation_power);
+            const double c = static_cast<double>(item.correlation_power_right);
+            const double quad =
+                std::clamp((c - a) / (2.0 * (2.0 * b - (a + c))), -0.5, 0.5);
+            const double delta_freq = quad * bin_spacing;
+            syncword_freq += delta_freq;
+            // correct phase for the applied frequency delta
+            syncword_phase -=
+                static_cast<float>(delta_freq * 0.5 * static_cast<double>(_syncword_samples_size));
+            if (syncword_phase >= std::numbers::pi_v<float>) {
+                syncword_phase -= 2.0f * std::numbers::pi_v<float>;
+            } else if (syncword_phase < -std::numbers::pi_v<float>) {
+                syncword_phase += 2.0f * std::numbers::pi_v<float>;
+            }
+        }
         return {
             { "syncword_amplitude", syncword_amplitude },
-            { "syncword_phase", std::arg(item.correlation) },
+            { "syncword_phase", syncword_phase },
             { "syncword_freq", syncword_freq },
             { "syncword_freq_bin", item.freq_bin },
         };
@@ -89,7 +113,7 @@ public:
     int min_freq_bin = 0;
     int max_freq_bin = 0;
     uint64_t time_threshold = 768;
-    float power_threshold = 10.0;
+    float power_threshold = 9.0;
 
     void start()
     {
@@ -256,6 +280,16 @@ public:
                 syncword_detection::HistoryItem item;
                 item.sample = inSpan[j + k];
                 item.correlation_power = zpow;
+                if (best_freq > 0) {
+                    const auto z_left = correlation[best_freq - 1][z_idx];
+                    item.correlation_power_left =
+                        z_left.real() * z_left.real() + z_left.imag() * z_left.imag();
+                }
+                if (best_freq < num_freq_bins - 1) {
+                    const auto z_right = correlation[best_freq + 1][z_idx];
+                    item.correlation_power_right =
+                        z_right.real() * z_right.real() + z_right.imag() * z_right.imag();
+                }
                 item.correlation = z;
                 item.freq_bin = min_freq_bin + static_cast<int>(best_freq);
                 _history.push_back(item);

@@ -59,9 +59,9 @@ public:
     gr::PortOut<T> out;
     size_t syncword_size = 64;
     size_t header_size = 128;
-    double syncword_costas_loop_bandwidth = 0.025;
-    double header_costas_loop_bandwidth = 0.015;
-    double payload_costas_loop_bandwidth = 0.008;
+    double syncword_costas_loop_bandwidth = 0.02;
+    double header_costas_loop_bandwidth = 0.01;
+    double payload_costas_loop_bandwidth = 0.005;
     bool log = false;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
