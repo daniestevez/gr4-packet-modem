@@ -54,15 +54,11 @@ private:
 
     gr::property_map output_tag(const syncword_detection::HistoryItem& item) const
     {
-        // divide by fft_size to account for the fact that the IFFT is missing a
-        // 1/N factor
-        const float syncword_amplitude =
-            std::sqrt(item.correlation_power) /
-            (static_cast<float>(fft_size) * _syncword_self_corr);
         const double bin_spacing =
             std::numbers::pi / static_cast<double>(_syncword_samples_size);
         double syncword_freq = static_cast<double>(item.freq_bin) * bin_spacing;
         float syncword_phase = std::arg(item.correlation);
+        float correlation_power;
         if (item.freq_bin > min_freq_bin && item.freq_bin < max_freq_bin) {
             // perform quadratic interpolation to get a finer frequency estimate
             const double a = static_cast<double>(item.correlation_power_left);
@@ -73,14 +69,24 @@ private:
             const double delta_freq = quad * bin_spacing;
             syncword_freq += delta_freq;
             // correct phase for the applied frequency delta
-            syncword_phase -=
-                static_cast<float>(delta_freq * 0.5 * static_cast<double>(_syncword_samples_size));
+            syncword_phase -= static_cast<float>(
+                delta_freq * 0.5 * static_cast<double>(_syncword_samples_size));
             if (syncword_phase >= std::numbers::pi_v<float>) {
                 syncword_phase -= 2.0f * std::numbers::pi_v<float>;
             } else if (syncword_phase < -std::numbers::pi_v<float>) {
                 syncword_phase += 2.0f * std::numbers::pi_v<float>;
             }
+            // quadratic interpolation for the power
+            correlation_power =
+                static_cast<float>(b + (c - a) * (c - a) / (16.0 * (b - 0.5 * (a + c))));
+        } else {
+            correlation_power = item.correlation_power;
         }
+        // divide by fft_size to account for the fact that the IFFT is missing a
+        // 1/N factor
+        const float syncword_amplitude =
+            std::sqrt(correlation_power) /
+            (static_cast<float>(fft_size) * _syncword_self_corr);
         return {
             { "syncword_amplitude", syncword_amplitude },
             { "syncword_phase", syncword_phase },
