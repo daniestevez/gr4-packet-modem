@@ -52,7 +52,8 @@ private:
     using c64 = std::complex<float>;
     using FFT = gr::algorithm::FFTw<c64, c64>;
 
-    gr::property_map output_tag(const syncword_detection::HistoryItem& item) const
+    gr::property_map output_tag(const syncword_detection::HistoryItem& item,
+                                float power) const
     {
         const double bin_spacing =
             std::numbers::pi / static_cast<double>(_syncword_samples_size);
@@ -87,11 +88,21 @@ private:
         const float syncword_amplitude =
             std::sqrt(correlation_power) /
             (static_cast<float>(fft_size) * _syncword_self_corr);
+        const float syncword_power =
+            syncword_amplitude * syncword_amplitude * _syncword_self_corr;
+        const float noise_power =
+            (power - syncword_power) / static_cast<float>(_syncword_samples_size);
+        const float esn0_db =
+            10.0f *
+            std::log10((syncword_power * static_cast<float>(samples_per_symbol)) /
+                       (noise_power * static_cast<float>(_syncword_samples_size)));
         return {
             { "syncword_amplitude", syncword_amplitude },
             { "syncword_phase", syncword_phase },
             { "syncword_freq", syncword_freq },
             { "syncword_freq_bin", item.freq_bin },
+            { "syncword_noise_power", noise_power },
+            { "syncword_esn0_db", esn0_db },
         };
     }
 
@@ -281,7 +292,13 @@ public:
                 const auto& pop_history = _history[_history_size - 1];
                 outSpan[j + k] = pop_history.sample;
                 if (pop_history.detection) {
-                    out.publishTag(output_tag(pop_history), static_cast<ssize_t>(j + k));
+                    float power = 0.0f;
+                    for (size_t r = 0; r < _syncword_samples_size; ++r) {
+                        const auto w = _history[_history_size - 1 - r].sample;
+                        power += w.real() * w.real() + w.imag() * w.imag();
+                    }
+                    out.publishTag(output_tag(pop_history, power),
+                                   static_cast<ssize_t>(j + k));
                 }
                 syncword_detection::HistoryItem item;
                 item.sample = inSpan[j + k];

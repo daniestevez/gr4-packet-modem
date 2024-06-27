@@ -109,12 +109,13 @@ public:
                     out.publishTag(tag.map, 0);
                     if (log) {
                         fmt::println(
-                            "syncword received for packet {}: amplitude = {:.3}, "
-                            "frequency = {:.3} (bin {})",
+                            "syncword received for packet {}: amplitude = {:.4}, "
+                            "frequency = {:.4} (bin {}), Es/N0 = {:.3} dB",
                             _num_packet,
                             pmtv::cast<float>(tag.map["syncword_amplitude"]),
                             pmtv::cast<double>(tag.map["syncword_freq"]),
-                            pmtv::cast<int>(tag.map["syncword_freq_bin"]));
+                            pmtv::cast<int>(tag.map["syncword_freq_bin"]),
+                            pmtv::cast<float>(tag.map["syncword_esn0_db"]));
                     }
                 } else {
                     if (log) {
