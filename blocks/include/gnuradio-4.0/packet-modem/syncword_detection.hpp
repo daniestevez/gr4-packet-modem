@@ -24,6 +24,7 @@ struct HistoryItem {
     float correlation_power_right;
     c64 correlation;
     int freq_bin;
+    float fft_noise_power;
     bool detection = false;
 };
 } // namespace syncword_detection
@@ -52,8 +53,7 @@ private:
     using c64 = std::complex<float>;
     using FFT = gr::algorithm::FFTw<c64, c64>;
 
-    gr::property_map output_tag(const syncword_detection::HistoryItem& item,
-                                float power) const
+    gr::property_map output_tag(const syncword_detection::HistoryItem& item) const
     {
         const double bin_spacing =
             std::numbers::pi / static_cast<double>(_syncword_samples_size);
@@ -90,18 +90,16 @@ private:
             (static_cast<float>(fft_size) * _syncword_self_corr);
         const float syncword_power =
             syncword_amplitude * syncword_amplitude * _syncword_self_corr;
-        const float noise_power =
-            (power - syncword_power) / static_cast<float>(_syncword_samples_size);
         const float esn0_db =
-            10.0f *
-            std::log10((syncword_power * static_cast<float>(samples_per_symbol)) /
-                       (noise_power * static_cast<float>(_syncword_samples_size)));
+            10.0f * std::log10((syncword_power * static_cast<float>(samples_per_symbol)) /
+                               (item.fft_noise_power *
+                                static_cast<float>(_syncword_samples_size)));
         return {
             { "syncword_amplitude", syncword_amplitude },
             { "syncword_phase", syncword_phase },
             { "syncword_freq", syncword_freq },
             { "syncword_freq_bin", item.freq_bin },
-            { "syncword_noise_power", noise_power },
+            { "syncword_noise_power", item.fft_noise_power },
             { "syncword_esn0_db", esn0_db },
         };
     }
@@ -238,6 +236,19 @@ public:
                     _fft.compute(samples_fft_prod, std::move(correlation[nfreq]));
             }
 
+            // Compute noise power as the power in the outermost 1/2 of the FFT
+            // bin (note that there is no fftshift, so the outermost 1/2 is
+            // actually the central 1/2)
+            float fft_noise_power = 0.0f;
+            for (size_t k = fft_size / 4; k < 3 * fft_size / 4; ++k) {
+                const auto z = samples_fft[k];
+                fft_noise_power += z.real() * z.real() + z.imag() * z.imag();
+            }
+            // dividing by fft_size (which is sqrt(fft_size) squared) is needed
+            // to obtain a unitary FFT transform
+            fft_noise_power /=
+                static_cast<float>(fft_size / 2) * static_cast<float>(fft_size);
+
             for (size_t k = 0; k < stride; ++k) {
                 const uint64_t curr_idx = _items_consumed + j + k;
                 if (curr_idx - _best_idx > time_threshold) {
@@ -292,13 +303,7 @@ public:
                 const auto& pop_history = _history[_history_size - 1];
                 outSpan[j + k] = pop_history.sample;
                 if (pop_history.detection) {
-                    float power = 0.0f;
-                    for (size_t r = 0; r < _syncword_samples_size; ++r) {
-                        const auto w = _history[_history_size - 1 - r].sample;
-                        power += w.real() * w.real() + w.imag() * w.imag();
-                    }
-                    out.publishTag(output_tag(pop_history, power),
-                                   static_cast<ssize_t>(j + k));
+                    out.publishTag(output_tag(pop_history), static_cast<ssize_t>(j + k));
                 }
                 syncword_detection::HistoryItem item;
                 item.sample = inSpan[j + k];
@@ -315,6 +320,7 @@ public:
                 }
                 item.correlation = z;
                 item.freq_bin = min_freq_bin + static_cast<int>(best_freq);
+                item.fft_noise_power = fft_noise_power;
                 _history.push_back(item);
             }
         }
