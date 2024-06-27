@@ -189,7 +189,7 @@ public:
                         in_item = inSpan.end(); // consume remaining input
                         ++header_item;
                         if (log) {
-                            fmt::println("header decoded failed for packet {}",
+                            fmt::println("header decode failed for packet {}",
                                          _num_packet);
                         }
                         break;
