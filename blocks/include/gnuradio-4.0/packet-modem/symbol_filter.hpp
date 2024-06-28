@@ -11,8 +11,7 @@
 namespace gr::packet_modem {
 
 template <typename TIn, typename TOut = TIn, typename TTaps = TIn>
-class SymbolFilter
-    : public gr::Block<SymbolFilter<TIn, TOut, TTaps>, gr::Resampling<>>
+class SymbolFilter : public gr::Block<SymbolFilter<TIn, TOut, TTaps>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(

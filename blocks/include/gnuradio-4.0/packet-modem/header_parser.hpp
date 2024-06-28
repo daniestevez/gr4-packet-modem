@@ -10,9 +10,8 @@ namespace gr::packet_modem {
 static constexpr size_t HEADER_PARSER_HEADER_LEN = 4U;
 
 template <typename T = uint8_t>
-class HeaderParser
-    : public gr::Block<HeaderParser<T>,
-                       gr::Resampling<HEADER_PARSER_HEADER_LEN, 1U, true>>
+class HeaderParser : public gr::Block<HeaderParser<T>,
+                                      gr::Resampling<HEADER_PARSER_HEADER_LEN, 1U, true>>
 {
 public:
     using Description = Doc<R""(

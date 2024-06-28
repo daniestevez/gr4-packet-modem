@@ -13,8 +13,7 @@ namespace gr::packet_modem {
 template <Endianness endianness = Endianness::MSB,
           typename TIn = uint8_t,
           typename TOut = uint8_t>
-class UnpackBits
-    : public gr::Block<UnpackBits<endianness, TIn, TOut>, gr::Resampling<>>
+class UnpackBits : public gr::Block<UnpackBits<endianness, TIn, TOut>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
