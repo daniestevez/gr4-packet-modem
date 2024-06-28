@@ -11,7 +11,7 @@ namespace gr::packet_modem {
 
 template <typename T = float>
 class ConstellationLLRDecoder
-    : public gr::Block<ConstellationLLRDecoder<T>, gr::ResamplingRatio<>>
+    : public gr::Block<ConstellationLLRDecoder<T>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -59,16 +59,17 @@ public:
         fmt::println(
             "{}::settingsChanged(), constellation = {}", this->name, constellation);
 #endif
-        // set resampling ratio for the scheduler
+        // set resampling for the scheduler
         _constellation = magic_enum::enum_cast<Constellation>(
                              constellation, magic_enum::case_insensitive)
                              .value();
+        this->input_chunk_size = 1;
         switch (_constellation) {
         case Constellation::BPSK:
-            this->numerator = 1;
+            this->output_chunk_size = 1;
             break;
         case Constellation::QPSK:
-            this->numerator = 2;
+            this->output_chunk_size = 2;
             break;
         default:
             throw gr::exception(
@@ -82,12 +83,12 @@ public:
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
-                     "constellation = {}, numerator = {}",
+                     "constellation = {}, output_chunk_size = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
                      constellation,
-                     this->numerator);
+                     this->output_chunk_size);
 #endif
         if (this->input_tags_present()) {
             const auto tag = this->mergedInputTag();
@@ -97,7 +98,7 @@ public:
             out.publishTag(tag.map);
         }
 
-        const auto n = std::min(inSpan.size(), outSpan.size() / this->numerator);
+        const auto n = std::min(inSpan.size(), outSpan.size() / this->output_chunk_size);
 
         auto out_item = outSpan.begin();
         auto input = inSpan | std::views::take(n);
@@ -121,10 +122,12 @@ public:
         if (!inSpan.consume(n)) {
             throw gr::exception("consume failed");
         }
-        outSpan.publish(n * this->numerator);
+        outSpan.publish(n * this->output_chunk_size);
 #ifdef TRACE
-        fmt::println(
-            "{} consumed = {}, produced = {}", this->name, n, n * this->numerator);
+        fmt::println("{} consumed = {}, produced = {}",
+                     this->name,
+                     n,
+                     n * this->output_chunk_size);
 #endif
 
         return gr::work::Status::OK;

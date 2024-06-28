@@ -12,7 +12,7 @@ namespace gr::packet_modem {
 
 template <typename TIn, typename TOut = TIn, typename TTaps = TIn>
 class SymbolFilter
-    : public gr::Block<SymbolFilter<TIn, TOut, TTaps>, gr::ResamplingRatio<>>
+    : public gr::Block<SymbolFilter<TIn, TOut, TTaps>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -61,13 +61,13 @@ public:
             throw gr::exception("samples_per_symbol cannot be zero");
         }
 
-        // set resampling ratio for the scheduler
+        // set resampling for the scheduler
         //
         // TODO: this is giving problems with tags (because input tags are not
         // aligned to samples_per_symbol blocks)
         //
-        // this->numerator = 1;
-        // this->denominator = samples_per_symbol;
+        // this->output_chunk_size = 1;
+        // this->input_chunk_size = samples_per_symbol;
 
         // create a history of the appropriate size
         const auto capacity = std::bit_ceil(taps.size());

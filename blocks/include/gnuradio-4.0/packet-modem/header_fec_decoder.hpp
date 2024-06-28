@@ -9,8 +9,7 @@
 
 namespace gr::packet_modem {
 
-class HeaderFecDecoder
-    : public gr::Block<HeaderFecDecoder, gr::ResamplingRatio<1U, 64U, true>>
+class HeaderFecDecoder : public gr::Block<HeaderFecDecoder, gr::Resampling<1U, 64U, true>>
 {
 public:
     using Description = Doc<R""(

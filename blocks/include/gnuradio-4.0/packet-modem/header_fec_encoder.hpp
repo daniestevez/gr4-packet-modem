@@ -10,7 +10,7 @@ namespace gr::packet_modem {
 
 template <typename T = uint8_t>
 class HeaderFecEncoder
-    : public gr::Block<HeaderFecEncoder<T>, gr::ResamplingRatio<8U, 1U, true>>
+    : public gr::Block<HeaderFecEncoder<T>, gr::Resampling<1U, 8U, true>>
 {
 public:
     using Description = Doc<R""(

@@ -13,7 +13,7 @@ namespace gr::packet_modem {
 template <Endianness endianness = Endianness::MSB,
           typename TIn = uint8_t,
           typename TOut = uint8_t>
-class PackBits : public gr::Block<PackBits<endianness, TIn, TOut>, gr::ResamplingRatio<>>
+class PackBits : public gr::Block<PackBits<endianness, TIn, TOut>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -78,9 +78,9 @@ public:
                 fmt::format("bits_per_input must be positive; got {}", bits_per_input));
         }
         _mask = static_cast<TIn>(TIn{ 1 } << bits_per_input) - TIn{ 1 };
-        // set resampling ratio for the scheduler
-        this->numerator = 1;
-        this->denominator = inputs_per_output;
+        // set resampling for the scheduler
+        this->input_chunk_size = inputs_per_output;
+        this->output_chunk_size = 1;
     }
 
     static constexpr Endianness kEndianness = endianness;

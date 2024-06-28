@@ -12,7 +12,7 @@ namespace gr::packet_modem {
 
 template <typename TIn, typename TOut = TIn, typename TTaps = TIn>
 class InterpolatingFirFilter
-    : public gr::Block<InterpolatingFirFilter<TIn, TOut, TTaps>, gr::ResamplingRatio<>>
+    : public gr::Block<InterpolatingFirFilter<TIn, TOut, TTaps>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -45,9 +45,9 @@ public:
             throw gr::exception("interpolation cannot be zero");
         }
 
-        // set resampling ratio for the scheduler
-        this->numerator = interpolation;
-        this->denominator = 1;
+        // set resampling for the scheduler
+        this->input_chunk_size = 1;
+        this->output_chunk_size = interpolation;
 
         // organize the taps in a polyphase structure
         _taps_polyphase.resize(interpolation);

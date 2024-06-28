@@ -14,7 +14,7 @@ template <Endianness endianness = Endianness::MSB,
           typename TIn = uint8_t,
           typename TOut = uint8_t>
 class UnpackBits
-    : public gr::Block<UnpackBits<endianness, TIn, TOut>, gr::ResamplingRatio<>>
+    : public gr::Block<UnpackBits<endianness, TIn, TOut>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -79,9 +79,9 @@ public:
                 fmt::format("bits_per_output must be positive; got {}", bits_per_output));
         }
         _mask = static_cast<TIn>(TIn{ 1 } << bits_per_output) - TIn{ 1 };
-        // set resampling ratio for the scheduler
-        this->numerator = outputs_per_input;
-        this->denominator = 1;
+        // set resampling for the scheduler
+        this->input_chunk_size = 1;
+        this->output_chunk_size = outputs_per_input;
     }
 
     static constexpr Endianness kEndianness = endianness;

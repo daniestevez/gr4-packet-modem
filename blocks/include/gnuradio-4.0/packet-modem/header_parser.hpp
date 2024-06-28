@@ -12,7 +12,7 @@ static constexpr size_t HEADER_PARSER_HEADER_LEN = 4U;
 template <typename T = uint8_t>
 class HeaderParser
     : public gr::Block<HeaderParser<T>,
-                       gr::ResamplingRatio<1U, HEADER_PARSER_HEADER_LEN, true>>
+                       gr::Resampling<HEADER_PARSER_HEADER_LEN, 1U, true>>
 {
 public:
     using Description = Doc<R""(

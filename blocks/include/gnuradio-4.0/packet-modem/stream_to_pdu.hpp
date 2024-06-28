@@ -10,7 +10,7 @@
 namespace gr::packet_modem {
 
 template <typename T>
-class StreamToPdu : public gr::Block<StreamToPdu<T>, gr::ResamplingRatio<>>
+class StreamToPdu : public gr::Block<StreamToPdu<T>, gr::Resampling<>>
 {
 public:
     using Description = Doc<R""(
@@ -34,9 +34,9 @@ public:
     void settingsChanged(const gr::property_map& /* old_settings */,
                          const gr::property_map& /* new_settings */)
     {
-        // set resampling ratio for the scheduler
-        this->numerator = 1;
-        this->denominator = packet_length;
+        // set resampling for the scheduler
+        this->input_chunk_size = packet_length;
+        this->output_chunk_size = 1;
     }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
