@@ -46,8 +46,6 @@ public:
     std::optional<Crc<CrcType>> _crc;
     size_t _header_remaining;
     uint64_t _data_remaining;
-    unsigned _crc_remaining;
-    CrcType _crc_rem;
 
 private:
     void _set_crc()
@@ -89,7 +87,7 @@ public:
 
     void start()
     {
-        _crc_remaining = 0;
+        _data_remaining = 0;
         _set_crc();
     }
 
@@ -97,17 +95,15 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println(
-            "{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-            "_data_remaining = {}, _crc_remaining = {}, input_tags_present() = {}",
-            this->name,
-            inSpan.size(),
-            outSpan.size(),
-            _data_remaining,
-            _crc_remaining,
-            this->input_tags_present());
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
+                     "_data_remaining = {}, input_tags_present() = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     _data_remaining,
+                     this->input_tags_present());
 #endif
-        if (_crc_remaining == 0) {
+        if (_data_remaining == 0) {
             if (inSpan.size() == 0) {
                 if (!inSpan.consume(0)) {
                     throw gr::exception("consume failed");
@@ -137,10 +133,9 @@ public:
                              this->name,
                              _data_remaining);
             }
-            _crc_remaining = _crc_num_bytes;
             _crc->initialize();
             // modify packet_len tag
-            tag.map[packet_len_tag_key] = pmtv::pmt(_data_remaining + _crc_remaining);
+            tag.map[packet_len_tag_key] = pmtv::pmt(_data_remaining + _crc_num_bytes);
             out.publishTag(tag.map, 0);
         } else if (_data_remaining > 0 && this->input_tags_present()) {
             // Propagate other data tags
@@ -153,8 +148,15 @@ public:
         auto out_data = outSpan.begin();
 
         if (_data_remaining > 0) {
-            const auto to_consume =
+            auto to_consume =
                 std::min({ _data_remaining, inSpan.size(), outSpan.size() });
+            // Do not consume all the data if there is no space in the output to
+            // put the full CRC. This avoids getting the block in a stuck state
+            // where it can produce output for free (the CRC), but the scheduler
+            // doesn't call it.
+            if (to_consume + _crc_num_bytes > outSpan.size()) {
+                --to_consume;
+            }
             _crc->update(inSpan | std::views::take(static_cast<ssize_t>(to_consume)) |
                          std::views::drop(_header_remaining));
             std::ranges::copy_n(
@@ -164,29 +166,20 @@ public:
             out_data += static_cast<ssize_t>(to_consume);
             _header_remaining -= std::min(_header_remaining, to_consume);
             _data_remaining -= to_consume;
-            if (_data_remaining == 0) {
-                _crc_rem = _crc->finalize();
-            }
         }
 
         if (_data_remaining == 0) {
-            assert(_crc_remaining > 0);
-            const auto to_publish =
-                std::min(static_cast<size_t>(_crc_remaining),
-                         static_cast<size_t>(outSpan.size() - published));
+            const auto crc = _crc->finalize();
             if (swap_endianness) {
-                for (size_t j = 0; j < to_publish; ++j) {
-                    *out_data++ =
-                        (_crc_rem >> (8 * (_crc_num_bytes - _crc_remaining))) & 0xff;
-                    --_crc_remaining;
+                for (size_t j = 0; j < _crc_num_bytes; ++j) {
+                    *out_data++ = (crc >> (8 * j)) & 0xff;
                 }
             } else {
-                for (size_t j = 0; j < to_publish; ++j) {
-                    *out_data++ = (_crc_rem >> (8 * (_crc_remaining - 1))) & 0xff;
-                    --_crc_remaining;
+                for (size_t j = 0; j < _crc_num_bytes; ++j) {
+                    *out_data++ = (crc >> (8 * (_crc_num_bytes - 1 - j))) & 0xff;
                 }
             }
-            published += to_publish;
+            published += _crc_num_bytes;
         }
 
         if (!inSpan.consume(consumed)) {
@@ -201,8 +194,7 @@ public:
 #endif
 
         if (published == 0) {
-            return _data_remaining > 0 ? gr::work::Status::INSUFFICIENT_INPUT_ITEMS
-                                       : gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
+            return gr::work::Status::INSUFFICIENT_OUTPUT_ITEMS;
         }
         return gr::work::Status::OK;
     }
