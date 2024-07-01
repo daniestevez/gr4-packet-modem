@@ -489,8 +489,13 @@ int main(int argc, char** argv)
         { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+    // scale the resampler taps to have a gain of 1 per arm
+    std::vector<float> resampler_taps;
+    for (auto x : pfb_arb_taps) {
+        resampler_taps.push_back(32.0f * x);
+    }
     auto& resampler = fg.emplaceBlock<gr::packet_modem::PfbArbResampler<c64, c64, float>>(
-        { { "taps", pfb_arb_taps }, { "rate", 1.0f + 1e-6f * sfo_ppm } });
+        { { "taps", resampler_taps }, { "rate", 1.0f + 1e-6f * sfo_ppm } });
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
