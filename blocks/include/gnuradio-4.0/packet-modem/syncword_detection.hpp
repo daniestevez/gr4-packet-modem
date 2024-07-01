@@ -53,7 +53,9 @@ private:
     using c64 = std::complex<float>;
     using FFT = gr::algorithm::FFTw<c64, c64>;
 
-    gr::property_map output_tag(const syncword_detection::HistoryItem& item) const
+    gr::property_map output_tag(const syncword_detection::HistoryItem& item,
+                                const syncword_detection::HistoryItem& previous_item,
+                                const syncword_detection::HistoryItem& next_item) const
     {
         const double bin_spacing =
             std::numbers::pi / static_cast<double>(_syncword_samples_size);
@@ -94,6 +96,13 @@ private:
             10.0f * std::log10((syncword_power * static_cast<float>(samples_per_symbol)) /
                                (item.fft_noise_power *
                                 static_cast<float>(_syncword_samples_size)));
+        // perform quadratic interpolation of power between previous_item, item
+        // and next_item to get a finer time estimate
+        const double a = static_cast<double>(previous_item.correlation_power);
+        const double b = static_cast<double>(item.correlation_power);
+        const double c = static_cast<double>(next_item.correlation_power);
+        const float time_est = static_cast<float>(
+            std::clamp((c - a) / (2.0 * (2.0 * b - (a + c))), -0.5, 0.5));
         return {
             { "syncword_amplitude", syncword_amplitude },
             { "syncword_phase", syncword_phase },
@@ -101,6 +110,7 @@ private:
             { "syncword_freq_bin", item.freq_bin },
             { "syncword_noise_power", item.fft_noise_power },
             { "syncword_esn0_db", esn0_db },
+            { "syncword_time_est", time_est },
         };
     }
 
@@ -182,8 +192,11 @@ public:
         _best_idx = 0;
         _items_consumed = 0;
         _history_size = 2 * time_threshold + 1;
-        _history =
-            HistoryBuffer<syncword_detection::HistoryItem>(std::bit_ceil(_history_size));
+        // the history actually contains at least _history_size + 1 items
+        // because we need to look to the previous item in order to estimate
+        // fine time delay
+        _history = HistoryBuffer<syncword_detection::HistoryItem>(
+            std::bit_ceil(_history_size + 1));
         in.min_samples = fft_size;
         out.min_samples = fft_size;
     }
@@ -303,7 +316,10 @@ public:
                 const auto& pop_history = _history[_history_size - 1];
                 outSpan[j + k] = pop_history.sample;
                 if (pop_history.detection) {
-                    out.publishTag(output_tag(pop_history), static_cast<ssize_t>(j + k));
+                    out.publishTag(output_tag(pop_history,
+                                              _history[_history_size],
+                                              _history[_history_size - 2]),
+                                   static_cast<ssize_t>(j + k));
                 }
                 syncword_detection::HistoryItem item;
                 item.sample = inSpan[j + k];
