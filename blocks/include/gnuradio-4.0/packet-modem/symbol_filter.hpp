@@ -33,13 +33,18 @@ output items and taps respectively.
 
 private:
     static constexpr char syncword_amplitude_key[] = "syncword_amplitude";
+    static constexpr char syncword_time_est_key[] = "syncword_time_est";
 
 public:
+    // taps in polyphase structure
+    std::vector<std::vector<TTaps>> _taps;
     // the history constructed here is a placeholder; an appropriate history is
     // constructed in settingsChanged()
     gr::HistoryBuffer<TIn> _history{ 1 };
     size_t _clock_phase = 0;
     size_t _reset_clock_phase = 0;
+    size_t _pfb_arm = 0;
+    ssize_t _tag_delay0 = 0;
     ssize_t _tag_delay = 0;
     std::vector<gr::Tag> _tags{};
     float _scale = 1.0;
@@ -49,6 +54,8 @@ public:
     gr::PortOut<TOut> out;
     size_t samples_per_symbol;
     std::vector<TTaps> taps;
+    // number of polyphase arms
+    size_t num_arms;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
@@ -60,6 +67,10 @@ public:
             throw gr::exception("samples_per_symbol cannot be zero");
         }
 
+        if (num_arms == 0) {
+            throw gr::exception("num_arms cannot be zero");
+        }
+
         // set resampling for the scheduler
         //
         // TODO: this is giving problems with tags (because input tags are not
@@ -68,8 +79,18 @@ public:
         // this->output_chunk_size = 1;
         // this->input_chunk_size = samples_per_symbol;
 
+        // Organize the taps in a polyphase structure
+        _taps.resize(num_arms);
+        for (size_t j = 0; j < num_arms; ++j) {
+            _taps[j].clear();
+            for (size_t k = j; k < taps.size(); k += num_arms) {
+                _taps[j].push_back(taps[k]);
+            }
+        }
+
         // create a history of the appropriate size
-        const auto capacity = std::bit_ceil(taps.size());
+        const auto arm_size = _taps[0].size();
+        const auto capacity = std::bit_ceil(arm_size);
         auto new_history = gr::HistoryBuffer<TIn>(capacity);
         // fill history with zeros to avoid problems with undefined history contents
         new_history.push_back_bulk(std::views::repeat(TIn{ 0 }, capacity));
@@ -79,15 +100,16 @@ public:
         }
         _history = new_history;
 
-        const int ntaps = static_cast<int>(taps.size());
+        const int ntaps = static_cast<int>(arm_size);
         const int sps = static_cast<int>(samples_per_symbol);
         // _reset_clock_phase = -(ntaps - 1) `mod` sps
         _reset_clock_phase = static_cast<size_t>((((1 - ntaps) % sps) + sps) % sps);
-        // when the clock phase is reset, after pushing back taps.size() taps,
-        // incrementing the clock_phase by taps.size() - 1, the following
+        // when the clock phase is reset, after pushing back arm_size taps,
+        // incrementing the clock_phase by arm_size - 1, the following
         // outputs have been produced
-        _tag_delay = static_cast<ssize_t>(
+        _tag_delay0 = static_cast<ssize_t>(
             (ntaps - 1 + static_cast<int>(_reset_clock_phase)) / sps);
+        _tag_delay = _tag_delay0;
     }
 
     void start() { _clock_phase = 0; }
@@ -97,12 +119,13 @@ public:
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size = {}), "
-                     "_clock_phase = {}, _scale = {}",
+                     "_clock_phase = {}, _scale = {}, _pfb_arm = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
                      _clock_phase,
-                     _scale);
+                     _scale,
+                     _pfb_arm);
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
@@ -111,13 +134,36 @@ public:
                 fmt::println("{} got {} tag", this->name, syncword_amplitude_key);
 #endif
                 // The first item is the beginning of the modulated syncword. After
-                // pushing back taps.size() items to the history, the first syncword
+                // pushing back arm_size items to the history, the first syncword
                 // symbol should be output, which means that _clock_phase should be
                 // 0 at that point. Between now and that moment, _clock_phase is
-                // incremented taps.size() - 1 times, so we adjust _clock_phase to
+                // incremented arm_size - 1 times, so we adjust _clock_phase to
                 // account for this (see calculation for _reset_clock_phase above).
                 _clock_phase = _reset_clock_phase;
                 _scale = 1.0f / pmtv::cast<float>(tag.map[syncword_amplitude_key]);
+
+                // time_est is in the range [-0.5, 0.5]
+                float time_est = pmtv::cast<float>(tag.map[syncword_time_est_key]);
+                // The PFB can only go "forward" in time, so to go back we add 1
+                // to _clock_phase
+                if (time_est < 0.0f) {
+                    _clock_phase = (_clock_phase + 1UZ) % samples_per_symbol;
+                    time_est += 1.0f;
+                    // also adjust tag delay
+                    _tag_delay = _tag_delay0 - 1;
+                    // adjust phase by one sample
+                    float syncword_phase = pmtv::cast<float>(tag.map["syncword_phase"]);
+                    double syncword_freq = pmtv::cast<double>(tag.map["syncword_freq"]);
+                    tag.map["syncword_phase"] = pmtv::pmt(static_cast<float>(
+                        static_cast<double>(syncword_phase) - syncword_freq));
+                } else {
+                    _tag_delay = _tag_delay0;
+                }
+                // time_est is now in the range [0.0, 1.0]
+                _pfb_arm = std::clamp(static_cast<size_t>(std::round(
+                                          static_cast<float>(num_arms) * time_est)),
+                                      0UZ,
+                                      num_arms - 1UZ);
             }
             tag.index = _tag_delay;
             _tags.push_back(tag);
@@ -127,9 +173,10 @@ public:
         while (out_item < outSpan.end() && in_item < inSpan.end()) {
             _history.push_back(*in_item++);
             if (_clock_phase == 0) {
-                *out_item = _scale *
-                            std::inner_product(
-                                taps.cbegin(), taps.cend(), _history.cbegin(), TOut{ 0 });
+                *out_item = _scale * std::inner_product(_taps[_pfb_arm].cbegin(),
+                                                        _taps[_pfb_arm].cend(),
+                                                        _history.cbegin(),
+                                                        TOut{ 0 });
                 // check to see if we need to output a tag, and update tag delays
                 if (!_tags.empty()) {
                     if (_tags[0].index == 0) {
@@ -167,6 +214,6 @@ public:
 } // namespace gr::packet_modem
 
 ENABLE_REFLECTION_FOR_TEMPLATE(
-    gr::packet_modem::SymbolFilter, in, out, samples_per_symbol, taps);
+    gr::packet_modem::SymbolFilter, in, out, samples_per_symbol, taps, num_arms);
 
 #endif // _GR4_PACKET_MODEM_SYMBOL_FILTER

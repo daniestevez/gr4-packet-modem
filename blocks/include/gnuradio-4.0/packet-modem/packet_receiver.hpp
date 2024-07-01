@@ -77,8 +77,21 @@ public:
         syncword_detection.constellation = bpsk_constellation;
         in = &syncword_detection.in;
         auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>();
+        const size_t symbol_filter_pfb_arms = 32UZ;
+        // Build PFB RRC taps for symbol filter. The first arm of this PFB is
+        // equal to rrc_taps. The gain of this filter is adjusted to achieve the
+        // same amplitude as rrc_taps.
+        auto rrc_taps_pfb = firdes::root_raised_cosine(
+            static_cast<double>(symbol_filter_pfb_arms) /
+                static_cast<double>(rrc_taps_norm),
+            static_cast<double>(symbol_filter_pfb_arms * samples_per_symbol),
+            1.0,
+            0.35,
+            symbol_filter_pfb_arms * samples_per_symbol * 11U);
         auto& symbol_filter = fg.emplaceBlock<SymbolFilter<c64, c64, float>>(
-            { { "taps", rrc_taps }, { "samples_per_symbol", samples_per_symbol } });
+            { { "taps", rrc_taps_pfb },
+              { "num_arms", symbol_filter_pfb_arms },
+              { "samples_per_symbol", samples_per_symbol } });
         std::vector<float> syncword_bipolar;
         for (auto x : syncword) {
             syncword_bipolar.push_back(x ? -1.0f : 1.0f);
