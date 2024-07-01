@@ -45,8 +45,10 @@ public:
     TRate _phase_acc;
 
 public:
-    gr::PortIn<TIn> in;
-    gr::PortOut<TOut> out;
+    // Both input and output ports set to Async because this block doesn't have
+    // a resampling ratio that can be expressed as a fraction.
+    gr::PortIn<TIn, gr::Async> in;
+    gr::PortOut<TOut, gr::Async> out;
     TRate rate{ 1.0 };
     std::vector<TTaps> taps;
     size_t filter_size = 32UZ;
