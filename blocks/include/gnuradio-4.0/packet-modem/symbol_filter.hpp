@@ -178,15 +178,19 @@ public:
                                                         _history.cbegin(),
                                                         TOut{ 0 });
                 // check to see if we need to output a tag, and update tag delays
-                if (!_tags.empty()) {
-                    if (_tags[0].index == 0) {
-                        out.publishTag(_tags[0].map, out_item - outSpan.begin());
-                        _tags.erase(_tags.begin());
-                    }
-                    for (auto& tag : _tags) {
-                        assert(tag.index > 0);
-                        --tag.index;
-                    }
+                while (!_tags.empty() && _tags[0].index == 0) {
+#ifdef TRACE
+                    fmt::println("{} publishTag() {} at index = {}",
+                                 this->name,
+                                 _tags[0].map,
+                                 out_item - outSpan.begin());
+#endif
+                    out.publishTag(_tags[0].map, out_item - outSpan.begin());
+                    _tags.erase(_tags.begin());
+                }
+                for (auto& tag : _tags) {
+                    assert(tag.index > 0);
+                    --tag.index;
                 }
                 ++out_item;
             }
