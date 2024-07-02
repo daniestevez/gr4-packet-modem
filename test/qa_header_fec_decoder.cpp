@@ -1,0 +1,94 @@
+#include <gnuradio-4.0/Graph.hpp>
+#include <gnuradio-4.0/Scheduler.hpp>
+#include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
+#include <gnuradio-4.0/packet-modem/header_fec_encoder.hpp>
+#include <gnuradio-4.0/packet-modem/mapper.hpp>
+#include <gnuradio-4.0/packet-modem/unpack_bits.hpp>
+#include <gnuradio-4.0/packet-modem/vector_sink.hpp>
+#include <gnuradio-4.0/packet-modem/vector_source.hpp>
+#include <boost/ut.hpp>
+
+boost::ut::suite HeaderFecDecoderTests = [] {
+    using namespace boost::ut;
+    using namespace gr;
+    using namespace gr::packet_modem;
+
+    "header_fec_decoder"_test = [] {
+        Graph fg;
+        const std::vector<uint8_t> v = { 0xeb, 0x59, 0x29, 0xd6, //
+                                         0x6b, 0x11, 0x2d, 0x72 };
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        auto& encoder = fg.emplaceBlock<HeaderFecEncoder<>>();
+        auto& unpack = fg.emplaceBlock<UnpackBits<>>({ { "outputs_per_input", 8UZ } });
+        auto& to_llr = fg.emplaceBlock<Mapper<uint8_t, float>>(
+            { { "map", std::vector<float>{ 1.0f, -1.0f } } });
+        auto& decoder = fg.emplaceBlock<HeaderFecDecoder>();
+        auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(encoder)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(encoder).to<"in">(unpack)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(unpack).to<"in">(to_llr)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(to_llr).to<"in">(decoder)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(decoder).to<"in">(sink)));
+        scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto data = sink.data();
+        expect(eq(data.size(), v.size()));
+        expect(eq(data, v));
+        expect(sink.tags().empty());
+    };
+
+    "header_fec_decoder_invalid_codeword"_test = [] {
+        Graph fg;
+        // some random data
+        const std::vector<uint8_t> v = {
+            0x0f, 0x32, 0xd1, 0x49, 0x36, 0x64, 0x73, 0x43, 0xad, 0xf2, 0x6c, 0x95, 0xf0,
+            0x04, 0x4b, 0xdb, 0x43, 0xa1, 0x14, 0x3e, 0x11, 0x15, 0x2c, 0xf0, 0x8a, 0x27,
+            0x71, 0x6d, 0x9d, 0x78, 0x14, 0x02, 0xea, 0xe6, 0xfa, 0x46, 0x18, 0x4e, 0x7e,
+            0xdd, 0x74, 0x07, 0x1d, 0x9d, 0x99, 0x74, 0x8f, 0x0b, 0x13, 0x55, 0xd0, 0xae,
+            0x89, 0x20, 0x95, 0xb0, 0x19, 0xc5, 0x9a, 0xa6, 0x5a, 0x6e, 0x19, 0x78, 0xba,
+            0x8c, 0x32, 0xe8, 0x4f, 0x27, 0xa0, 0x2c, 0x6c, 0xc3, 0x68, 0x1a, 0x3c, 0x86,
+            0x59, 0xb7, 0x1a, 0x72, 0x96, 0xbe, 0x3b, 0x43, 0x5a, 0xd9, 0x4c, 0x4b, 0xdf,
+            0xa9, 0xb5, 0x6e, 0x3a, 0x9d, 0x7b, 0xd6, 0x10, 0xbf, 0x49, 0x70, 0x0d, 0xc6,
+            0xa6, 0x8f, 0xcf, 0x28, 0xca, 0x25, 0x42, 0xc0, 0xac, 0xc1, 0x42, 0x97, 0x5a,
+            0xd9, 0x47, 0xc0, 0x0a, 0xce, 0x86, 0xbd, 0x47, 0xf9, 0xed, 0x2b, 0xf8, 0x67,
+            0xb7, 0x6f, 0xa7, 0xd8, 0x32, 0xce, 0x1e, 0x76, 0xfa, 0x22, 0x8c, 0xb6, 0xaa,
+            0x46, 0x19, 0x84, 0x53, 0x88, 0xf2, 0xf0, 0xd3, 0x6b, 0x49, 0x1a, 0xcf, 0x7e,
+            0x47, 0x23, 0xaf, 0x25, 0x81, 0xef, 0x7a, 0x6b, 0xc5, 0x2a, 0x35, 0x3c, 0x2f,
+            0x79, 0x2f, 0x01, 0x8b, 0x46, 0x08, 0xc3, 0x22, 0x99, 0x4d, 0x9b, 0x30, 0x84,
+            0x0b, 0x74, 0xe2, 0x39, 0xc6, 0x7d, 0x65, 0xcb, 0x12, 0xe0, 0x98, 0xe0, 0xc7,
+            0x62, 0x1f, 0x77, 0xc3, 0x10, 0x9b, 0xc7, 0x41, 0x4b, 0x98, 0x03, 0x06, 0xab,
+            0xe0, 0x34, 0xae, 0x49, 0xf5, 0x45, 0x32, 0x92, 0x81, 0x80, 0x53, 0xab, 0x0f,
+            0xd5, 0x7b, 0xfa, 0x0e, 0x3c, 0x58, 0x8b, 0x09, 0xe0, 0x93, 0xe0, 0xd4, 0x0a,
+            0xaf, 0x20, 0x4e, 0x67, 0xe9, 0xbb, 0x25, 0xc5, 0x4c, 0x4d, 0xbc, 0x91, 0xec,
+            0x20, 0x90, 0xf4, 0x19, 0xae, 0x69, 0xad, 0x41, 0x77
+        };
+        auto& source = fg.emplaceBlock<VectorSource<uint8_t>>();
+        source.data = v;
+        auto& unpack = fg.emplaceBlock<UnpackBits<>>({ { "outputs_per_input", 8UZ } });
+        auto& to_llr = fg.emplaceBlock<Mapper<uint8_t, float>>(
+            { { "map", std::vector<float>{ 1.0f, -1.0f } } });
+        auto& decoder = fg.emplaceBlock<HeaderFecDecoder>();
+        auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(unpack)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(unpack).to<"in">(to_llr)));
+        expect(
+            eq(ConnectionResult::SUCCESS, fg.connect<"out">(to_llr).to<"in">(decoder)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(decoder).to<"in">(sink)));
+        scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto data = sink.data();
+        expect(eq(data.size(), v.size() / 8));
+        const auto tags = sink.tags();
+        expect(eq(tags.size(), data.size() / 4));
+        for (size_t j = 0; j < tags.size(); ++j) {
+            expect(eq(tags[j].index, 4 * static_cast<ssize_t>(j)));
+            expect(tags[j].map == property_map{ { "invalid_header", pmtv::pmt_null() } });
+        }
+    };
+};
+
+int main() {}
