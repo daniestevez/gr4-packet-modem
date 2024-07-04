@@ -15,6 +15,7 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/HistoryBuffer.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <type_traits>
 #include <vector>
 
 namespace gr::packet_modem {
@@ -26,7 +27,17 @@ public:
     using Description = Doc<R""(
 @brief Polyphase Arbitrary Resampler.
 
-TODO
+This block is a polyphase arbitrary resampler. The `rate` parameter indicates
+the number of output samples per input sample. The `taps` parameter gives the
+taps of the prototype filter. The `filter_size` parameter gives the number of
+arms (branches) in the polyphase filter.
+
+The type parameters `TIn` and `TOut` indicate the types of the input and output
+items respectively. The type parameter `TTaps` indicates the type of the filter
+taps. The type `TRate` is the type of the `rate` variable and of the internal
+variables used to control resampling. In many cases, `float` can be used as
+`TRate`, but for more precise results (for instance, for resampling ratios very
+close to one), `double` can be used.
 
 )"">;
 
@@ -139,7 +150,14 @@ public:
                                                          static_cast<ssize_t>(_arm_size),
                                                      _history.cbegin(),
                                                      TOut{ 0 });
-            *out_item++ = filt_out + _phase_acc * diff_out;
+            TOut diff_out_scaled;
+            if constexpr (std::is_floating_point_v<TOut>) {
+                diff_out_scaled = static_cast<TOut>(_phase_acc) * diff_out;
+            } else {
+                // assume that TOut is a std::complex<> type
+                diff_out_scaled = static_cast<TOut::value_type>(_phase_acc) * diff_out;
+            }
+            *out_item++ = filt_out + diff_out_scaled;
             _phase_acc += _filt_rate;
             _last_filter += _decim_rate;
             if (_phase_acc > TRate{ 1 }) {
