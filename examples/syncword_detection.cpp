@@ -45,11 +45,7 @@ int main(int argc, char** argv)
     const size_t out_buff_size = 1U;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
-    auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
-        { { "packet_len_tag_key", "" } });
-    if (max_in_samples) {
-        pdu_to_stream.in.max_samples = max_in_samples;
-    }
+
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
@@ -67,12 +63,23 @@ int main(int argc, char** argv)
         { { "filename", "syncword_detection.u8" } });
     auto& vector_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
 
+    if (stream_mode) {
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_stream->connect(rotator.in)));
+    } else {
+        auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
+            { { "packet_len_tag_key", "" } });
+        if (max_in_samples) {
+            pdu_to_stream.in.max_samples = max_in_samples;
+        }
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
+    }
+
     expect(eq(gr::ConnectionResult::SUCCESS,
               vector_source.out.connect(*packet_transmitter_pdu.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rotator).to<"in0">(add_noise)));
     expect(eq(gr::ConnectionResult::SUCCESS,
