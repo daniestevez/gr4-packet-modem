@@ -356,7 +356,6 @@ public:
 
 } // namespace gr::packet_modem
 
-// constellation not included because std::complex cannot be passed using settings
 ENABLE_REFLECTION(gr::packet_modem::SyncwordDetection,
                   in,
                   out,
@@ -364,6 +363,7 @@ ENABLE_REFLECTION(gr::packet_modem::SyncwordDetection,
                   samples_per_symbol,
                   rrc_taps,
                   syncword,
+                  constellation,
                   min_freq_bin,
                   max_freq_bin,
                   time_threshold,

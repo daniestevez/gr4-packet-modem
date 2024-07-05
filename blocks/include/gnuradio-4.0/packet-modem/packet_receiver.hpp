@@ -72,9 +72,9 @@ public:
         auto& syncword_detection =
             fg.emplaceBlock<SyncwordDetection>({ { "rrc_taps", rrc_taps },
                                                  { "syncword", syncword },
+                                                 { "constellation", bpsk_constellation },
                                                  { "min_freq_bin", -4 },
                                                  { "max_freq_bin", 4 } });
-        syncword_detection.constellation = bpsk_constellation;
         in = &syncword_detection.in;
         auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>();
         const size_t symbol_filter_pfb_arms = 32UZ;
