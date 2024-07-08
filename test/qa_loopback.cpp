@@ -127,11 +127,11 @@ boost::ut::suite LoopbackTests = [] {
         } |
         // arguments are { freq_error, stream_mode }
         std::vector<std::tuple<float, bool>>({ { 0.0f, false },
-                                               /*{ 0.0f, true },*/
+                                               { 0.0f, true },
                                                { 0.006f, false },
-                                               /*{ 0.006f, true },*/
+                                               { 0.006f, true },
                                                { -0.02f, false },
-                                               /*{ -0.02f, true }*/ });
+                                               { -0.02f, true } });
 };
 
 int main() {}

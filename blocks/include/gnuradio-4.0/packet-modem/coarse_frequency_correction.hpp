@@ -31,12 +31,18 @@ is set to zero and its frequency is set to the opposite of the
 "syncword_freq". The rotator is used to rotate the signal and correct a constant
 frequency offset that is updated with each syncword detection.
 
+Optionally, a delay can be used for the application of tags. In this case, the
+phase is not reset to zero, but rather to the new frequency times the delay.
+
 )"">;
 
 public:
     std::complex<T> _exp = { T{ 1 }, T{ 0 } };
     std::complex<T> _exp_incr = { T{ 1 }, T{ 0 } };
     unsigned _counter = 0;
+    size_t delay = 0;
+    float _next_freq = 0.0f;
+    ssize_t _next_freq_delay = 0;
 
 private:
     static constexpr char syncword_freq_key[] = "syncword_freq";
@@ -46,7 +52,8 @@ private:
 #ifdef TRACE
         fmt::println("{}::set_freq({})", this->name, freq);
 #endif
-        _exp = { T{ 1 }, T{ 0 } };
+        _exp = { std::cos(freq * static_cast<float>(delay)),
+                 -std::sin(freq * static_cast<float>(delay)) };
         _exp_incr = { std::cos(freq), -std::sin(freq) };
         _counter = 0;
     }
@@ -69,15 +76,22 @@ public:
         if (this->input_tags_present()) {
             const auto tag = this->mergedInputTag();
             if (tag.map.contains(syncword_freq_key)) {
-                set_freq(pmtv::cast<float>(tag.map.at(syncword_freq_key)));
+                _next_freq = pmtv::cast<float>(tag.map.at(syncword_freq_key));
+                _next_freq_delay = static_cast<ssize_t>(delay);
             }
         }
         for (size_t j = 0; j < inSpan.size(); ++j) {
+            if (_next_freq_delay == 0) {
+                set_freq(_next_freq);
+            }
             outSpan[j] = inSpan[j] * _exp;
             _exp *= _exp_incr;
             if ((++_counter % 512) == 0) {
                 // normalize to unit amplitude
                 _exp /= std::abs(_exp);
+            }
+            if (_next_freq_delay >= 0) {
+                --_next_freq_delay;
             }
         }
         return gr::work::Status::OK;
@@ -86,6 +100,9 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::CoarseFrequencyCorrection, in, out);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::CoarseFrequencyCorrection,
+                               in,
+                               out,
+                               delay);
 
 #endif // _GR4_PACKET_MODEM_COARSE_FREQUENCY_CORRECTION

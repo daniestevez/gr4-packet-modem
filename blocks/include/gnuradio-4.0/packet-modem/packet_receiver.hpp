@@ -76,7 +76,16 @@ public:
                                                  { "min_freq_bin", -4 },
                                                  { "max_freq_bin", 4 } });
         in = &syncword_detection.in;
-        auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>();
+        // Set a delay for the coarse frequency correction to avoid a phase jump
+        // at the end of a long packet when the coarse frequency of the packet
+        // is slightly wrong (due to the accumulated phase error over the packet
+        // resetting to zero). The delay is slightly more than the group delay
+        // of the RRC filter (which is (rrc_taps.size() - 1)/2) because it is
+        // preferrable to put any imperfections caused by the the change in
+        // frequency correction slightly after the beginning of the next
+        // syncword (past the last data symbol of the packet).
+        auto& freq_correction = fg.emplaceBlock<CoarseFrequencyCorrection<>>(
+            { { "delay", (rrc_taps.size() - 1) / 2 + samples_per_symbol } });
         const size_t symbol_filter_pfb_arms = 32UZ;
         // Build PFB RRC taps for symbol filter. The first arm of this PFB is
         // equal to rrc_taps. The gain of this filter is adjusted to achieve the
