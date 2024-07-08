@@ -88,10 +88,16 @@ public:
             1.0,
             0.35,
             symbol_filter_pfb_arms * samples_per_symbol * 11U);
+        // Remove last element of rrc_taps_pfb, because
+        // firdes::root_raised_cosine always generates a filter of odd length,
+        // adding one to the requested length if necessary.
+        rrc_taps_pfb.pop_back();
         auto& symbol_filter = fg.emplaceBlock<SymbolFilter<c64, c64, float>>(
             { { "taps", rrc_taps_pfb },
               { "num_arms", symbol_filter_pfb_arms },
-              { "samples_per_symbol", samples_per_symbol } });
+              { "samples_per_symbol", samples_per_symbol },
+              { "delay", rrc_taps.size() - 1 } });
+
         std::vector<float> syncword_bipolar;
         for (auto x : syncword) {
             syncword_bipolar.push_back(x ? -1.0f : 1.0f);

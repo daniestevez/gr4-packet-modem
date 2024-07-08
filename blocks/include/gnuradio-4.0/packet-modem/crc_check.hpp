@@ -180,6 +180,9 @@ public:
         }
 
         const bool crc_ok = crc_packet == crc_computed;
+#ifdef TRACE
+        fmt::println("{}::processBulk() crc_ok = {}", this->name, crc_ok);
+#endif
 
         if (crc_ok) {
             const size_t output_size = discard_crc ? payload_size : _packet_len;
