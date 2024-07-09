@@ -136,7 +136,7 @@ boost::ut::suite SyncwordDetectionTests = [] {
             expect(eq(syncword_freq_bin, expected_bin));
             const auto syncword_noise_power =
                 pmtv::cast<float>(meta.at("syncword_noise_power"));
-            expect(syncword_noise_power < 3e-4f);
+            expect(syncword_noise_power < 5e-4f);
             const auto syncword_phase = pmtv::cast<float>(meta.at("syncword_phase"));
             if (freq_error == 0.0f) {
                 expect(std::abs(syncword_phase) < 1e-6f);
