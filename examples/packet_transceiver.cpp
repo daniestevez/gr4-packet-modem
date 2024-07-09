@@ -34,7 +34,7 @@ int main(int argc, char** argv)
                       std::pow(10.0, -0.1 * esn0_db);
     const float noise_amplitude = static_cast<float>(std::sqrt(n0));
 
-    const double samp_rate = 1e6;
+    const double samp_rate = 3.2e6;
 
     gr::Graph fg;
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(

@@ -57,7 +57,7 @@ blocks:
     gui_hint: ''
     label: RF Frequency
     type: real
-    value: 1260e6
+    value: 434e6
   states:
     bus_sink: false
     bus_source: false
@@ -85,7 +85,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 1000e3
+    value: 3.2e6
   states:
     bus_sink: false
     bus_source: false
