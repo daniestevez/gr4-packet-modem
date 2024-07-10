@@ -131,7 +131,7 @@ public:
 public:
     gr::PortIn<Pdu<T>> in;
     gr::PortOut<Pdu<T>> out;
-    gr::PortOut<gr::Message, gr::Async> metadata;
+    gr::PortOut<gr::Message> metadata;
     std::string packet_len_tag_key = "packet_len";
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
@@ -148,16 +148,16 @@ public:
 #endif
         assert(inSpan.size() > 0);
         assert(inSpan.size() == outSpan.size());
+        assert(inSpan.size() == metadataSpan.size());
         size_t consumed = 0;
         size_t produced = 0;
-        size_t produced_meta = 0;
-        while (consumed < inSpan.size() && produced_meta < metadataSpan.size()) {
+        while (consumed < inSpan.size()) {
             const uint64_t packet_length = inSpan[consumed].data.size();
             if (packet_length <= std::numeric_limits<uint16_t>::max()) {
                 outSpan[produced] = inSpan[consumed];
                 gr::Message msg;
                 msg.data = gr::property_map{ { "packet_length", packet_length } };
-                metadataSpan[produced_meta++] = std::move(msg);
+                metadataSpan[produced] = std::move(msg);
                 ++produced;
             } else {
                 fmt::println("{} packet too long (length {}); dropping",
@@ -166,8 +166,11 @@ public:
             }
             ++consumed;
         }
+        if (!inSpan.consume(consumed)) {
+            throw gr::exception("consume failed");
+        }
         outSpan.publish(produced);
-        metadataSpan.publish(produced_meta);
+        metadataSpan.publish(produced);
         return gr::work::Status::OK;
     }
 };
