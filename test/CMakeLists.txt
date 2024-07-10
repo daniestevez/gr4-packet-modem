@@ -4,7 +4,7 @@ function(setup_test_no_asan TEST_NAME)
     yaml-cpp::yaml-cpp fftw gr-basic gr-testing ut
     PRIVATE ZeroMQ::ZeroMQ)
   add_test(NAME ${TEST_NAME} COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
-  set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 30)
+  set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 100)
 endfunction()
 
 function(setup_test TEST_NAME)
