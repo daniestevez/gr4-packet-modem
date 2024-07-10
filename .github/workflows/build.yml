@@ -21,9 +21,11 @@ jobs:
           - cc: gcc-14
             cxx: g++-14
             cmake_flags: "-DADDRESS_SANITIZER=ON"
+            jobs: 1
           - cc: clang-18
             cxx: clang++-18
             cmake_flags: "-DCMAKE_LINKER=/usr/bin/clang-18"
+            jobs: 4
         cmake-build-type: [ Release, Debug ]
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +48,7 @@ jobs:
         run: |
           source /opt/rust/env
           cd build
-          make -j$(nproc)
+          make -j${{ matrix.compiler.jobs }}
       - name: Test
         shell: bash
         run: |          
