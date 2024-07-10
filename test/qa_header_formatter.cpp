@@ -1,7 +1,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/header_formatter.hpp>
-#include <gnuradio-4.0/packet-modem/message_strobe.hpp>
+#include <gnuradio-4.0/packet-modem/item_strobe.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <boost/ut.hpp>
@@ -13,14 +13,14 @@ boost::ut::suite HeaderFormatterTests = [] {
 
     "header_formatter"_test = [] {
         Graph fg;
-        const gr::property_map message = { { "packet_length", uint64_t{ 1234 } } };
-        auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
-            { { "message", message }, { "interval_secs", 0.1 } });
+        auto& strobe =
+            fg.emplaceBlock<ItemStrobe<gr::Message>>({ { "interval_secs", 0.1 } });
+        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } } };
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<>>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  strobe.strobe.connect(header_formatter.metadata)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect<"out">(strobe).to<"metadata">(header_formatter)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(header_formatter).to<"in">(stream_to_pdu)));
         expect(eq(ConnectionResult::SUCCESS,
@@ -48,13 +48,13 @@ boost::ut::suite HeaderFormatterTests = [] {
 
     "header_formatter_pdu"_test = [] {
         Graph fg;
-        const gr::property_map message = { { "packet_length", uint64_t{ 1234 } } };
-        auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
-            { { "message", message }, { "interval_secs", 0.1 } });
+        auto& strobe =
+            fg.emplaceBlock<ItemStrobe<gr::Message>>({ { "interval_secs", 0.1 } });
+        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } } };
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<Pdu<uint8_t>>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  strobe.strobe.connect(header_formatter.metadata)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect<"out">(strobe).to<"metadata">(header_formatter)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(header_formatter).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };

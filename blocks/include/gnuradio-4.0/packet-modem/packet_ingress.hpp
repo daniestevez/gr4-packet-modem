@@ -35,7 +35,7 @@ public:
 public:
     gr::PortIn<T> in;
     gr::PortOut<T> out;
-    gr::MsgPortOut metadata;
+    gr::PortOut<gr::Message, gr::Async> metadata;
     std::string packet_len_tag_key = "packet_len";
 
     constexpr static gr::TagPropagationPolicy tag_policy =
@@ -44,19 +44,24 @@ public:
     void start() { _remaining = 0; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
-                                 gr::PublishableSpan auto& outSpan)
+                                 gr::PublishableSpan auto& outSpan,
+                                 gr::PublishableSpan auto& metadataSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}), "
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}, "
+                     "metadataSpan.size() = {}), "
                      "_remaining = {}, _valid = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
+                     metadataSpan.size(),
                      _remaining,
                      _valid);
 #endif
         assert(inSpan.size() > 0);
         assert(inSpan.size() == outSpan.size());
+        assert(metadataSpan.size() > 0);
+        auto meta = metadataSpan.begin();
         if (_remaining == 0) {
             // Fetch a new packet_len tag
             auto not_found_error = [this]() {
@@ -75,10 +80,9 @@ public:
             _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
             _valid = _remaining <= std::numeric_limits<uint16_t>::max();
             if (_valid) {
-                // Use gr::message::Command::Invalid, since none of the OpenCMW
-                // commands is appropriate for GNU Radio 3.10-style message passing.
-                gr::sendMessage<gr::message::Command::Invalid>(
-                    metadata, "", "", { { "packet_length", _remaining } });
+                gr::Message msg;
+                msg.data = gr::property_map{ { "packet_length", _remaining } };
+                *meta++ = std::move(msg);
 #ifdef TRACE
                 fmt::println("{} publishTag({}, 0)", this->name, tag.map);
 #endif
@@ -102,6 +106,7 @@ public:
         } else {
             outSpan.publish(0);
         }
+        metadataSpan.publish(static_cast<size_t>(meta - metadataSpan.begin()));
         if (!inSpan.consume(to_consume)) {
             throw gr::exception("consume failed");
         }
@@ -126,30 +131,33 @@ public:
 public:
     gr::PortIn<Pdu<T>> in;
     gr::PortOut<Pdu<T>> out;
-    gr::MsgPortOut metadata;
+    gr::PortOut<gr::Message, gr::Async> metadata;
     std::string packet_len_tag_key = "packet_len";
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
-                                 gr::PublishableSpan auto& outSpan)
+                                 gr::PublishableSpan auto& outSpan,
+                                 gr::PublishableSpan auto& metadataSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}, "
+                     "metadataSpan.size() = {})",
                      this->name,
                      inSpan.size(),
-                     outSpan.size());
+                     outSpan.size(),
+                     metadataSpan.size());
 #endif
         assert(inSpan.size() > 0);
         assert(inSpan.size() == outSpan.size());
         size_t consumed = 0;
         size_t produced = 0;
-        while (consumed < inSpan.size()) {
+        size_t produced_meta = 0;
+        while (consumed < inSpan.size() && produced_meta < metadataSpan.size()) {
             const uint64_t packet_length = inSpan[consumed].data.size();
             if (packet_length <= std::numeric_limits<uint16_t>::max()) {
                 outSpan[produced] = inSpan[consumed];
-                // Use gr::message::Command::Invalid, since none of the OpenCMW
-                // commands is appropriate for GNU Radio 3.10-style message passing.
-                gr::sendMessage<gr::message::Command::Invalid>(
-                    metadata, "", "", { { "packet_length", packet_length } });
+                gr::Message msg;
+                msg.data = gr::property_map{ { "packet_length", packet_length } };
+                metadataSpan[produced_meta++] = std::move(msg);
                 ++produced;
             } else {
                 fmt::println("{} packet too long (length {}); dropping",
@@ -159,15 +167,14 @@ public:
             ++consumed;
         }
         outSpan.publish(produced);
+        metadataSpan.publish(produced_meta);
         return gr::work::Status::OK;
     }
 };
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PacketIngress,
-                               in,
-                               out,
-                               packet_len_tag_key);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::PacketIngress, in, out, metadata, packet_len_tag_key);
 
 #endif // _GR4_PACKET_PACKET_INGRESS

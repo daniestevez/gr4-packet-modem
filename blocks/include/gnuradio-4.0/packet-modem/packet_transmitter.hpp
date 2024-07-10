@@ -253,7 +253,7 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (ingress.metadata.connect(header_formatter.metadata) !=
+        if (fg.connect<"metadata">(ingress).to<"metadata">(header_formatter) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

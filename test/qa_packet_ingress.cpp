@@ -31,7 +31,7 @@ boost::ut::suite PacketIngressTests = [] {
         auto& packet_ingress = fg.emplaceBlock<PacketIngress<>>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
-        auto& msg_debug = fg.emplaceBlock<MessageDebug>();
+        auto& meta_sink = fg.emplaceBlock<VectorSink<Message>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(pdu_to_stream)));
         expect(eq(ConnectionResult::SUCCESS,
@@ -41,7 +41,7 @@ boost::ut::suite PacketIngressTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(stream_to_pdu).to<"in">(sink)));
         expect(eq(ConnectionResult::SUCCESS,
-                  packet_ingress.metadata.connect(msg_debug.store)));
+                  fg.connect<"metadata">(packet_ingress).to<"in">(meta_sink)));
         scheduler::Simple sched{ std::move(fg) };
         // this flowgraph doesn't terminate on its own (perhaps because the
         // PduToTaggedStream output is Async)
@@ -72,7 +72,7 @@ boost::ut::suite PacketIngressTests = [] {
             std::iota(v.begin(), v.end(), 0);
             expect(eq(pdu.data, v));
         }
-        const auto messages = msg_debug.messages();
+        const auto messages = meta_sink.data();
         expect(eq(messages.size(), expected_packet_lengths.size()));
         for (size_t j = 0; j < messages.size(); ++j) {
             const auto& message = messages[j];
@@ -99,13 +99,13 @@ boost::ut::suite PacketIngressTests = [] {
         source.data = pdus;
         auto& packet_ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
-        auto& msg_debug = fg.emplaceBlock<MessageDebug>();
+        auto& meta_sink = fg.emplaceBlock<VectorSink<Message>>();
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(source).to<"in">(packet_ingress)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(packet_ingress).to<"in">(sink)));
         expect(eq(ConnectionResult::SUCCESS,
-                  packet_ingress.metadata.connect(msg_debug.store)));
+                  fg.connect<"metadata">(packet_ingress).to<"in">(meta_sink)));
         scheduler::Simple sched{ std::move(fg) };
         // this flowgraph doesn't terminate on its own (perhaps because the
         // PduToTaggedStream output is Async)
@@ -136,7 +136,7 @@ boost::ut::suite PacketIngressTests = [] {
             std::iota(v.begin(), v.end(), 0);
             expect(eq(pdu.data, v));
         }
-        const auto messages = msg_debug.messages();
+        const auto messages = meta_sink.data();
         expect(eq(messages.size(), expected_packet_lengths.size()));
         for (size_t j = 0; j < messages.size(); ++j) {
             const auto& message = messages[j];
