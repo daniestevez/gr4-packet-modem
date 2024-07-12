@@ -4,6 +4,8 @@
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/noise_source.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
+#include <gnuradio-4.0/packet-modem/packet_counter.hpp>
+#include <gnuradio-4.0/packet-modem/packet_limiter.hpp>
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/pfb_arb_resampler.hpp>
@@ -39,6 +41,9 @@ int main(int argc, char** argv)
     gr::Graph fg;
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
         { { "tun_name", "gr4_tun_tx" }, { "netns_name", "gr4_tx" } });
+    auto& limiter =
+        fg.emplaceBlock<gr::packet_modem::PacketLimiter<gr::packet_modem::Pdu<uint8_t>>>(
+            { { "max_packets", 8UZ } });
     const bool stream_mode = false;
     const size_t max_in_samples = 1U;
     // note that buffer size is rounded up to a multiple of
@@ -47,6 +52,8 @@ int main(int argc, char** argv)
     const size_t out_buff_size = 1U;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
+    auto& counter =
+        fg.emplaceBlock<gr::packet_modem::PacketCounter<gr::packet_modem::Pdu<c64>>>();
     auto& packet_to_stream =
         fg.emplaceBlock<gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
     // Limit the number of samples that packet_to_stream can produce in one
@@ -74,10 +81,16 @@ int main(int argc, char** argv)
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
+    expect(
+        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(limiter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              source.out.connect(*packet_transmitter_pdu.in)));
+              limiter.out.connect(*packet_transmitter_pdu.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
+              packet_transmitter_pdu.out_packet->connect(counter.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(counter).to<"in">(packet_to_stream)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"count">(counter).to<"count">(limiter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_to_stream).to<"in">(resampler)));
     expect(eq(gr::ConnectionResult::SUCCESS,

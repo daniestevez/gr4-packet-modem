@@ -153,7 +153,12 @@ public:
         size_t produced = 0;
         while (consumed < inSpan.size()) {
             const uint64_t packet_length = inSpan[consumed].data.size();
-            if (packet_length <= std::numeric_limits<uint16_t>::max()) {
+#ifdef TRACE
+            fmt::println("{} packet_length = {}", this->name, packet_length);
+#endif
+            if (packet_length == 0) {
+                throw gr::exception("packet_length = 0");
+            } else if (packet_length <= std::numeric_limits<uint16_t>::max()) {
                 outSpan[produced] = inSpan[consumed];
                 gr::Message msg;
                 msg.data = gr::property_map{ { "packet_length", packet_length } };
@@ -171,6 +176,9 @@ public:
         }
         outSpan.publish(produced);
         metadataSpan.publish(produced);
+#ifdef TRACE
+        fmt::println("{} consumed = {}, produced = {}", this->name, consumed, produced);
+#endif
         return gr::work::Status::OK;
     }
 };
