@@ -72,7 +72,7 @@ public:
                      _count);
 #endif
         assert(inSpan.size() == outSpan.size());
-        assert(inSpan.size() == metadataSpan.size());
+        assert(inSpan.size() == countSpan.size());
         for (size_t j = 0; j < inSpan.size(); ++j) {
             outSpan[j] = inSpan[j];
             ++_count;
