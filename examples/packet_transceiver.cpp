@@ -39,11 +39,10 @@ int main(int argc, char** argv)
     const double samp_rate = 3.2e6;
 
     gr::Graph fg;
-    auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
-        { { "tun_name", "gr4_tun_tx" }, { "netns_name", "gr4_tx" } });
-    auto& limiter =
-        fg.emplaceBlock<gr::packet_modem::PacketLimiter<gr::packet_modem::Pdu<uint8_t>>>(
-            { { "max_packets", 8UZ } });
+    auto& source =
+        fg.emplaceBlock<gr::packet_modem::TunSource>({ { "tun_name", "gr4_tun_tx" },
+                                                       { "netns_name", "gr4_tx" },
+                                                       { "max_packets", 2UZ } });
     const bool stream_mode = false;
     const size_t max_in_samples = 1U;
     // note that buffer size is rounded up to a multiple of
@@ -79,16 +78,14 @@ int main(int argc, char** argv)
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(limiter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              limiter.out.connect(*packet_transmitter_pdu.in)));
+              source.out.connect(*packet_transmitter_pdu.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_to_stream).to<"in">(resampler)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"count">(packet_to_stream).to<"count">(limiter)));
+              fg.connect<"count">(packet_to_stream).to<"count">(source)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(resampler).to<"in">(throttle)));
     expect(eq(gr::ConnectionResult::SUCCESS,

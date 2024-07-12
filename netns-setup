@@ -13,3 +13,4 @@ sudo ip -n gr4_rx link set v_rx up
 sudo ip -n gr4_rx addr add 192.168.10.2/24 dev v_rx
 sudo ip netns exec gr4_rx sysctl -w net.ipv4.conf.gr4_tun_rx.rp_filter=0
 sudo ip netns exec gr4_tx sysctl -w net.ipv4.conf.v_tx.rp_filter=0
+sudo ip -n gr4_tx link set dev gr4_tun_tx txqueuelen 10
