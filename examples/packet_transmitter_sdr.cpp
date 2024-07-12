@@ -23,8 +23,10 @@ int main(int argc, char* argv[])
     expect(fatal(argc == 2));
 
     gr::Graph fg;
-    auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
-        { { "tun_name", "gr4_tun_tx" }, { "netns_name", "gr4_tx" } });
+    auto& source =
+        fg.emplaceBlock<gr::packet_modem::TunSource>({ { "tun_name", "gr4_tun_tx" },
+                                                       { "netns_name", "gr4_tx" },
+                                                       { "max_packets", 2UZ } });
     const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
@@ -48,6 +50,8 @@ int main(int argc, char* argv[])
               packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_to_stream).to<"in">(sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"count">(packet_to_stream).to<"count">(source)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     const auto ret = sched.runAndWait();
