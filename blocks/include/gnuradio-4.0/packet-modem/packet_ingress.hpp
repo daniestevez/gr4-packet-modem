@@ -215,4 +215,4 @@ public:
 ENABLE_REFLECTION_FOR_TEMPLATE(
     gr::packet_modem::PacketIngress, in, out, metadata, packet_len_tag_key);
 
-#endif // _GR4_PACKET_PACKET_INGRESS
+#endif // _GR4_PACKET_MODEM_PACKET_INGRESS

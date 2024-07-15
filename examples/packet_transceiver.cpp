@@ -8,6 +8,7 @@
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
+#include <gnuradio-4.0/packet-modem/packet_type_filter.hpp>
 #include <gnuradio-4.0/packet-modem/pfb_arb_resampler.hpp>
 #include <gnuradio-4.0/packet-modem/pfb_arb_taps.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
@@ -74,6 +75,8 @@ int main(int argc, char** argv)
     const bool log = true;
     auto packet_receiver = gr::packet_modem::PacketReceiver(
         fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
+    auto& packet_type_filter = fg.emplaceBlock<gr::packet_modem::PacketTypeFilter<>>(
+        { { "packet_type", "user_data" } });
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
@@ -99,8 +102,10 @@ int main(int argc, char** argv)
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(noise_source).to<"in1">(add_noise)));
     expect(eq(gr::ConnectionResult::SUCCESS, add_noise.out.connect(*packet_receiver.in)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, packet_receiver.out->connect(tag_to_pdu.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              packet_receiver.out->connect(packet_type_filter.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(tag_to_pdu).to<"in">(sink)));
 
