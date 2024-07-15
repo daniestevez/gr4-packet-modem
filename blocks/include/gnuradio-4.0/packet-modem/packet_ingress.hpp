@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_PACKET_INGRESS
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/packet_type.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <ranges>
@@ -80,8 +81,19 @@ public:
             _remaining = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
             _valid = _remaining <= std::numeric_limits<uint16_t>::max();
             if (_valid) {
+                // default to user data if packet type not indicated
+                PacketType packet_type = PacketType::USER_DATA;
+                if (tag.map.contains("packet_type")) {
+                    packet_type = magic_enum::enum_cast<PacketType>(
+                                      pmtv::cast<std::string>(tag.map.at("packet_type")),
+                                      magic_enum::case_insensitive)
+                                      .value();
+                }
                 gr::Message msg;
-                msg.data = gr::property_map{ { "packet_length", _remaining } };
+                msg.data = gr::property_map{
+                    { "packet_length", _remaining },
+                    { "packet_type", std::string(magic_enum::enum_name(packet_type)) }
+                };
                 *meta++ = std::move(msg);
 #ifdef TRACE
                 fmt::println("{} publishTag({}, 0)", this->name, tag.map);
@@ -160,8 +172,23 @@ public:
                 throw gr::exception("packet_length = 0");
             } else if (packet_length <= std::numeric_limits<uint16_t>::max()) {
                 outSpan[produced] = inSpan[consumed];
+                // default to user data if packet type not indicated
+                PacketType packet_type = PacketType::USER_DATA;
+                if (!outSpan[produced].tags.empty() &&
+                    outSpan[produced].tags[0].index == 0) {
+                    const auto& map = outSpan[produced].tags[0].map;
+                    if (map.contains("packet_type")) {
+                        packet_type = magic_enum::enum_cast<PacketType>(
+                                          pmtv::cast<std::string>(map.at("packet_type")),
+                                          magic_enum::case_insensitive)
+                                          .value();
+                    }
+                }
                 gr::Message msg;
-                msg.data = gr::property_map{ { "packet_length", packet_length } };
+                msg.data = gr::property_map{
+                    { "packet_length", packet_length },
+                    { "packet_type", std::string(magic_enum::enum_name(packet_type)) }
+                };
                 metadataSpan[produced] = std::move(msg);
                 ++produced;
             } else {

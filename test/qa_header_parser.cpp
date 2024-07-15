@@ -29,9 +29,13 @@ boost::ut::suite HeaderParserTests = [] {
             expect(msg.data.has_value());
         }
         expect(messages[0].data.value() ==
-               property_map{ { "packet_length", 1500UZ }, { "constellation", "QPSK" } });
+               property_map{ { "packet_length", 1500UZ },
+                             { "constellation", "QPSK" },
+                             { "packet_type", "USER_DATA" } });
         expect(messages[1].data.value() ==
-               property_map{ { "packet_length", 2048UZ }, { "constellation", "QPSK" } });
+               property_map{ { "packet_length", 2048UZ },
+                             { "constellation", "QPSK" },
+                             { "packet_type", "USER_DATA" } });
     };
 
     "header_parser_wrong_header"_test = [] {

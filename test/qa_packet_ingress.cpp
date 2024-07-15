@@ -78,7 +78,8 @@ boost::ut::suite PacketIngressTests = [] {
             const auto& message = messages[j];
             expect(message.data.has_value());
             const property_map expected_map = { { "packet_length",
-                                                  expected_packet_lengths[j] } };
+                                                  expected_packet_lengths[j] },
+                                                { "packet_type", "USER_DATA" } };
             expect(message.data.value() == expected_map);
         }
     };
@@ -142,7 +143,8 @@ boost::ut::suite PacketIngressTests = [] {
             const auto& message = messages[j];
             expect(message.data.has_value());
             const property_map expected_map = { { "packet_length",
-                                                  expected_packet_lengths[j] } };
+                                                  expected_packet_lengths[j] },
+                                                { "packet_type", "USER_DATA" } };
             expect(message.data.value() == expected_map);
         }
     };

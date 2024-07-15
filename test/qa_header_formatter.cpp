@@ -15,7 +15,8 @@ boost::ut::suite HeaderFormatterTests = [] {
         Graph fg;
         auto& strobe =
             fg.emplaceBlock<ItemStrobe<gr::Message>>({ { "interval_secs", 0.1 } });
-        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } } };
+        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } },
+                                             { "packet_type", "user_data" } };
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<>>();
         auto& stream_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
@@ -50,7 +51,8 @@ boost::ut::suite HeaderFormatterTests = [] {
         Graph fg;
         auto& strobe =
             fg.emplaceBlock<ItemStrobe<gr::Message>>({ { "interval_secs", 0.1 } });
-        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } } };
+        strobe.item.data = gr::property_map{ { "packet_length", uint64_t{ 1234 } },
+                                             { "packet_type", "user_data" } };
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<Pdu<uint8_t>>>();
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<uint8_t>>>();
         expect(eq(ConnectionResult::SUCCESS,

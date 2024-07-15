@@ -2,6 +2,7 @@
 #define _GR4_PACKET_MODEM_HEADER_PARSER
 
 #include <gnuradio-4.0/Block.hpp>
+#include <gnuradio-4.0/packet-modem/packet_type.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <pmtv/pmt.hpp>
 
@@ -68,16 +69,22 @@ public:
             if (packet_length == 0) {
                 valid = false;
             }
-            const uint8_t modcod_field = header[2];
-            if (modcod_field != 0x00) {
-                // the only modcod field supported at the moment is 0x00, which is QPSK
-                // uncoded
+            const uint8_t packet_type_field = header[2];
+            PacketType packet_type;
+            if (packet_type_field == 0x00) {
+                packet_type = PacketType::USER_DATA;
+            } else if (packet_type_field == 0x01) {
+                packet_type = PacketType::IDLE;
+            } else {
                 valid = false;
             }
             gr::Message msg;
             if (valid) {
-                msg.data = gr::property_map{ { "packet_length", packet_length },
-                                             { "constellation", "QPSK" } };
+                msg.data = gr::property_map{
+                    { "packet_length", packet_length },
+                    { "constellation", "QPSK" },
+                    { "packet_type", std::string(magic_enum::enum_name(packet_type)) }
+                };
             } else {
                 msg.data = gr::property_map{ { "invalid_header", pmtv::pmt_null() } };
             }
