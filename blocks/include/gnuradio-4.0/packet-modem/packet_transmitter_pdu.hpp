@@ -33,7 +33,7 @@ public:
     using c64 = std::complex<float>;
     gr::PortIn<Pdu<uint8_t>>* in;
     // only used when stream_mode = true
-    gr::PortOut<c64>* out_stream;
+    gr::PortOut<c64, gr::Async>* out_stream;
     gr::PortOut<gr::Message, gr::Async, gr::Optional>* out_count;
     // only used when stream_mode = false
     gr::PortOut<Pdu<c64>>* out_packet;
@@ -351,24 +351,26 @@ public:
             }
             out_packet = &burst_shaper.out;
         } else {
+            auto& rrc_interp =
+                fg.emplaceBlock<InterpolatingFirFilter<Pdu<c64>, Pdu<c64>, float>>(
+                    { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
             // do not produce tags in PduToTaggedStream
             auto& pdu_to_stream =
                 fg.emplaceBlock<PduToTaggedStream<c64>>({ { "packet_len_tag_key", "" } });
             if (max_in_samples) {
+                rrc_interp.in.max_samples = max_in_samples;
                 pdu_to_stream.in.max_samples = max_in_samples;
             }
+            if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
+            if (fg.connect<"out">(rrc_interp).to<"in">(pdu_to_stream) !=
+                ConnectionResult::SUCCESS) {
+                throw std::runtime_error(connection_error);
+            }
             out_count = &pdu_to_stream.count;
-            auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
-                { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
-            if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=
-                ConnectionResult::SUCCESS) {
-                throw std::runtime_error(connection_error);
-            }
-            if (fg.connect<"out">(pdu_to_stream).to<"in">(rrc_interp) !=
-                ConnectionResult::SUCCESS) {
-                throw std::runtime_error(connection_error);
-            }
-            out_stream = &rrc_interp.out;
+            out_stream = &pdu_to_stream.out;
         }
 
         if (fg.connect<"out">(ingress).to<"in">(crc_append) !=

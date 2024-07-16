@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 
     if (stream_mode) {
         expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(resampler.in)));
+                  packet_transmitter_pdu.out_stream->connect(throttle.in)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   packet_transmitter_pdu.out_count->connect(source.count)));
     } else {
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
         expect(eq(gr::ConnectionResult::SUCCESS,
                   packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
         expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(packet_to_stream).to<"in">(resampler)));
+                  fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"count">(packet_to_stream).to<"count">(source)));
     }
@@ -99,13 +99,13 @@ int main(int argc, char** argv)
     expect(eq(gr::ConnectionResult::SUCCESS,
               source.out.connect(*packet_transmitter_pdu.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(resampler).to<"in">(throttle)));
+              fg.connect<"out">(throttle).to<"in">(resampler)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(throttle).to<"in">(probe_rate)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(throttle).to<"in">(rotator)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(resampler).to<"in">(rotator)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rotator).to<"in0">(add_noise)));
     expect(eq(gr::ConnectionResult::SUCCESS,
