@@ -121,8 +121,15 @@ public:
                     }
                 } else {
                     if (log) {
-                        fmt::println("syncword received inside packet {}; ignoring",
-                                     _num_packet);
+                        fmt::println("syncword received inside packet {}; ignoring. "
+                                     "(amplitude = {:.4}, frequency = {:.4} (bin {}), "
+                                     "Es/N0 = {:.3} dB, time est = {:.4})",
+                                     _num_packet,
+                                     pmtv::cast<float>(tag.map["syncword_amplitude"]),
+                                     pmtv::cast<double>(tag.map["syncword_freq"]),
+                                     pmtv::cast<int>(tag.map["syncword_freq_bin"]),
+                                     pmtv::cast<float>(tag.map["syncword_esn0_db"]),
+                                     pmtv::cast<float>(tag.map["syncword_time_est"]));
                     }
                 }
             }
