@@ -34,6 +34,7 @@ public:
     gr::PortIn<Pdu<uint8_t>>* in;
     // only used when stream_mode = true
     gr::PortOut<c64>* out_stream;
+    gr::PortOut<gr::Message, gr::Async, gr::Optional>* out_count;
     // only used when stream_mode = false
     gr::PortOut<Pdu<c64>>* out_packet;
 
@@ -356,6 +357,7 @@ public:
             if (max_in_samples) {
                 pdu_to_stream.in.max_samples = max_in_samples;
             }
+            out_count = &pdu_to_stream.count;
             auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
                 { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
             if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=

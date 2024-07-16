@@ -19,7 +19,7 @@ data but there is no input available.
 
 This block is used to convert a packet-based transmission, where there can pass
 a significant time between adjacent packets, into a stream-based transmission,
-such as what is required to continuosly feed a DAC at a constant sample rate.
+such as what is required to continuously feed a DAC at a constant sample rate.
 
 The block works by copying packets from the input to the output. The input
 packets are delimited by a packet-length tag in their first item which indicates

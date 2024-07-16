@@ -26,10 +26,11 @@ int main(int argc, char** argv)
     using namespace boost::ut;
     using c64 = std::complex<float>;
 
-    expect(fatal(eq(argc, 4)));
+    expect(fatal(eq(argc, 5)));
     const double esn0_db = std::stod(argv[1]);
     const float freq_error = std::stof(argv[2]);
     const float sfo_ppm = std::stof(argv[3]);
+    const bool stream_mode = std::stod(argv[4]) != 0;
 
     const double tx_power = 0.32; // measured from packet_transmitter_pdu output
     const size_t samples_per_symbol = 4U;
@@ -40,11 +41,11 @@ int main(int argc, char** argv)
     const double samp_rate = 3.2e6;
 
     gr::Graph fg;
-    auto& source =
-        fg.emplaceBlock<gr::packet_modem::TunSource>({ { "tun_name", "gr4_tun_tx" },
-                                                       { "netns_name", "gr4_tx" },
-                                                       { "max_packets", 2UZ } });
-    const bool stream_mode = false;
+    auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
+        { { "tun_name", "gr4_tun_tx" },
+          { "netns_name", "gr4_tx" },
+          { "max_packets", 2UZ },
+          { "idle_packet_size", stream_mode ? 256UZ : 0UZ } });
     const size_t max_in_samples = 1U;
     // note that buffer size is rounded up to a multiple of
     // lcm(sizeof(Pdu<T>), getpagesize()), but different values that round up to
@@ -52,19 +53,13 @@ int main(int argc, char** argv)
     const size_t out_buff_size = 1U;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
-    auto& packet_to_stream =
-        fg.emplaceBlock<gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
-    // Limit the number of samples that packet_to_stream can produce in one
-    // call. Otherwise it produces 65536 items on the first call, and then "it
-    // gets behind the Throttle block" by these many samples.
-    packet_to_stream.out.max_samples = 1000U;
+    auto& resampler = fg.emplaceBlock<gr::packet_modem::PfbArbResampler<c64, c64, float>>(
+        { { "taps", gr::packet_modem::pfb_arb_taps },
+          { "rate", 1.0f + 1e-6f * sfo_ppm } });
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<c64>>(
         { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    auto& resampler = fg.emplaceBlock<gr::packet_modem::PfbArbResampler<c64, c64, float>>(
-        { { "taps", gr::packet_modem::pfb_arb_taps },
-          { "rate", 1.0f + 1e-6f * sfo_ppm } });
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
@@ -81,14 +76,28 @@ int main(int argc, char** argv)
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
+    if (stream_mode) {
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_stream->connect(resampler.in)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_count->connect(source.count)));
+    } else {
+        auto& packet_to_stream = fg.emplaceBlock<
+            gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
+        // Limit the number of samples that packet_to_stream can produce in one
+        // call. Otherwise it produces 65536 items on the first call, and then "it
+        // gets behind the Throttle block" by these many samples.
+        packet_to_stream.out.max_samples = 1000U;
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(packet_to_stream).to<"in">(resampler)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"count">(packet_to_stream).to<"count">(source)));
+    }
+
     expect(eq(gr::ConnectionResult::SUCCESS,
               source.out.connect(*packet_transmitter_pdu.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(packet_to_stream).to<"in">(resampler)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"count">(packet_to_stream).to<"count">(source)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(resampler).to<"in">(throttle)));
     expect(eq(gr::ConnectionResult::SUCCESS,

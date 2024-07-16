@@ -220,9 +220,11 @@ public:
                     meta[loop_bandwidth_key] = payload_costas_loop_bandwidth;
                     out.publishTag(meta, out_item - outSpan.begin());
                     if (log) {
-                        fmt::println("header for packet {}: packet_length = {}",
-                                     _num_packet,
-                                     packet_length);
+                        fmt::println(
+                            "header for packet {}: packet_length = {}, packet_type = {}",
+                            _num_packet,
+                            packet_length,
+                            pmtv::cast<std::string>(meta["packet_type"]));
                     }
 
                     const auto n =
