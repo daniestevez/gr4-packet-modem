@@ -48,10 +48,13 @@ public:
                                  gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(countSpan.size() = {}, outSpan.size() = {})",
+        fmt::println("{}::processBulk(countSpan.size() = {}, outSpan.size() = {}), "
+                     "_entry_count = {}, _exit_count = {}",
                      this->name,
                      countSpan.size(),
-                     outSpan.size());
+                     outSpan.size(),
+                     _entry_count,
+                     _exit_count);
 #endif
 
         if (countSpan.size() > 0) {
@@ -68,6 +71,9 @@ public:
         if (max_packets > 0 &&
             _entry_count - _exit_count >= static_cast<uint64_t>(max_packets)) {
             // cannot allow more packets into the latency management region
+#ifdef TRACE
+            fmt::println("{} latency management region full", this->name);
+#endif
             outSpan.publish(0);
             return gr::work::Status::OK;
         }
@@ -85,7 +91,7 @@ public:
             _timeout.tv_usec = static_cast<uint32_t>(
                 std::round((timeout - static_cast<double>(_timeout.tv_sec)) * 1e6));
         }
-        ssize_t ret = select(_tun_fd + 1, &rfds, nullptr, nullptr, &_timeout);
+        ssize_t ret = select(_tun_fd + 1, &rfds, nullptr, &rfds, &_timeout);
         if (ret < 0) {
             throw gr::exception(fmt::format("select() failed: {}", strerror(errno)));
         } else if (ret == 0) {
@@ -95,8 +101,14 @@ public:
                 outSpan[0].data = std::vector<uint8_t>(idle_packet_size);
                 outSpan[0].tags =
                     std::vector<gr::Tag>{ { 0, { { "packet_type", "IDLE" } } } };
+#ifdef TRACE
+                fmt::println("{} produced IDLE packet", this->name);
+#endif
             } else {
                 // timeout expired; return to the scheduler without a packet
+#ifdef TRACE
+                fmt::println("{} timeout expired; returning to scheduler", this->name);
+#endif
                 outSpan.publish(0);
                 return gr::work::Status::OK;
             }
@@ -110,6 +122,9 @@ public:
             outSpan[0].data.clear();
             std::copy_n(_buff.cbegin(), ret, std::back_inserter(outSpan[0].data));
             outSpan[0].tags.clear();
+#ifdef TRACE
+            fmt::println("{} produced non-IDLE packet", this->name);
+#endif
         }
 
         // this is run both when generating an idle packet and when generating a

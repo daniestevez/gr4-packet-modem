@@ -154,6 +154,12 @@ public:
                                      pmtv::cast<std::string>(meta_map.at("packet_type")),
                                      magic_enum::case_insensitive)
                                      .value();
+#ifdef TRACE
+        fmt::println("{} packet_length = {}, packet_type = {}",
+                     this->name,
+                     packet_length,
+                     magic_enum::enum_name(packet_type));
+#endif
 
         Pdu<uint8_t> header;
         header.data.push_back((packet_length >> 8) & 0xff);

@@ -13,6 +13,7 @@
 #include <gnuradio-4.0/packet-modem/pfb_arb_taps.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/rotator.hpp>
+#include <gnuradio-4.0/packet-modem/tag_gate.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
 #include <gnuradio-4.0/packet-modem/tun_sink.hpp>
@@ -53,13 +54,13 @@ int main(int argc, char** argv)
     const size_t out_buff_size = 1U;
     auto packet_transmitter_pdu = gr::packet_modem::PacketTransmitterPdu(
         fg, stream_mode, samples_per_symbol, max_in_samples, out_buff_size);
-    auto& resampler = fg.emplaceBlock<gr::packet_modem::PfbArbResampler<c64, c64, float>>(
-        { { "taps", gr::packet_modem::pfb_arb_taps },
-          { "rate", 1.0f + 1e-6f * sfo_ppm } });
     auto& throttle = fg.emplaceBlock<gr::packet_modem::Throttle<c64>>(
         { { "sample_rate", samp_rate }, { "maximum_items_per_chunk", 1000UZ } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+    auto& resampler = fg.emplaceBlock<gr::packet_modem::PfbArbResampler<c64, c64, float>>(
+        { { "taps", gr::packet_modem::pfb_arb_taps },
+          { "rate", 1.0f + 1e-6f * sfo_ppm } });
     auto& rotator =
         fg.emplaceBlock<gr::packet_modem::Rotator<>>({ { "phase_incr", freq_error } });
     auto& noise_source = fg.emplaceBlock<gr::packet_modem::NoiseSource<c64>>(
@@ -77,10 +78,14 @@ int main(int argc, char** argv)
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
     if (stream_mode) {
+        auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
+            { { "drop_tags", true } });
         expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(throttle.in)));
+                  packet_transmitter_pdu.out_stream->connect(packet_counter.in)));
         expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_count->connect(source.count)));
+                  fg.connect<"count">(packet_counter).to<"count">(source)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(packet_counter).to<"in">(throttle)));
     } else {
         auto& packet_to_stream = fg.emplaceBlock<
             gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();

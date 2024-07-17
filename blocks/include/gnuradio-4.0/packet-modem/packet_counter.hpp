@@ -31,6 +31,9 @@ public:
     gr::PortOut<T> out;
     gr::PortOut<gr::Message, gr::Async> count;
     std::string packet_len_tag_key = "packet_len";
+    bool drop_tags = false;
+
+    constexpr static TagPropagationPolicy tag_policy = TagPropagationPolicy::TPP_CUSTOM;
 
     void start() { _count = 0; }
 
@@ -38,10 +41,42 @@ public:
                                  gr::PublishableSpan auto& outSpan,
                                  gr::PublishableSpan auto& countSpan)
     {
-        throw gr::exception("this block is not implemented");
+        assert(inSpan.size() == outSpan.size());
+#ifdef TRACE
+        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {}, "
+                     "countSpan.size() = {}), _count = {}",
+                     this->name,
+                     inSpan.size(),
+                     outSpan.size(),
+                     countSpan.size(),
+                     _count);
+#endif
+        if (this->input_tags_present()) {
+            const auto tag = this->mergedInputTag();
+            if (tag.map.contains(packet_len_tag_key)) {
+                ++_count;
+                gr::Message msg;
+                msg.data = gr::property_map{ { "packet_count", _count } };
+                countSpan[0] = std::move(msg);
+                countSpan.publish(1);
+            } else {
+                countSpan.publish(0);
+            }
+            if (!drop_tags) {
+                out.publishTag(tag.map);
+            }
+        } else {
+            countSpan.publish(0);
+        }
+        std::copy_n(inSpan.begin(), inSpan.size(), outSpan.begin());
+        // this should be done automatically, but just in case
+        if (!inSpan.consume(inSpan.size())) {
+            throw gr::exception("consume failed");
+        }
+        outSpan.publish(outSpan.size());
+        return gr::work::Status::OK;
     }
 };
-
 
 template <typename T>
 class PacketCounter<Pdu<T>> : public gr::Block<PacketCounter<Pdu<T>>>
@@ -57,6 +92,7 @@ public:
     gr::PortOut<Pdu<T>> out;
     gr::PortOut<gr::Message> count;
     std::string packet_len_tag_key = "packet_len";
+    bool drop_tags = false; // ignored in Pdu mode
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan,
@@ -87,6 +123,6 @@ public:
 } // namespace gr::packet_modem
 
 ENABLE_REFLECTION_FOR_TEMPLATE(
-    gr::packet_modem::PacketCounter, in, out, count, packet_len_tag_key);
+    gr::packet_modem::PacketCounter, in, out, count, packet_len_tag_key, drop_tags);
 
 #endif // _GR4_PACKET_PACKET_COUNTER
