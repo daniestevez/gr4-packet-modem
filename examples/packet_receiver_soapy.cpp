@@ -1,6 +1,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
+#include <gnuradio-4.0/packet-modem/packet_type_filter.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/tun_sink.hpp>
 #include <gnuradio-4.0/soapy/Soapy.hpp>
@@ -29,14 +30,18 @@ int main(int argc, char** argv)
     const bool log = true;
     auto packet_receiver = gr::packet_modem::PacketReceiver(
         fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
+    auto& packet_type_filter = fg.emplaceBlock<gr::packet_modem::PacketTypeFilter<>>(
+        { { "packet_type", "user_data" } });
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
     expect(
         eq(gr::ConnectionResult::SUCCESS, soapy_source.out.connect(*packet_receiver.in)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, packet_receiver.out->connect(tag_to_pdu.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              packet_receiver.out->connect(packet_type_filter.in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(tag_to_pdu).to<"in">(sink)));
 
