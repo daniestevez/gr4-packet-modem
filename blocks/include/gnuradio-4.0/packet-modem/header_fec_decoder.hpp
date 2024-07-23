@@ -318,6 +318,12 @@ public:
             }
             in_item += header_num_llrs;
 
+            std::vector<uint8_t> packed = std::vector<uint8_t>(16UZ);
+            for (size_t k = 0; k < header_ldpc_n; ++k) {
+                packed[k / 8] |= (_llrs[k] < 0.0f) << (7 - (k % 8));
+            }
+            fmt::println("header data = {}", packed);
+          
             // perform LDPC decoding
             const uint32_t max_iterations = 25;
             const int32_t ret = ldpc_toolbox_decoder_decode_f32(_ldpc_decoder,

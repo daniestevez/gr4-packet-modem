@@ -91,12 +91,12 @@ public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
-#ifdef TRACE
+      //#ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
                      this->name,
                      inSpan.size(),
                      outSpan.size());
-#endif
+        //#endif
         if (this->input_tags_present()) {
             const auto tag = this->mergedInputTag();
             if (tag.map.contains(syncword_phase_key)) {

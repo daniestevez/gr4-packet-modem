@@ -77,7 +77,7 @@ public:
                                  const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
-#ifdef TRACE
+      //#ifdef TRACE
         fmt::println("{}::processBulk(headerSpan.size() = {}, inSpan.size() = {}, "
                      "outSpan.size() = {}), _in_packet = {}, _position = {}, "
                      "_payload_symbols = {}",
@@ -88,13 +88,13 @@ public:
                      _in_packet,
                      _position,
                      _payload_symbols);
-#endif
+        //#endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
             if (tag.map.contains(syncword_amplitude_key)) {
-#ifdef TRACE
+              //#ifdef TRACE
                 fmt::println("{} got {} tag", this->name, syncword_amplitude_key);
-#endif
+                //#endif
                 // If we are already inside a packet, we ignore a
                 // syncword_amplitude_key (this can happen due to false syncword
                 // detections)
@@ -277,12 +277,12 @@ public:
             this->_mergedInputTag.map.clear();
         }
 
-#ifdef TRACE
+        //#ifdef TRACE
         fmt::println("{} consumed = {}, published = {}",
                      this->name,
                      in_item - inSpan.begin(),
                      out_item - outSpan.begin());
-#endif
+        //#endif
 
         return gr::work::Status::OK;
     }

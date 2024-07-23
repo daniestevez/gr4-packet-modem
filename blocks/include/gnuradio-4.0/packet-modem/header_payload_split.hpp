@@ -62,6 +62,9 @@ public:
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
+#ifdef TRACE            
+            fmt::println("{} got tag {}", this->name, tag.map);
+#endif
             if (tag.map.contains(payload_length_key)) {
                 if (_in_payload || _position != header_size) {
                     throw gr::exception(
