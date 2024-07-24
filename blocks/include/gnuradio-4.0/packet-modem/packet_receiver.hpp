@@ -27,8 +27,8 @@ namespace gr::packet_modem {
 class PacketReceiver
 {
 public:
-    gr::PortIn<std::complex<float>>* in;
-    gr::PortOut<uint8_t>* out;
+    SyncwordDetection* syncword_detection;
+    CrcCheck<>* payload_crc_check;
 
     PacketReceiver(gr::Graph& fg,
                    size_t samples_per_symbol = 4U,
@@ -38,6 +38,7 @@ public:
                    bool log = false)
     {
         using c64 = std::complex<float>;
+        using namespace std::string_literals;
         const std::vector<uint8_t> syncword = {
             uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 },
             uint8_t{ 0 }, uint8_t{ 1 }, uint8_t{ 1 }, uint8_t{ 0 }, uint8_t{ 1 },
@@ -69,13 +70,13 @@ public:
             x /= rrc_taps_norm;
         }
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
-        auto& syncword_detection =
+        auto& _syncword_detection =
             fg.emplaceBlock<SyncwordDetection>({ { "rrc_taps", rrc_taps },
                                                  { "syncword", syncword },
                                                  { "constellation", bpsk_constellation },
                                                  { "min_freq_bin", -4 },
                                                  { "max_freq_bin", 4 } });
-        in = &syncword_detection.in;
+        syncword_detection = &_syncword_detection;
         // Set a delay for the coarse frequency correction to avoid a phase jump
         // at the end of a long packet when the coarse frequency of the packet
         // is slightly wrong (due to the accumulated phase error over the packet
@@ -135,15 +136,15 @@ public:
             fg.emplaceBlock<PackBits<>>({ { "inputs_per_output", 8UZ },
                                           { "bits_per_input", uint8_t{ 1 } },
                                           { "packet_len_tag_key", packet_len_tag_key } });
-        auto& payload_crc_check = fg.emplaceBlock<CrcCheck<>>(
+        auto& _payload_crc_check = fg.emplaceBlock<CrcCheck<>>(
             { { "discard_crc", true }, { "packet_len_tag_key", packet_len_tag_key } });
-        out = &payload_crc_check.out;
+        payload_crc_check = &_payload_crc_check;
 
         constexpr auto connection_error = "connection_error";
 
         if (header_debug) {
             auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-            if (header_parser.metadata.connect(message_debug.print) !=
+            if (fg.connect(header_parser, "metadata"s, message_debug, "print"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -181,7 +182,7 @@ public:
             }
         }
 
-        if (fg.connect<"out">(syncword_detection).to<"in">(freq_correction) !=
+        if (fg.connect<"out">(_syncword_detection).to<"in">(freq_correction) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -238,7 +239,7 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(payload_pack).to<"in">(payload_crc_check) !=
+        if (fg.connect<"out">(payload_pack).to<"in">(_payload_crc_check) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

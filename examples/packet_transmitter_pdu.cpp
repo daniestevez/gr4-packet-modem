@@ -15,6 +15,7 @@ int main(int argc, char* argv[])
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+    using namespace std::string_literals;
 
     // The first command line argument of this example indicates the file to
     // write the output to.
@@ -42,7 +43,7 @@ int main(int argc, char* argv[])
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
 
     expect(eq(gr::ConnectionResult::SUCCESS,
-              vector_source.out.connect(*packet_transmitter_pdu.in)));
+              fg.connect(vector_source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
     if (!stream_mode) {
         // do not produce tags in PduToTaggedStream
         auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
@@ -50,17 +51,20 @@ int main(int argc, char* argv[])
         if (max_in_samples) {
             pdu_to_stream.in.max_samples = max_in_samples;
         }
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_packet->connect(pdu_to_stream.in)));
+        expect(
+            eq(gr::ConnectionResult::SUCCESS,
+               fg.connect(
+                   *packet_transmitter_pdu.burst_shaper, "out"s, pdu_to_stream, "in"s)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_stream).to<"in">(sink)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_stream).to<"in">(probe_rate)));
     } else {
         expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(sink.in)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(probe_rate.in)));
+                  fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, sink, "in"s)));
+        expect(eq(
+            gr::ConnectionResult::SUCCESS,
+            fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, probe_rate, "in"s)));
     }
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(

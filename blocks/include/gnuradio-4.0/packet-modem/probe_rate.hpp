@@ -123,9 +123,7 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::ProbeRate,
-                               in,
-                               min_update_time_secs,
-                               alpha);
+ENABLE_REFLECTION_FOR_TEMPLATE(
+    gr::packet_modem::ProbeRate, in, rate, min_update_time_secs, alpha);
 
 #endif // _GR4_PACKET_MODEM_PROBE_RATE

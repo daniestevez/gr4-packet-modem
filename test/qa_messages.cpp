@@ -10,6 +10,7 @@ boost::ut::suite MessageTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "message_strobe"_test = [] {
         Graph fg;
@@ -17,8 +18,10 @@ boost::ut::suite MessageTests = [] {
         auto& strobe = fg.emplaceBlock<MessageStrobe<>>(
             { { "message", message }, { "interval_secs", 0.01 } });
         auto& debug = fg.emplaceBlock<MessageDebug>();
-        expect(eq(ConnectionResult::SUCCESS, strobe.strobe.connect(debug.print)));
-        expect(eq(ConnectionResult::SUCCESS, strobe.strobe.connect(debug.store)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect(strobe, "strobe"s, debug, "print"s)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect(strobe, "strobe"s, debug, "store"s)));
         scheduler::Simple sched{ std::move(fg) };
         MsgPortOut toScheduler;
         expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));

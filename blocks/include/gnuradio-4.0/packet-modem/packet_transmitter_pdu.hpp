@@ -31,11 +31,11 @@ class PacketTransmitterPdu
 {
 public:
     using c64 = std::complex<float>;
-    gr::PortIn<Pdu<uint8_t>>* in;
+    PacketIngress<Pdu<uint8_t>>* ingress;
     // only used when stream_mode = true
-    gr::PortOut<c64>* out_stream;
+    InterpolatingFirFilter<c64, c64, float>* rrc_interp;
     // only used when stream_mode = false
-    gr::PortOut<Pdu<c64>>* out_packet;
+    BurstShaper<Pdu<c64>, Pdu<c64>, float>* burst_shaper;
 
     PacketTransmitterPdu(gr::Graph& fg,
                          bool stream_mode = false,
@@ -43,16 +43,18 @@ public:
                          size_t max_in_samples = 0U,
                          size_t out_buff_size = 0U)
     {
-        auto& ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
+        using namespace std::string_literals;
+
+        auto& _ingress = fg.emplaceBlock<PacketIngress<Pdu<uint8_t>>>();
         if (max_in_samples) {
-            ingress.in.max_samples = max_in_samples;
+            _ingress.in.max_samples = max_in_samples;
         }
         if (out_buff_size) {
-            if (ingress.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
+            if (_ingress.out.resizeBuffer(out_buff_size) != ConnectionResult::SUCCESS) {
                 throw gr::exception("resizeBuffer() failed");
             }
         }
-        in = &ingress.in;
+        ingress = &_ingress;
 
         // header
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<Pdu<uint8_t>>>();
@@ -268,12 +270,12 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect(ramp_down_modulator, { "out" }, symbols_mux, { "in", 2 }) !=
+            if (fg.connect(ramp_down_modulator, "out"s, symbols_mux, "in#2"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
 
-            if (fg.connect(rrc_flush_source, { "out" }, symbols_mux, { "in", 3 }) !=
+            if (fg.connect(rrc_flush_source, "out"s, symbols_mux, "in#3"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -328,14 +330,14 @@ public:
                     static_cast<double>(j + 1) /
                     static_cast<double>(trailing_ramp.size()) * 0.5 * std::numbers::pi));
             }
-            auto& burst_shaper = fg.emplaceBlock<BurstShaper<Pdu<c64>, Pdu<c64>, float>>(
+            auto& _burst_shaper = fg.emplaceBlock<BurstShaper<Pdu<c64>, Pdu<c64>, float>>(
                 { { "leading_shape", leading_ramp },
                   { "trailing_shape", trailing_ramp } });
             if (max_in_samples) {
-                burst_shaper.in.max_samples = max_in_samples;
+                _burst_shaper.in.max_samples = max_in_samples;
             }
             if (out_buff_size) {
-                if (burst_shaper.out.resizeBuffer(out_buff_size) !=
+                if (_burst_shaper.out.resizeBuffer(out_buff_size) !=
                     ConnectionResult::SUCCESS) {
                     throw gr::exception("resizeBuffer() failed");
                 }
@@ -344,34 +346,34 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect<"out">(rrc_interp).to<"in">(burst_shaper) !=
+            if (fg.connect<"out">(rrc_interp).to<"in">(_burst_shaper) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            out_packet = &burst_shaper.out;
+            burst_shaper = &_burst_shaper;
         } else {
             auto& pdu_to_stream = fg.emplaceBlock<PduToTaggedStream<c64>>();
             if (max_in_samples) {
                 pdu_to_stream.in.max_samples = max_in_samples;
             }
-            auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
+            auto& _rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
                 { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
             if (fg.connect<"out">(symbols_mux).to<"in">(pdu_to_stream) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect<"out">(pdu_to_stream).to<"in">(rrc_interp) !=
+            if (fg.connect<"out">(pdu_to_stream).to<"in">(_rrc_interp) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            out_stream = &rrc_interp.out;
+            rrc_interp = &_rrc_interp;
         }
 
-        if (fg.connect<"out">(ingress).to<"in">(crc_append) !=
+        if (fg.connect<"out">(_ingress).to<"in">(crc_append) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"metadata">(ingress).to<"metadata">(header_formatter) !=
+        if (fg.connect<"metadata">(_ingress).to<"metadata">(header_formatter) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -380,11 +382,11 @@ public:
             throw std::runtime_error(connection_error);
         }
         // payload FEC connection would go here
-        if (fg.connect(header_fec, { "out" }, header_payload_mux, { "in", 0 }) !=
+        if (fg.connect(header_fec, "out"s, header_payload_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(crc_append, { "out" }, header_payload_mux, { "in", 1 }) !=
+        if (fg.connect(crc_append, "out"s, header_payload_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -408,11 +410,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(syncword_bpsk_modulator, { "out" }, symbols_mux, { "in", 0 }) !=
+        if (fg.connect(syncword_bpsk_modulator, "out"s, symbols_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(qpsk_modulator, { "out" }, symbols_mux, { "in", 1 }) !=
+        if (fg.connect(qpsk_modulator, "out"s, symbols_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

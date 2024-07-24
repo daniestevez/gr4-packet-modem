@@ -26,6 +26,7 @@ int main(int argc, char** argv)
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+    using namespace std::string_literals;
 
     expect(fatal(eq(argc, 5)));
     const double esn0_db = std::stod(argv[1]);
@@ -80,8 +81,10 @@ int main(int argc, char** argv)
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(packet_counter.in)));
+        expect(
+            eq(gr::ConnectionResult::SUCCESS,
+               fg.connect(
+                   *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"count">(packet_counter).to<"count">(source)));
         expect(eq(gr::ConnectionResult::SUCCESS,
@@ -93,8 +96,10 @@ int main(int argc, char** argv)
         // call. Otherwise it produces 65536 items on the first call, and then "it
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
+        expect(eq(
+            gr::ConnectionResult::SUCCESS,
+            fg.connect(
+                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
         expect(eq(gr::ConnectionResult::SUCCESS,
@@ -102,22 +107,25 @@ int main(int argc, char** argv)
     }
 
     expect(eq(gr::ConnectionResult::SUCCESS,
-              source.out.connect(*packet_transmitter_pdu.in)));
+              fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(throttle).to<"in">(resampler)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(throttle).to<"in">(probe_rate)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect(probe_rate, "rate"s, message_debug, "print"s)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(resampler).to<"in">(rotator)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rotator).to<"in0">(add_noise)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(noise_source).to<"in1">(add_noise)));
-    expect(eq(gr::ConnectionResult::SUCCESS, add_noise.out.connect(*packet_receiver.in)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_receiver.out->connect(packet_type_filter.in)));
+              fg.connect(add_noise, "out"s, *packet_receiver.syncword_detection, "in"s)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS,
+           fg.connect(
+               *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
     expect(

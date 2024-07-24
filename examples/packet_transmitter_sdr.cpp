@@ -18,6 +18,7 @@ int main(int argc, char* argv[])
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+    using namespace std::string_literals;
 
     // The first command line argument of this example indicates the file to
     // write the output to. The second indicates whether to use stream_mode or
@@ -44,13 +45,15 @@ int main(int argc, char* argv[])
         fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", filename } });
 
     expect(eq(gr::ConnectionResult::SUCCESS,
-              source.out.connect(*packet_transmitter_pdu.in)));
+              fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
 
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_stream->connect(packet_counter.in)));
+        expect(
+            eq(gr::ConnectionResult::SUCCESS,
+               fg.connect(
+                   *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"count">(packet_counter).to<"count">(source)));
         expect(eq(gr::ConnectionResult::SUCCESS,
@@ -62,8 +65,10 @@ int main(int argc, char* argv[])
         // call. Otherwise it produces 65536 items on the first call, and then "it
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
+        expect(eq(
+            gr::ConnectionResult::SUCCESS,
+            fg.connect(
+                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(packet_to_stream).to<"in">(sink)));
         expect(eq(gr::ConnectionResult::SUCCESS,

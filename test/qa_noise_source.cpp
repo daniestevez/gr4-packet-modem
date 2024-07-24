@@ -10,6 +10,7 @@ boost::ut::suite NoiseSourceTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "noise_source_gaussian_power"_test = []<typename T> {
         Graph fg;
@@ -20,8 +21,8 @@ boost::ut::suite NoiseSourceTests = [] {
         auto& head =
             fg.emplaceBlock<Head<T>>({ { "num_items", static_cast<size_t>(num_items) } });
         auto& sink = fg.emplaceBlock<VectorSink<T>>();
-        expect(eq(ConnectionResult::SUCCESS, source.out.connect(head.in)));
-        expect(eq(ConnectionResult::SUCCESS, head.out.connect(sink.in)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(source, "out"s, head, "in"s)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(head, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto data = sink.data();

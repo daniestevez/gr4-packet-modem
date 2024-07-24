@@ -13,6 +13,7 @@ int main(int argc, char** argv)
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+    using namespace std::string_literals;
 
     expect(fatal(eq(argc, 2)));
     const double rf_freq = std::stod(argv[1]);
@@ -37,9 +38,12 @@ int main(int argc, char** argv)
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
     expect(
-        eq(gr::ConnectionResult::SUCCESS, soapy_source.out.connect(*packet_receiver.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_receiver.out->connect(packet_type_filter.in)));
+        eq(gr::ConnectionResult::SUCCESS,
+           fg.connect(soapy_source, "out"s, *packet_receiver.syncword_detection, "in"s)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS,
+           fg.connect(
+               *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
     expect(

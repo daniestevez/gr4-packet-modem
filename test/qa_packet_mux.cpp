@@ -11,6 +11,7 @@ boost::ut::suite PacketMuxTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "pdu_packet_mux"_test = [] {
         Graph fg;
@@ -27,12 +28,9 @@ boost::ut::suite PacketMuxTests = [] {
         source2.data = std::vector{ pdu2 };
         auto& mux = fg.emplaceBlock<PacketMux<Pdu<int>>>({ { "num_inputs", 3UZ } });
         auto& sink = fg.emplaceBlock<VectorSink<Pdu<int>>>();
-        expect(eq(ConnectionResult::SUCCESS,
-                  fg.connect(source0, { "out" }, mux, { "in", 0 })));
-        expect(eq(ConnectionResult::SUCCESS,
-                  fg.connect(source1, { "out" }, mux, { "in", 1 })));
-        expect(eq(ConnectionResult::SUCCESS,
-                  fg.connect(source2, { "out" }, mux, { "in", 2 })));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(source0, "out"s, mux, "in#0"s)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(source1, "out"s, mux, "in#1"s)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(source2, "out"s, mux, "in#2"s)));
         expect(eq(ConnectionResult::SUCCESS, fg.connect<"out">(mux).to<"in">(sink)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());

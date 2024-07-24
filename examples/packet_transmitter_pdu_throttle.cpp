@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
+    using namespace std::string_literals;
 
     // The first command line argument of this example indicates the file to
     // write the output to.
@@ -55,16 +56,18 @@ int main(int argc, char* argv[])
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(eq(gr::ConnectionResult::SUCCESS,
-              source.out.connect(*packet_transmitter_pdu.in)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              packet_transmitter_pdu.out_packet->connect(packet_to_stream.in)));
+              fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS,
+           fg.connect(
+               *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(throttle).to<"in">(sink)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(throttle).to<"in">(probe_rate)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect(probe_rate, "rate"s, message_debug, "print"s)));
 
     // This doesn't work if the scheduler is switched to multiThreaded. The
     // Throttle block only gets non-zero items for the first packet, even though

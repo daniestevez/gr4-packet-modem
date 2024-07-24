@@ -10,6 +10,7 @@ boost::ut::suite SlicerTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "slicer"_test = []<typename Invert> {
         Graph fg;
@@ -27,7 +28,7 @@ boost::ut::suite SlicerTests = [] {
         // For some reason, using the notation
         // fg.connect<"out">(slicer).to<"in">(sink) gives a compile error when
         // BinarySlicer depends on Invert::value.
-        expect(eq(ConnectionResult::SUCCESS, slicer.out.connect(sink.in)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(slicer, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto data_source = sink_source.data();

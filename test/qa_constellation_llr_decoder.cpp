@@ -10,6 +10,7 @@ boost::ut::suite ConstellationLLRDecoderTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "constellation_llr_decoder"_test = [](auto constellation) {
         Graph fg;
@@ -28,7 +29,7 @@ boost::ut::suite ConstellationLLRDecoderTests = [] {
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink_source)));
         expect(eq(ConnectionResult::SUCCESS,
-                  constellation_decoder.out.connect(sink.in)));
+                  fg.connect(constellation_decoder, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto data_source = sink_source.data();

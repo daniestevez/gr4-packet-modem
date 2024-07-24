@@ -37,6 +37,7 @@ public:
                       size_t samples_per_symbol = 4U,
                       const std::string& packet_len_tag_key = "packet_len")
     {
+        using namespace std::string_literals;
         using c64 = std::complex<float>;
 
         auto& ingress = fg.emplaceBlock<PacketIngress<>>(
@@ -175,7 +176,7 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect(ramp_symbols_to_pdu, { "out" }, symbols_mux, { "in", 2 }) !=
+            if (fg.connect(ramp_symbols_to_pdu, "out"s, symbols_mux, "in#2"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -188,7 +189,7 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect(flush_symbols_to_pdu, { "out" }, symbols_mux, { "in", 3 }) !=
+            if (fg.connect(flush_symbols_to_pdu, "out"s, symbols_mux, "in#3"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -270,11 +271,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(header_to_pdu, { "out" }, header_payload_mux, { "in", 0 }) !=
+        if (fg.connect(header_to_pdu, "out"s, header_payload_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(payload_to_pdu, { "out" }, header_payload_mux, { "in", 1 }) !=
+        if (fg.connect(payload_to_pdu, "out"s, header_payload_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -310,11 +311,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(syncword_to_pdu, { "out" }, symbols_mux, { "in", 0 }) !=
+        if (fg.connect(syncword_to_pdu, "out"s, symbols_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(payload_symbols_to_pdu, { "out" }, symbols_mux, { "in", 1 }) !=
+        if (fg.connect(payload_symbols_to_pdu, "out"s, symbols_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }

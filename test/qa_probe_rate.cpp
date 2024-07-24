@@ -10,6 +10,7 @@ boost::ut::suite ProbeRateTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "probe_rate"_test = [] {
         Graph fg;
@@ -24,7 +25,8 @@ boost::ut::suite ProbeRateTests = [] {
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(throttle)));
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(throttle).to<"in">(probe_rate)));
-        expect(eq(ConnectionResult::SUCCESS, probe_rate.rate.connect(msg_debug.store)));
+        expect(eq(ConnectionResult::SUCCESS,
+                  fg.connect(probe_rate, "rate"s, msg_debug, "store"s)));
         scheduler::Simple sched{ std::move(fg) };
         MsgPortOut toScheduler;
         expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));
@@ -39,7 +41,7 @@ boost::ut::suite ProbeRateTests = [] {
         stopper.join();
         const auto messages = msg_debug.messages();
         // nominally we expect 5 messages
-        expect(messages.size() >= 4 && messages.size() <= 6);
+        expect(messages.size() >= 4_u && messages.size() <= 6_u);
         for (const auto& message : messages) {
             expect(message.data.has_value());
             const auto data = message.data.value();

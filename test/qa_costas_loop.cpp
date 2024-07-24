@@ -12,6 +12,7 @@ boost::ut::suite CostasLoopTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
+    using namespace std::string_literals;
 
     "costas_loop_convergence"_test = [](auto constellation) {
         Graph fg;
@@ -44,7 +45,7 @@ boost::ut::suite CostasLoopTests = [] {
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(rotator)));
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(rotator).to<"in">(costas)));
-        expect(eq(ConnectionResult::SUCCESS, costas.out.connect(sink.in)));
+        expect(eq(ConnectionResult::SUCCESS, fg.connect(costas, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());
         const auto data = sink.data();
