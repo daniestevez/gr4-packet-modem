@@ -116,7 +116,9 @@ public:
             fg.emplaceBlock<SyncwordWipeoff<>>({ { "syncword", syncword_bipolar } });
         auto& payload_metadata_insert =
             fg.emplaceBlock<PayloadMetadataInsert<>>({ { "log", log } });
+        payload_metadata_insert.out._ioHandler._debug = true;
         auto& costas_loop = fg.emplaceBlock<CostasLoop<>>();
+        costas_loop.in._ioHandler._debug = true;
         auto& syncword_remove = fg.emplaceBlock<SyncwordRemove<>>();
         // noise_sigma set for an Es/N0 of 0 dB, which is the worst design case
         // for header decoding
