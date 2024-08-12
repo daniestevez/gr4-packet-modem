@@ -51,10 +51,18 @@ public:
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {})", this->name, inSpan.size());
 #endif
-        if (fwrite(inSpan.data(), sizeof(T), inSpan.size(), _file) != inSpan.size()) {
+        const size_t n = inSpan.size();
+        const size_t ret = fwrite(inSpan.data(), sizeof(T), n, _file);
+        if (ret != n) {
+            int errno_save = errno;
+            fmt::println("{} fwrite failed: n = {}, ret = {}, errno = {}",
+                         this->name,
+                         n,
+                         ret,
+                         errno_save);
             this->emitErrorMessage(
                 fmt::format("{}::processBulk", this->name),
-                fmt::format("error writing to file: {}", std::strerror(errno)));
+                fmt::format("error writing to file: {}", std::strerror(errno_save)));
             this->requestStop();
             return gr::work::Status::ERROR;
         }
