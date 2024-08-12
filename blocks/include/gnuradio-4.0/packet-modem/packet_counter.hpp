@@ -59,6 +59,9 @@ public:
                 msg.data = gr::property_map{ { "packet_count", _count } };
                 countSpan[0] = std::move(msg);
                 countSpan.publish(1);
+#ifdef TRACE
+                fmt::println("{} incremented _count", this->name);
+#endif
             } else {
                 countSpan.publish(0);
             }
