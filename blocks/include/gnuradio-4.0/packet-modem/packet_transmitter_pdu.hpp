@@ -300,14 +300,14 @@ public:
         }
 
         if (!stream_mode) {
-            auto& rrc_interp =
+            auto& _rrc_interp =
                 fg.emplaceBlock<InterpolatingFirFilter<Pdu<c64>, Pdu<c64>, float>>(
                     { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
             if (max_in_samples) {
-                rrc_interp.in.max_samples = max_in_samples;
+                _rrc_interp.in.max_samples = max_in_samples;
             }
             if (out_buff_size) {
-                if (rrc_interp.out.resizeBuffer(out_buff_size) !=
+                if (_rrc_interp.out.resizeBuffer(out_buff_size) !=
                     ConnectionResult::SUCCESS) {
                     throw gr::exception("resizeBuffer() failed");
                 }
@@ -342,11 +342,11 @@ public:
                     throw gr::exception("resizeBuffer() failed");
                 }
             }
-            if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
+            if (fg.connect<"out">(symbols_mux).to<"in">(_rrc_interp) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect<"out">(rrc_interp).to<"in">(_burst_shaper) !=
+            if (fg.connect<"out">(_rrc_interp).to<"in">(_burst_shaper) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
