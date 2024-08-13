@@ -50,6 +50,8 @@ int main(int argc, char* argv[])
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
+        packet_counter.out._ioHandler._debug = true;
+        sink.in._ioHandler._debug = true;
         expect(
             eq(gr::ConnectionResult::SUCCESS,
                fg.connect(
