@@ -15,9 +15,9 @@ int main(int argc, char** argv)
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    expect(fatal(eq(argc, 2)));
+    expect(fatal(eq(argc, 2) or eq(argc, 3)));
     const double rf_freq = std::stod(argv[1]);
-    const float samp_rate = 3.2e6;
+    const float samp_rate = argc == 2 ? 3.2e6 : std::stof(argv[2]);
 
     gr::Graph fg;
     auto& soapy_source = fg.emplaceBlock<gr::blocks::soapy::SoapyBlock<c64, 1UZ>>(
