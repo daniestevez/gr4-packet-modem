@@ -12,6 +12,7 @@ RUN . /opt/rust/env && \
     git submodule init && \
     git submodule set-url gnuradio4 https://github.com/fair-acc/gnuradio4 && \
     git submodule update && \
+    sed -i 's/SET(FFTW_CFLAGS "${CFLAGS} -fPIE -w -O3 -march=native -mtune=native")/SET(FFTW_CFLAGS "${CFLAGS} -fPIE -w -O3")/g' gnuradio4/CMakeLists.txt && \
     mkdir build && \
     cd build && \
     cmake .. && \
