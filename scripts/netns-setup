@@ -1,3 +1,5 @@
+#!/bin/sh
+
 sudo ip netns add gr4_tx
 sudo ip netns add gr4_rx
 sudo ip -n gr4_tx tuntap add dev gr4_tun_tx mode tun

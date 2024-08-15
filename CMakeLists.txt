@@ -96,8 +96,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 enable_testing()
 
+add_subdirectory(apps)
 add_subdirectory(blocks)
 add_subdirectory(examples)
 add_subdirectory(gnuradio4)
 add_subdirectory(test)
-add_subdirectory(src)

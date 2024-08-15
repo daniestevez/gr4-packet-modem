@@ -60,3 +60,36 @@ under `#ifdef TRACE`. Trace printing can be enabled by running `cmake` like so:
 cmake -D CMAKE_CXX_FLAGS=-DTRACE ..
 make -j$(nproc)
 ```
+
+## Repository organization
+
+This repository is organized in directories in the following way.
+
+* [apps](apps). This contains several applications, each of which is a flowgraph
+  that gets built to an executable. The applications contain either the TX or
+  the RX part of the modem, or both, in different configurations.
+
+* [blocks](blocks). This contains all the GNU Radio 4.0 blocks implemented in
+  this repository. All the blocks are `.hpp` headers, with one file per block
+  (and another supporting headers which do not define blocks).
+
+* [examples](examples). This contains example flowgraphs. Typically, the
+  examples test or showcase how to use a particular block or technique, without
+  being structured as a proper QA test. Each example is a flowgraph that gets
+  built to an executable.
+
+* [gnuradio4](gnuradio4). This is the
+  [gnuradio4](https://github.com/fair-acc/gnuradio4) repository as a submodule.
+
+* [gr3](gr3). This contains supporting files from GNU Radio 3.10. Currently the
+  only thing in this directory is [gr3/flowgraphs](gr3/flowgraphs), which
+  contains some GNU Radio 3.10 flowgraphs that can be used in combination with
+  gr4-packet-modem.
+
+* [scripts](scripts). Contains some utility scripts.
+
+* [test](test). Contains QA tests for most of the blocks in the
+  repository. Generally, each QA test puts together and runs a flowgraph where
+  the functionality of a particular block is tested. As in gnuradio4, the tests
+  use [boost/ut](https://github.com/boost-ext/ut) and are run usting `ctest`.
+
