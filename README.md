@@ -34,7 +34,9 @@ There are two Docker images that can be useful to develop and run gr4-packet-mod
 
 The Dockerfiles used to build these images are in the [docker](docker)
 directory. They are, respectively, [`Dockerfile`](docker/Dockerfile) and
-[`Dockerfile.built`](docker/Dockerfile.built).
+[`Dockerfile.built`](docker/Dockerfile.built). The context for building
+`Dockefile.built` needs to be the git checkout directory for gr4-packet-modem,
+since the whole checkout is added to the image using `ADD`.
 
 ## Building
 

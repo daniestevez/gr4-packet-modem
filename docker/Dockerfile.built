@@ -5,14 +5,12 @@ FROM ghcr.io/daniestevez/gr4-packet-modem:latest
 LABEL org.opencontainers.image.source=https://github.com/daniestevez/gr4-packet-modem
 ENV HOME=/home/user
 
+ADD --chown=user . $HOME/gr4-packet-modem
+
 RUN . /opt/rust/env && \
-    cd && \
-    git clone https://github.com/daniestevez/gr4-packet-modem && \
-    cd gr4-packet-modem && \
-    git submodule init && \
-    git submodule set-url gnuradio4 https://github.com/fair-acc/gnuradio4 && \
-    git submodule update && \
+    cd $HOME/gr4-packet-modem && \
     sed -i 's/SET(FFTW_CFLAGS "${CFLAGS} -fPIE -w -O3 -march=native -mtune=native")/SET(FFTW_CFLAGS "${CFLAGS} -fPIE -w -O3")/g' gnuradio4/CMakeLists.txt && \
+    rm -rf build && \
     mkdir build && \
     cd build && \
     cmake .. && \
