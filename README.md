@@ -78,8 +78,8 @@ This repository is organized in directories in the following way.
   being structured as a proper QA test. Each example is a flowgraph that gets
   built to an executable.
 
-* [gnuradio4](gnuradio4). This is the
-  [gnuradio4](https://github.com/fair-acc/gnuradio4) repository as a submodule.
+* gnuradio4. This is the [gnuradio4](https://github.com/fair-acc/gnuradio4)
+  repository as a submodule.
 
 * [gr3](gr3). This contains supporting files from GNU Radio 3.10. Currently the
   only thing in this directory is [gr3/flowgraphs](gr3/flowgraphs), which

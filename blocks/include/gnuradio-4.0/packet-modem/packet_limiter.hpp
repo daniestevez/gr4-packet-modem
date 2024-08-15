@@ -42,9 +42,10 @@ public:
         _exit_count = 0;
     }
 
-    gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
-                                 const gr::ConsumableSpan auto& countSpan,
-                                 gr::PublishableSpan auto& outSpan)
+    gr::work::Status
+    processBulk([[maybe_unused]] const gr::ConsumableSpan auto& inSpan,
+                [[maybe_unused]] const gr::ConsumableSpan auto& countSpan,
+                [[maybe_unused]] gr::PublishableSpan auto& outSpan)
     {
         throw gr::exception("this block is not implemented");
     }

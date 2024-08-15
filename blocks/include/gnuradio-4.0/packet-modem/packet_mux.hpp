@@ -51,7 +51,7 @@ public:
 
     template <gr::ConsumableSpan TInput>
     gr::work::Status processBulk(const std::span<TInput>& inSpans,
-                                 gr::PublishableSpan auto& outSpan)
+                                 [[maybe_unused]] gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
         fmt::print("{}::processBulk(outSpan.size() = {}) ", this->name, outSpan.size());
