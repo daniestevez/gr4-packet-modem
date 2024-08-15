@@ -13,6 +13,68 @@ for IP communications with a TUN device in Linux. The receiver uses some
 advanced techniques, such as symbol time and carrier frequency and phase
 estimation with FFT-based syncword correlation.
 
+## Quick start
+
+The following steps run a flowgraph that connects the modem TX to the modem RX
+through a channel model and provides IP communications through the modem on a
+single machine using network namespaces. Each of the steps is explained in more
+details in the rest of the documentation.
+
+In a `gr4-packet-modem` checkout, run the following to set up the network
+namespaces and interfaces (see the [network namespaces
+documentation](docs/netns.md) for more details).
+
+```
+scripts/netns-setup
+```
+
+Run a Docker image that contains `gr4-packet-modem` already built.
+
+```
+docker run --rm --net host --user=0 \
+    --cap-add=NET_ADMIN --cap-add=SYS_ADMIN \
+    --device /dev/net/tun -v /var/run/netns:/var/run/netns \
+    -it ghcr.io/daniestevez/gr4-packet-modem-built
+```
+
+Start the flowgraph in this root shell in the Docker container.
+
+```
+/home/user/gr4-packet-modem/build/apps/packet_transceiver 20.0 0.005 1.2 0
+```
+
+The arguments indicate an Es/N0 of 20 dB, a carrier frequency error of 0.005
+rad/sample, a sampling frequency offset of 1.2 ppm, and burst TX mode. The
+flowgraph runs at a sample rate of 3.2 Msps, which gives 800 ksyms at 4
+samples/symbol.
+
+Optionally, in the `gr4-packet-modem` checkout in the host run the following to
+get a Python GUI that displays constellation plots in real time.
+
+```
+scripts/plot_symbols.py
+```
+
+Start a ping, by running the following in the host.
+
+```
+sudo ip netns exec gr4_tx ping 192.168.10.2
+```
+
+Run a TCP `iperf3` test by running the following two commands in separate shells in the host.
+
+```
+sudo ip netns exec gr4_rx iperf3 -s
+```
+
+```
+sudo ip netns exec gr4_tx iperf3 -c 192.168.10.2
+```
+
+Using uncoded QPSK at 800 ksyms, the maximum data rate is 1.6 Mbps. There is
+some overhead due to headers and silent gaps between some packets, so a data
+rate of around 1.4 Mbps is expected in `iperf3`.
+
 ## Docker images
 
 There are two Docker images that can be useful to develop and run gr4-packet-modem:
@@ -37,6 +99,9 @@ directory. They are, respectively, [`Dockerfile`](docker/Dockerfile) and
 [`Dockerfile.built`](docker/Dockerfile.built). The context for building
 `Dockefile.built` needs to be the git checkout directory for gr4-packet-modem,
 since the whole checkout is added to the image using `ADD`.
+
+See [Docker image usage](docs/Docker.md) for instructions about how to run these
+docker images.
 
 ## Building
 
