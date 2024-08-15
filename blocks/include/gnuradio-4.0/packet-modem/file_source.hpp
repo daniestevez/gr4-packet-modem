@@ -52,6 +52,11 @@ public:
         const size_t n = outSpan.size();
         const size_t ret = fread(outSpan.data(), sizeof(T), n, _file);
         if (ret != n) {
+            if (feof(_file)) {
+                outSpan.publish(n);
+                return gr::work::Status::DONE;
+            }
+
             int errno_save = errno;
             fmt::println("{} fread failed: n = {}, ret = {}, errno = {}",
                          this->name,

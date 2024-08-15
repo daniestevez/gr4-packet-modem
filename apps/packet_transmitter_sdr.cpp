@@ -10,20 +10,19 @@
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
 #include <gnuradio-4.0/packet-modem/tun_source.hpp>
-#include <boost/ut.hpp>
 #include <complex>
 #include <cstdint>
+#include <cstdlib>
 
 int main(int argc, char* argv[])
 {
-    using namespace boost::ut;
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    // The first command line argument of this example indicates the file to
-    // write the output to. The second indicates whether to use stream_mode or
-    // not.
-    expect(fatal(argc == 3));
+    if (argc != 3) {
+        fmt::println(stderr, "usage: {} output_file stream_mode", argv[0]);
+        std::exit(1);
+    }
     const std::string filename = argv[1];
     const bool stream_mode = std::stod(argv[2]) != 0;
 
@@ -44,20 +43,30 @@ int main(int argc, char* argv[])
     auto& sink =
         fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", filename } });
 
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
+    const char* connection_error = "connection error";
+
+    if (fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
 
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
-        expect(
-            eq(gr::ConnectionResult::SUCCESS,
-               fg.connect(
-                   *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"count">(packet_counter).to<"count">(source)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(packet_counter).to<"in">(sink)));
+        if (fg.connect(
+                *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"count">(packet_counter).to<"count">(source) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+
+        if (fg.connect<"out">(packet_counter).to<"in">(sink) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     } else {
         auto& packet_to_stream = fg.emplaceBlock<
             gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
@@ -65,20 +74,26 @@ int main(int argc, char* argv[])
         // call. Otherwise it produces 65536 items on the first call, and then "it
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
-        expect(eq(
-            gr::ConnectionResult::SUCCESS,
-            fg.connect(
-                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(packet_to_stream).to<"in">(sink)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"count">(packet_to_stream).to<"count">(source)));
+        if (fg.connect(
+                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"out">(packet_to_stream).to<"in">(sink) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"count">(packet_to_stream).to<"count">(source) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     }
 
     gr::scheduler::Simple sched{ std::move(fg) };
     const auto ret = sched.runAndWait();
     if (!ret.has_value()) {
-        fmt::println("scheduler error: {}", ret.error());
+        fmt::println(stderr, "scheduler error: {}", ret.error());
+        std::exit(1);
     }
 
     return 0;

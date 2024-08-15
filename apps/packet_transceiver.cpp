@@ -18,17 +18,20 @@
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
 #include <gnuradio-4.0/packet-modem/tun_sink.hpp>
 #include <gnuradio-4.0/packet-modem/tun_source.hpp>
-#include <boost/ut.hpp>
 #include <complex>
 #include <cstdint>
+#include <cstdlib>
 
 int main(int argc, char** argv)
 {
-    using namespace boost::ut;
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    expect(fatal(eq(argc, 5)));
+    if (argc != 5) {
+        fmt::println(
+            stderr, "usage: {} esn0_db cfo_rad_samp sfo_ppm stream_mode", argv[0]);
+        std::exit(1);
+    }
     const double esn0_db = std::stod(argv[1]);
     const float freq_error = std::stof(argv[2]);
     const float sfo_ppm = std::stof(argv[3]);
@@ -78,17 +81,24 @@ int main(int argc, char** argv)
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
+    const char* connection_error = "connection_error";
+
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
-        expect(
-            eq(gr::ConnectionResult::SUCCESS,
-               fg.connect(
-                   *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"count">(packet_counter).to<"count">(source)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(packet_counter).to<"in">(throttle)));
+        if (fg.connect(
+                *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"count">(packet_counter).to<"count">(source) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"out">(packet_counter).to<"in">(throttle) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     } else {
         auto& packet_to_stream = fg.emplaceBlock<
             gr::packet_modem::PacketToStream<gr::packet_modem::Pdu<c64>>>();
@@ -96,48 +106,72 @@ int main(int argc, char** argv)
         // call. Otherwise it produces 65536 items on the first call, and then "it
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
-        expect(eq(
-            gr::ConnectionResult::SUCCESS,
-            fg.connect(
-                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(packet_to_stream).to<"in">(throttle)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"count">(packet_to_stream).to<"count">(source)));
+        if (fg.connect(
+                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"out">(packet_to_stream).to<"in">(throttle) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"count">(packet_to_stream).to<"count">(source) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     }
 
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(throttle).to<"in">(resampler)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(throttle).to<"in">(probe_rate)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(probe_rate, "rate"s, message_debug, "print"s)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(resampler).to<"in">(rotator)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(rotator).to<"in0">(add_noise)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(noise_source).to<"in1">(add_noise)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(add_noise, "out"s, *packet_receiver.syncword_detection, "in"s)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS,
-           fg.connect(
-               *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(tag_to_pdu).to<"in">(sink)));
+    if (fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(throttle).to<"in">(resampler) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(throttle).to<"in">(probe_rate) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect(probe_rate, "rate"s, message_debug, "print"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(resampler).to<"in">(rotator) != gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(rotator).to<"in0">(add_noise) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(noise_source).to<"in1">(add_noise) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect(add_noise, "out"s, *packet_receiver.syncword_detection, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect(
+            *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(tag_to_pdu).to<"in">(sink) != gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)
     };
     const auto ret = sched.runAndWait();
-    expect(ret.has_value());
     if (!ret.has_value()) {
         fmt::println("scheduler error: {}", ret.error());
+        std::exit(1);
     }
 
     return 0;

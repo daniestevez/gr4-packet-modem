@@ -6,17 +6,19 @@
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/tun_sink.hpp>
 #include <gnuradio-4.0/soapy/Soapy.hpp>
-#include <boost/ut.hpp>
 #include <complex>
 #include <cstdint>
+#include <cstdlib>
 
 int main(int argc, char** argv)
 {
-    using namespace boost::ut;
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    expect(fatal(eq(argc, 2)));
+    if (argc != 2) {
+        fmt::println(stderr, "usage: {} input_file", argv[0]);
+        std::exit(1);
+    }
 
     gr::Graph fg;
     auto& file_source =
@@ -33,25 +35,32 @@ int main(int argc, char** argv)
     auto& sink = fg.emplaceBlock<gr::packet_modem::TunSink>(
         { { "tun_name", "gr4_tun_rx" }, { "netns_name", "gr4_rx" } });
 
-    expect(
-        eq(gr::ConnectionResult::SUCCESS,
-           fg.connect(file_source, "out"s, *packet_receiver.syncword_detection, "in"s)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS,
-           fg.connect(
-               *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s)));
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu)));
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(tag_to_pdu).to<"in">(sink)));
+    const char* connection_error = "connection error";
+
+    if (fg.connect(file_source, "out"s, *packet_receiver.syncword_detection, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect(
+            *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
+    if (fg.connect<"out">(tag_to_pdu).to<"in">(sink) != gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)
     };
     const auto ret = sched.runAndWait();
-    expect(ret.has_value());
     if (!ret.has_value()) {
-        fmt::println("scheduler error: {}", ret.error());
+        fmt::println(stderr, "scheduler error: {}", ret.error());
+        std::exit(1);
     }
 
     return 0;

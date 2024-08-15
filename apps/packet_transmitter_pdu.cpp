@@ -7,19 +7,21 @@
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
-#include <boost/ut.hpp>
 #include <complex>
 #include <cstdint>
+#include <cstdlib>
 
 int main(int argc, char* argv[])
 {
-    using namespace boost::ut;
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    // The first command line argument of this example indicates the file to
-    // write the output to.
-    expect(fatal(argc == 2));
+    if (argc != 3) {
+        fmt::println(stderr, "usage: {} output_file stream_mode", argv[0]);
+        std::exit(1);
+    }
+
+    const bool stream_mode = std::stod(argv[2]) != 0;
 
     gr::Graph fg;
     const uint64_t packet_length = 1500;
@@ -29,7 +31,6 @@ int main(int argc, char* argv[])
         fg.emplaceBlock<gr::packet_modem::VectorSource<gr::packet_modem::Pdu<uint8_t>>>(
             { { "repeat", true } });
     vector_source.data = std::vector<gr::packet_modem::Pdu<uint8_t>>{ pdu };
-    const bool stream_mode = false;
     const size_t samples_per_symbol = 4U;
     const size_t max_in_samples = 1U;
     // note that buffer size is rounded up to a multiple of
@@ -42,8 +43,12 @@ int main(int argc, char* argv[])
         fg.emplaceBlock<gr::packet_modem::FileSink<c64>>({ { "filename", argv[1] } });
     auto& probe_rate = fg.emplaceBlock<gr::packet_modem::ProbeRate<c64>>();
 
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(vector_source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
+    const char* connection_error = "connection error";
+
+    if (fg.connect(vector_source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
     if (!stream_mode) {
         // do not produce tags in PduToTaggedStream
         auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
@@ -51,31 +56,42 @@ int main(int argc, char* argv[])
         if (max_in_samples) {
             pdu_to_stream.in.max_samples = max_in_samples;
         }
-        expect(
-            eq(gr::ConnectionResult::SUCCESS,
-               fg.connect(
-                   *packet_transmitter_pdu.burst_shaper, "out"s, pdu_to_stream, "in"s)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(pdu_to_stream).to<"in">(sink)));
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect<"out">(pdu_to_stream).to<"in">(probe_rate)));
+        if (fg.connect(
+                *packet_transmitter_pdu.burst_shaper, "out"s, pdu_to_stream, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"out">(pdu_to_stream).to<"in">(sink) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect<"out">(pdu_to_stream).to<"in">(probe_rate) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     } else {
-        expect(eq(gr::ConnectionResult::SUCCESS,
-                  fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, sink, "in"s)));
-        expect(eq(
-            gr::ConnectionResult::SUCCESS,
-            fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, probe_rate, "in"s)));
+        if (fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, sink, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
+        if (fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, probe_rate, "in"s) !=
+            gr::ConnectionResult::SUCCESS) {
+            throw gr::exception(connection_error);
+        }
     }
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    expect(
-        eq(gr::ConnectionResult::SUCCESS, probe_rate.rate.connect(message_debug.print)));
+    if (fg.connect(probe_rate, "rate"s, message_debug, "print"s) !=
+        gr::ConnectionResult::SUCCESS) {
+        throw gr::exception(connection_error);
+    }
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)
     };
     const auto ret = sched.runAndWait();
     if (!ret.has_value()) {
-        fmt::println("scheduler error: {}", ret.error());
+        fmt::println(stderr, "scheduler error: {}", ret.error());
+        std::exit(1);
     }
 
     return 0;
