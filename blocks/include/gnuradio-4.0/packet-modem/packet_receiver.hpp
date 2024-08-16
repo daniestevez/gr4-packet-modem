@@ -17,6 +17,7 @@
 #include <gnuradio-4.0/packet-modem/payload_metadata_insert.hpp>
 #include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_detection.hpp>
+#include <gnuradio-4.0/packet-modem/syncword_detection_filter.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_remove.hpp>
 #include <gnuradio-4.0/packet-modem/syncword_wipeoff.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
@@ -80,6 +81,8 @@ public:
               { "max_freq_bin", syncword_freq_bins },
               { "power_threshold", syncword_threshold } });
         syncword_detection = &_syncword_detection;
+        auto& syncword_detection_filter = fg.emplaceBlock<SyncwordDetectionFilter<>>(
+            { { "samples_per_symbol", samples_per_symbol } });
         // Set a delay for the coarse frequency correction to avoid a phase jump
         // at the end of a long packet when the coarse frequency of the packet
         // is slightly wrong (due to the accumulated phase error over the packet
@@ -185,7 +188,11 @@ public:
             }
         }
 
-        if (fg.connect<"out">(_syncword_detection).to<"in">(freq_correction) !=
+        if (fg.connect<"out">(_syncword_detection).to<"in">(syncword_detection_filter) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"out">(syncword_detection_filter).to<"in">(freq_correction) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -231,6 +238,11 @@ public:
         }
         if (fg.connect<"metadata">(header_parser)
                 .to<"parsed_header">(payload_metadata_insert) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
+        if (fg.connect<"metadata">(header_parser)
+                .to<"parsed_header">(syncword_detection_filter) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
