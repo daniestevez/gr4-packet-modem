@@ -7,7 +7,6 @@
 #include <gnuradio-4.0/packet-modem/packet_to_stream.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
-#include <gnuradio-4.0/packet-modem/probe_rate.hpp>
 #include <gnuradio-4.0/packet-modem/throttle.hpp>
 #include <gnuradio-4.0/packet-modem/tun_source.hpp>
 #include <complex>

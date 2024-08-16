@@ -27,23 +27,25 @@ int main(int argc, char** argv)
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    if (argc != 5) {
-        fmt::println(
-            stderr, "usage: {} esn0_db cfo_rad_samp sfo_ppm stream_mode", argv[0]);
+    if ((argc != 5) && (argc != 6)) {
+        fmt::println(stderr,
+                     "usage: {} esn0_db cfo_rad_samp sfo_ppm stream_mode [samp_rate_sps]",
+                     argv[0]);
+        fmt::println(stderr, "");
+        fmt::println(stderr, "the default sample rate is 3.2 Msps");
         std::exit(1);
     }
     const double esn0_db = std::stod(argv[1]);
     const float freq_error = std::stof(argv[2]);
     const float sfo_ppm = std::stof(argv[3]);
     const bool stream_mode = std::stod(argv[4]) != 0;
+    const double samp_rate = argc == 5 ? 3.2e6 : std::stod(argv[5]);
 
     const double tx_power = 0.32; // measured from packet_transmitter_pdu output
     const size_t samples_per_symbol = 4U;
     const double n0 = tx_power * static_cast<double>(samples_per_symbol) *
                       std::pow(10.0, -0.1 * esn0_db);
     const float noise_amplitude = static_cast<float>(std::sqrt(n0));
-
-    const double samp_rate = 3.2e6;
 
     gr::Graph fg;
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(
