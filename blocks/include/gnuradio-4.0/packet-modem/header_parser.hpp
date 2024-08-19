@@ -33,6 +33,9 @@ public:
     gr::PortIn<uint8_t> in;
     gr::PortOut<gr::Message> metadata;
 
+    constexpr static gr::TagPropagationPolicy tag_policy =
+        gr::TagPropagationPolicy::TPP_DONT;
+
 public:
     gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
