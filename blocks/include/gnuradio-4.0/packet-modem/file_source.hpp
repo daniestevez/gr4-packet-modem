@@ -47,7 +47,7 @@ public:
     gr::work::Status processBulk(gr::PublishableSpan auto& outSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(outSpan.size() = {})", this->name, inSpan.size());
+        fmt::println("{}::processBulk(outSpan.size() = {})", this->name, outSpan.size());
 #endif
         const size_t n = outSpan.size();
         const size_t ret = fread(outSpan.data(), sizeof(T), n, _file);
