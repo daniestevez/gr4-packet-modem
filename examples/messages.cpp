@@ -8,6 +8,7 @@
 int main()
 {
     using namespace boost::ut;
+    using namespace std::string_literals;
 
     gr::Graph fg;
 
@@ -15,8 +16,10 @@ int main()
     auto& strobe = fg.emplaceBlock<gr::packet_modem::MessageStrobe<>>(
         { { "message", message }, { "interval_secs", 1.0 } });
     auto& debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.print)));
-    expect(eq(gr::ConnectionResult::SUCCESS, strobe.strobe.connect(debug.store)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect(strobe, "strobe"s, debug, "print"s)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect(strobe, "strobe"s, debug, "store"s)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     gr::MsgPortOut toScheduler;
@@ -31,6 +34,7 @@ int main()
                                                    { { "state", "REQUESTED_STOP" } });
     });
 
+    fmt::println("running for 10 seconds...");
     expect(sched.runAndWait().has_value());
     stopper.join();
 
