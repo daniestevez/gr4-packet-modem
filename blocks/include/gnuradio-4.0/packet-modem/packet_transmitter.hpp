@@ -29,8 +29,12 @@ namespace gr::packet_modem {
 class PacketTransmitter
 {
 public:
-    gr::PortIn<uint8_t>* in;
-    gr::PortOut<std::complex<float>>* out;
+    using c64 = std::complex<float>;
+    PacketIngress<uint8_t>* ingress;
+    // only used when stream_mode = true
+    MultiplyPacketLenTag<c64>* rrc_interp_mult_tag;
+    // only used when stream_mode = false
+    BurstShaper<c64, c64, float>* burst_shaper;
 
     PacketTransmitter(gr::Graph& fg,
                       bool stream_mode = false,
@@ -38,11 +42,10 @@ public:
                       const std::string& packet_len_tag_key = "packet_len")
     {
         using namespace std::string_literals;
-        using c64 = std::complex<float>;
 
-        auto& ingress = fg.emplaceBlock<PacketIngress<>>(
+        auto& _ingress = fg.emplaceBlock<PacketIngress<>>(
             { { "packet_len_tag_key", packet_len_tag_key } });
-        in = &ingress.in;
+        ingress = &_ingress;
 
         // header
         auto& header_formatter = fg.emplaceBlock<HeaderFormatter<>>(
@@ -214,7 +217,7 @@ public:
         }
         auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
             { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
-        auto& rrc_interp_mult_tag = fg.emplaceBlock<MultiplyPacketLenTag<c64>>(
+        auto& _rrc_interp_mult_tag = fg.emplaceBlock<MultiplyPacketLenTag<c64>>(
             { { "mult", static_cast<double>(samples_per_symbol) },
               { "packet_len_tag_key", packet_len_tag_key } });
 
@@ -237,24 +240,24 @@ public:
                     static_cast<double>(j + 1) /
                     static_cast<double>(trailing_ramp.size()) * 0.5 * std::numbers::pi));
             }
-            auto& burst_shaper = fg.emplaceBlock<BurstShaper<c64, c64, float>>(
+            auto& _burst_shaper = fg.emplaceBlock<BurstShaper<c64, c64, float>>(
                 { { "leading_shape", leading_ramp },
                   { "trailing_shape", trailing_ramp },
                   { "packet_len_tag_key", packet_len_tag_key } });
-            if (fg.connect<"out">(rrc_interp_mult_tag).to<"in">(burst_shaper) !=
+            if (fg.connect<"out">(_rrc_interp_mult_tag).to<"in">(_burst_shaper) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            out = &burst_shaper.out;
+            burst_shaper = &_burst_shaper;
         } else {
-            out = &rrc_interp_mult_tag.out;
+            rrc_interp_mult_tag = &_rrc_interp_mult_tag;
         }
 
-        if (fg.connect<"out">(ingress).to<"in">(crc_append) !=
+        if (fg.connect<"out">(_ingress).to<"in">(crc_append) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"metadata">(ingress).to<"metadata">(header_formatter) !=
+        if (fg.connect<"metadata">(_ingress).to<"metadata">(header_formatter) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -327,7 +330,7 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(rrc_interp).to<"in">(rrc_interp_mult_tag) !=
+        if (fg.connect<"out">(rrc_interp).to<"in">(_rrc_interp_mult_tag) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
