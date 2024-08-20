@@ -43,7 +43,7 @@ public:
     {
         using namespace std::string_literals;
 
-        // #ifdef TRACE
+#ifdef TRACE
         fmt::println("{}::processBulk(headerSpan.size() = {}, inSpan.size() = {}, "
                      "outSpan.size() = {}), _in_packet = {}, _position = {}, "
                      "_block_until = {}",
@@ -54,13 +54,13 @@ public:
                      _in_packet,
                      _position,
                      _block_until);
-        // #endif
+#endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
             gr::property_map output_tags;
-            // #ifdef TRACE
+#ifdef TRACE
             fmt::println("{} tag.map = {}", this->name, tag.map);
-            // #endif
+#endif
             bool new_in_packet = false;
             for (auto const& [key, val] : tag.map) {
                 if (key.starts_with("syncword_"s)) {
@@ -81,9 +81,9 @@ public:
                 _block_until = 0; // packet size yet unknown
             }
             if (!output_tags.empty()) {
-                // #ifdef TRACE
+#ifdef TRACE
                 fmt::println("{} publishTag() output_tags = {}", this->name, output_tags);
-                // #endif
+#endif
                 out.publishTag(output_tags, 0);
             }
         }
@@ -101,9 +101,9 @@ public:
             // TODO: not sure why this is needed here, since some output is being
             // published
             this->_mergedInputTag.map.clear();
-            // #ifdef TRACE
+#ifdef TRACE
             fmt::println("{} consumed = {}, header_consumed = 0", this->name, n, 0);
-            // #endif
+#endif
             return gr::work::Status::OK;
         }
 
@@ -125,13 +125,13 @@ public:
                 // packet. We also need to add the CRC-32
                 constexpr size_t crc_size_bytes = 4;
                 const size_t payload_symbols = (packet_length + crc_size_bytes) * 4;
-                _block_until = samples_per_symbol *
-                               (header_size + syncword_size - allowed_margin + payload_symbols);
+                _block_until = samples_per_symbol * (header_size + syncword_size -
+                                                     allowed_margin + payload_symbols);
             }
         }
 
         size_t consumed = 0;
-        
+
         const size_t allowed =
             samples_per_symbol * (syncword_size + header_size + allowed_margin);
         if (_position < allowed) {
@@ -163,9 +163,12 @@ public:
         // TODO: not sure why this is needed here, since some output is being
         // published
         this->_mergedInputTag.map.clear();
-        // #ifdef TRACE
-        fmt::println("{} consumed = {}, header_consumed = {}", this->name, consumed, header_consumed);
-        // #endif
+#ifdef TRACE
+        fmt::println("{} consumed = {}, header_consumed = {}",
+                     this->name,
+                     consumed,
+                     header_consumed);
+#endif
         return gr::work::Status::OK;
     }
 };
