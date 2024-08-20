@@ -79,9 +79,12 @@ public:
         }
 
         fd_set rfds;
+        fd_set rfds_err;
         struct timeval _timeout;
         FD_ZERO(&rfds);
         FD_SET(_tun_fd, &rfds);
+        FD_ZERO(&rfds_err);
+        FD_SET(_tun_fd, &rfds_err);
         if (idle_packet_size > 0) {
             // use a timeout of 0 when idle packet generation is enabled
             _timeout.tv_sec = 0;
@@ -91,7 +94,7 @@ public:
             _timeout.tv_usec = static_cast<uint32_t>(
                 std::round((timeout - static_cast<double>(_timeout.tv_sec)) * 1e6));
         }
-        ssize_t ret = select(_tun_fd + 1, &rfds, nullptr, &rfds, &_timeout);
+        ssize_t ret = select(_tun_fd + 1, &rfds, nullptr, &rfds_err, &_timeout);
         if (ret < 0) {
             throw gr::exception(fmt::format("select() failed: {}", strerror(errno)));
         } else if (ret == 0) {
