@@ -37,11 +37,12 @@ int main()
 
     auto& ingress = fg.emplaceBlock<gr::packet_modem::PacketIngress<>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
-    auto& msg_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    expect(eq(gr::ConnectionResult::SUCCESS, ingress.metadata.connect(msg_debug.print)));
+    auto& meta_sink = fg.emplaceBlock<gr::packet_modem::VectorSink<gr::Message>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(packet_source).to<"in">(ingress)));
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(ingress).to<"in">(sink)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"metadata">(ingress).to<"in">(meta_sink)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     gr::MsgPortOut toScheduler;
@@ -65,6 +66,11 @@ int main()
     const auto sink_tags = sink.tags();
     for (const auto& t : sink_tags) {
         fmt::print("index = {}, map = {}\n", t.index, t.map);
+    }
+    const auto messages = meta_sink.data();
+    fmt::println("messages vector sink elements:");
+    for (const auto& msg : messages) {
+        fmt::println("{}", msg.data);
     }
 
     return 0;
