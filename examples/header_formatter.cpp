@@ -1,7 +1,7 @@
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/header_formatter.hpp>
-#include <gnuradio-4.0/packet-modem/message_strobe.hpp>
+#include <gnuradio-4.0/packet-modem/item_strobe.hpp>
 #include <gnuradio-4.0/packet-modem/vector_sink.hpp>
 #include <boost/ut.hpp>
 #include <thread>
@@ -12,13 +12,15 @@ int main()
 
     gr::Graph fg;
 
-    const gr::property_map message = { { "packet_length", 1234 } };
-    auto& strobe = fg.emplaceBlock<gr::packet_modem::MessageStrobe<>>(
-        { { "message", message }, { "interval_secs", 0.1 } });
+    const gr::property_map message = { { "packet_length", 1234 },
+                                       { "packet_type", "user_data" } };
+    auto& strobe = fg.emplaceBlock<gr::packet_modem::ItemStrobe<gr::Message>>(
+        { { "interval_secs", 0.1 } });
+    strobe.item.data = message;
     auto& header_formatter = fg.emplaceBlock<gr::packet_modem::HeaderFormatter<>>();
     auto& sink = fg.emplaceBlock<gr::packet_modem::VectorSink<uint8_t>>();
     expect(eq(gr::ConnectionResult::SUCCESS,
-              strobe.strobe.connect(header_formatter.metadata)));
+              fg.connect<"out">(strobe).to<"metadata">(header_formatter)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(header_formatter).to<"in">(sink)));
 
