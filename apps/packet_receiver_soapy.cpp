@@ -14,14 +14,21 @@ int main(int argc, char** argv)
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    if ((argc != 2) && (argc != 3)) {
-        fmt::println(stderr, "usage: {} rf_freq_hz [samp_rate_sps]", argv[0]);
+    if ((argc < 2) || (argc > 5)) {
+        fmt::println(stderr,
+                     "usage: {} rf_freq_hz [samp_rate_sps] [syncword_freq_bins] "
+                     "[syncword_threshold]",
+                     argv[0]);
         fmt::println(stderr, "");
         fmt::println(stderr, "the default sample rate is 3.2 Msps");
+        fmt::println(stderr, "the default syncword freq bins is 4");
+        fmt::println(stderr, "the default syncword threshold is 9.5");
         std::exit(1);
     }
     const double rf_freq = std::stod(argv[1]);
-    const float samp_rate = argc == 2 ? 3.2e6 : std::stof(argv[2]);
+    const float samp_rate = argc >= 3 ? std::stof(argv[2]) : 3.2e6;
+    const int syncword_freq_bins = argc >= 4 ? std::stoi(argv[3]) : 4;
+    const float syncword_threshold = argc >= 5 ? std::stof(argv[4]) : 9.5;
 
     gr::Graph fg;
     auto& soapy_source = fg.emplaceBlock<gr::blocks::soapy::SoapyBlock<c64, 1UZ>>(
@@ -33,8 +40,14 @@ int main(int argc, char** argv)
     const bool header_debug = false;
     const bool zmq_output = true;
     const bool log = true;
-    auto packet_receiver = gr::packet_modem::PacketReceiver(
-        fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
+    auto packet_receiver = gr::packet_modem::PacketReceiver(fg,
+                                                            samples_per_symbol,
+                                                            "packet_len",
+                                                            header_debug,
+                                                            zmq_output,
+                                                            log,
+                                                            syncword_freq_bins,
+                                                            syncword_threshold);
     auto& packet_type_filter = fg.emplaceBlock<gr::packet_modem::PacketTypeFilter<>>(
         { { "packet_type", "user_data" } });
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();

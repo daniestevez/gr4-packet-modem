@@ -15,10 +15,17 @@ int main(int argc, char** argv)
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    if (argc != 2) {
-        fmt::println(stderr, "usage: {} input_file", argv[0]);
+    if ((argc < 2) || (argc > 4)) {
+        fmt::println(stderr,
+                     "usage: {} input_file [syncword_freq_bins] [syncword_threshold]",
+                     argv[0]);
+        fmt::println(stderr, "");
+        fmt::println(stderr, "the default syncword freq bins is 4");
+        fmt::println(stderr, "the default syncword threshold is 9.5");
         std::exit(1);
     }
+    const int syncword_freq_bins = argc >= 3 ? std::stoi(argv[2]) : 4;
+    const float syncword_threshold = argc >= 4 ? std::stof(argv[3]) : 9.5;
 
     gr::Graph fg;
     auto& file_source =
@@ -27,8 +34,14 @@ int main(int argc, char** argv)
     const bool header_debug = false;
     const bool zmq_output = true;
     const bool log = true;
-    auto packet_receiver = gr::packet_modem::PacketReceiver(
-        fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
+    auto packet_receiver = gr::packet_modem::PacketReceiver(fg,
+                                                            samples_per_symbol,
+                                                            "packet_len",
+                                                            header_debug,
+                                                            zmq_output,
+                                                            log,
+                                                            syncword_freq_bins,
+                                                            syncword_threshold);
     auto& packet_type_filter = fg.emplaceBlock<gr::packet_modem::PacketTypeFilter<>>(
         { { "packet_type", "user_data" } });
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();

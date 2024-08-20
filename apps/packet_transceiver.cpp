@@ -27,19 +27,24 @@ int main(int argc, char** argv)
     using c64 = std::complex<float>;
     using namespace std::string_literals;
 
-    if ((argc != 5) && (argc != 6)) {
+    if ((argc < 5) || (argc > 8)) {
         fmt::println(stderr,
-                     "usage: {} esn0_db cfo_rad_samp sfo_ppm stream_mode [samp_rate_sps]",
+                     "usage: {} esn0_db cfo_rad_samp sfo_ppm stream_mode [samp_rate_sps] "
+                     "[syncword_freq_bins] [syncword_threshold]",
                      argv[0]);
         fmt::println(stderr, "");
         fmt::println(stderr, "the default sample rate is 3.2 Msps");
+        fmt::println(stderr, "the default syncword freq bins is 4");
+        fmt::println(stderr, "the default syncword threshold is 9.5");
         std::exit(1);
     }
     const double esn0_db = std::stod(argv[1]);
     const float freq_error = std::stof(argv[2]);
     const float sfo_ppm = std::stof(argv[3]);
     const bool stream_mode = std::stod(argv[4]) != 0;
-    const double samp_rate = argc == 5 ? 3.2e6 : std::stod(argv[5]);
+    const double samp_rate = argc >= 6 ? std::stod(argv[5]) : 3.2e6;
+    const int syncword_freq_bins = argc >= 7 ? std::stoi(argv[6]) : 4;
+    const float syncword_threshold = argc >= 8 ? std::stof(argv[7]) : 9.5;
 
     const double tx_power = 0.32; // measured from packet_transmitter_pdu output
     const size_t samples_per_symbol = 4U;
@@ -75,8 +80,14 @@ int main(int argc, char** argv)
     const bool header_debug = false;
     const bool zmq_output = true;
     const bool log = true;
-    auto packet_receiver = gr::packet_modem::PacketReceiver(
-        fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
+    auto packet_receiver = gr::packet_modem::PacketReceiver(fg,
+                                                            samples_per_symbol,
+                                                            "packet_len",
+                                                            header_debug,
+                                                            zmq_output,
+                                                            log,
+                                                            syncword_freq_bins,
+                                                            syncword_threshold);
     auto& packet_type_filter = fg.emplaceBlock<gr::packet_modem::PacketTypeFilter<>>(
         { { "packet_type", "user_data" } });
     auto& tag_to_pdu = fg.emplaceBlock<gr::packet_modem::TaggedStreamToPdu<uint8_t>>();

@@ -35,7 +35,9 @@ public:
                    const std::string& packet_len_tag_key = "packet_len",
                    bool header_debug = false,
                    bool zmq_output = false,
-                   bool log = false)
+                   bool log = false,
+                   int syncword_freq_bins = 4,
+                   float syncword_threshold = 9.5)
     {
         using c64 = std::complex<float>;
         using namespace std::string_literals;
@@ -70,12 +72,13 @@ public:
             x /= rrc_taps_norm;
         }
         const std::vector<c64> bpsk_constellation = { { 1.0f, 0.0f }, { -1.0f, 0.0f } };
-        auto& _syncword_detection =
-            fg.emplaceBlock<SyncwordDetection>({ { "rrc_taps", rrc_taps },
-                                                 { "syncword", syncword },
-                                                 { "constellation", bpsk_constellation },
-                                                 { "min_freq_bin", -4 },
-                                                 { "max_freq_bin", 4 } });
+        auto& _syncword_detection = fg.emplaceBlock<SyncwordDetection>(
+            { { "rrc_taps", rrc_taps },
+              { "syncword", syncword },
+              { "constellation", bpsk_constellation },
+              { "min_freq_bin", -syncword_freq_bins },
+              { "max_freq_bin", syncword_freq_bins },
+              { "power_threshold", syncword_threshold } });
         syncword_detection = &_syncword_detection;
         // Set a delay for the coarse frequency correction to avoid a phase jump
         // at the end of a long packet when the coarse frequency of the packet

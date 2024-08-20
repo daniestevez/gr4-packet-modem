@@ -6,13 +6,18 @@ these applications need to be run as root, because they use network namespaces.
 ## packet_receiver_file
 
 ```
-usage: packet_receiver_file input_file
+usage: packet_receiver_file input_file [syncword_freq_bins] [syncword_threshold]
+
+the default syncword freq bins is 4
+the default syncword threshold is 9.5
 ```
 
 The `packet_receiver_file` application reads IQ samples from an input file in
 raw `complex64` (`std::complex<float>`) format at 4 samples/symbol, runs the
 modem receiver with these IQ samples and writes decoded IP packets to the
-`gr4_tun_rx` TUN device in the `gr4_rx` namespace.
+`gr4_tun_rx` TUN device in the `gr4_rx` namespace. Optionally, the syncword
+frequency search range and the syncword threshold can be specified as
+arguments. See `packet_receiver_soapy` for details on these arguments.
 
 This application can be used to process a previously recorded IQ file, or to
 read in real time from a FIFO in which an application such as
@@ -21,16 +26,26 @@ read in real time from a FIFO in which an application such as
 ## packet_receiver_soapy
 
 ```
-usage: packet_receiver_soapy rf_freq_hz [samp_rate_sps]
+usage: packet_receiver_soapy rf_freq_hz [samp_rate_sps] [syncword_freq_bins] [syncword_threshold]
 
 the default sample rate is 3.2 Msps
+the default syncword freq bins is 4
+the default syncword threshold is 9.5
 ```
 
 The `packet_receiver_soapy` application reads IQ samples from an SDR using the
 Soapy source block available in GNU Radio 4.0. The command line arguments are
-the RF carrier frequency in Hz and optionally the sample rate in sps. The Soapy
-block is set to use an `rtlsdr` device with an RX gain of 30 dB, but this can be
-changed in the source code
+the RF carrier frequency in Hz and optionally the sample rate in sps and the
+syncword search range and detection threshold. The syncword frequency search
+range is defined in terms of the `syncword_freq_bins` parameter. The frequency
+bins searched are all from `-syncword_freq_bins` to `syncword_freq_bins`. The
+syncword detection threshold is given in units of power. An appropriate syncword
+threshold depends on the frequency search range, due to how the detection
+condition works. The default of 9.5 is good for `syncword_freq_bins`, but lower
+values of `syncword_freq_bins` should use a higher threshold.
+
+The Soapy block is set to use an `rtlsdr` device with an RX gain of 30 dB, but
+this can be changed in the source code
 [`packet_receiver_soapy.cpp`](packet_receiver_soapy.cpp).
 
 The receiver expects a signal at 4 samples/symbol. Received IP packets are
@@ -41,9 +56,11 @@ This application can be used to receive modem packets using an SDR.
 ## packet_transceiver
 
 ```
-usage: packet_transceiver esn0_db cfo_rad_samp sfo_ppm stream_mode [samp_rate_sps]
+usage: packet_transceiver esn0_db cfo_rad_samp sfo_ppm stream_mode [samp_rate_sps] [syncword_freq_bins] [syncword_threshold]
 
 the default sample rate is 3.2 Msps
+the default syncword freq bins is 4
+the default syncword threshold is 9.5
 ```
 
 The `packet_transceiver` application runs the modem transmitter and receiver in
@@ -52,9 +69,11 @@ generates AWGN to set a certain SNR and applies a carrier frequency offset and
 sampling frequency offset. The command line arguments are the Es/N0 in dB, the
 carrier frequency offset in radians/sample, the sampling frequency offset in
 PPM, whether to use stream mode or burst mode, and optionally the sample rate to
-which the flowgraph is throttled. The transceiver uses 4 samples/symbol. A Probe
-Rate block periodically prints the sample rate, as a quick way to verify if the
-CPU is able to keep up with the intended sample rate.
+which the flowgraph is throttled and the syncword frequency search range and
+detection threshold (defined as in `packet_receiver_soapy`). The transceiver
+uses 4 samples/symbol. A Probe Rate block periodically prints the sample rate,
+as a quick way to verify if the CPU is able to keep up with the intended sample
+rate.
 
 The transmitter reads IP packets from the `gr4_tun_tx` TUN device in the
 `gr4_tx` namespace, and the receiver writes decoded IP packets to the
