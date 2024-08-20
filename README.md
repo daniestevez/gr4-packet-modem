@@ -100,7 +100,7 @@ directory. They are, respectively, [`Dockerfile`](docker/Dockerfile) and
 `Dockefile.built` needs to be the git checkout directory for gr4-packet-modem,
 since the whole checkout is added to the image using `ADD`.
 
-See [Docker image usage](docs/Docker.md) for instructions about how to run these
+See [Docker image usage](docs/docker.md) for instructions about how to run these
 docker images.
 
 ## Building
