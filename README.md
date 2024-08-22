@@ -126,6 +126,13 @@ cmake -D CMAKE_CXX_FLAGS=-DTRACE ..
 make -j$(nproc)
 ```
 
+## Documentation
+
+Design and theory of operation documentation is available in the [GNU Radio
+wiki](https://wiki.gnuradio.org/index.php?title=Gr4-packet-modem). There is also
+a [docs](docs) directory in the repository that contains more practical
+information about how to run the modem.
+
 ## Repository organization
 
 This repository is organized in directories in the following way.
