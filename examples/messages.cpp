@@ -8,7 +8,6 @@
 int main()
 {
     using namespace boost::ut;
-    using namespace std::string_literals;
 
     gr::Graph fg;
 
@@ -17,9 +16,9 @@ int main()
         { { "message", message }, { "interval_secs", 1.0 } });
     auto& debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(strobe, "strobe"s, debug, "print"s)));
+              fg.connect<"strobe">(strobe).to<"print">(debug)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(strobe, "strobe"s, debug, "store"s)));
+              fg.connect<"strobe">(strobe).to<"store">(debug)));
 
     gr::scheduler::Simple sched{ std::move(fg) };
     gr::MsgPortOut toScheduler;

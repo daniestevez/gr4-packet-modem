@@ -25,7 +25,6 @@
 int main(int argc, char** argv)
 {
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     if ((argc < 5) || (argc > 8)) {
         fmt::println(stderr,
@@ -99,9 +98,8 @@ int main(int argc, char** argv)
     if (stream_mode) {
         auto& packet_counter = fg.emplaceBlock<gr::packet_modem::PacketCounter<c64>>(
             { { "drop_tags", true } });
-        if (fg.connect(
-                *packet_transmitter_pdu.rrc_interp, "out"s, packet_counter, "in"s) !=
-            gr::ConnectionResult::SUCCESS) {
+        if (fg.connect<"out">(*packet_transmitter_pdu.rrc_interp)
+                .to<"in">(packet_counter) != gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
         if (fg.connect<"count">(packet_counter).to<"count">(source) !=
@@ -119,9 +117,8 @@ int main(int argc, char** argv)
         // call. Otherwise it produces 65536 items on the first call, and then "it
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
-        if (fg.connect(
-                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s) !=
-            gr::ConnectionResult::SUCCESS) {
+        if (fg.connect<"out">(*packet_transmitter_pdu.burst_shaper)
+                .to<"in">(packet_to_stream) != gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
         if (fg.connect<"out">(packet_to_stream).to<"in">(throttle) !=
@@ -134,7 +131,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if (fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+    if (fg.connect<"out">(source).to<"in">(*packet_transmitter_pdu.ingress) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
@@ -146,7 +143,7 @@ int main(int argc, char** argv)
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
-    if (fg.connect(probe_rate, "rate"s, message_debug, "print"s) !=
+    if (fg.connect<"rate">(probe_rate).to<"print">(message_debug) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
@@ -161,13 +158,12 @@ int main(int argc, char** argv)
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
-    if (fg.connect(add_noise, "out"s, *packet_receiver.syncword_detection, "in"s) !=
+    if (fg.connect<"out">(add_noise).to<"in">(*packet_receiver.syncword_detection) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
-    if (fg.connect(
-            *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s) !=
-        gr::ConnectionResult::SUCCESS) {
+    if (fg.connect<"out">(*packet_receiver.payload_crc_check)
+            .to<"in">(packet_type_filter) != gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
     if (fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu) !=

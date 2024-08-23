@@ -16,7 +16,6 @@ int main(int argc, char* argv[])
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     // The first command line argument of this example indicates the file to
     // write the output to.
@@ -58,7 +57,7 @@ int main(int argc, char* argv[])
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rrc_interp).to<"in">(probe_rate)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(probe_rate, "rate"s, message_debug, "print"s)));
+              fg.connect<"rate">(probe_rate).to<"print">(message_debug)));
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::multiThreaded> sched{ std::move(
         fg) };

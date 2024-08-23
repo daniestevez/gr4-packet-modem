@@ -28,6 +28,9 @@ boost::ut::suite ConstellationLLRDecoderTests = [] {
                   fg.connect<"out">(head).to<"in">(constellation_decoder)));
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(head).to<"in">(sink_source)));
+        // for some reason the syntax
+        //   fg.connect<"out">(constellation_decoder).to<"in">(sink)
+        // gives compile errors
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect(constellation_decoder, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };

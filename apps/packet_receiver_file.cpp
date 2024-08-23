@@ -13,7 +13,6 @@
 int main(int argc, char** argv)
 {
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     if ((argc < 2) || (argc > 4)) {
         fmt::println(stderr,
@@ -50,13 +49,12 @@ int main(int argc, char** argv)
 
     const char* connection_error = "connection error";
 
-    if (fg.connect(file_source, "out"s, *packet_receiver.syncword_detection, "in"s) !=
+    if (fg.connect<"out">(file_source).to<"in">(*packet_receiver.syncword_detection) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
-    if (fg.connect(
-            *packet_receiver.payload_crc_check, "out"s, packet_type_filter, "in"s) !=
-        gr::ConnectionResult::SUCCESS) {
+    if (fg.connect<"out">(*packet_receiver.payload_crc_check)
+            .to<"in">(packet_type_filter) != gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
     if (fg.connect<"out">(packet_type_filter).to<"in">(tag_to_pdu) !=

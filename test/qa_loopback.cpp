@@ -20,7 +20,6 @@ boost::ut::suite LoopbackTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
-    using namespace std::string_literals;
 
     "loopback"_test =
         [](auto args) {
@@ -73,10 +72,9 @@ boost::ut::suite LoopbackTests = [] {
                 fg, samples_per_symbol, "packet_len", header_debug, zmq_output, log);
             auto& sink = fg.emplaceBlock<VectorSink<uint8_t>>();
             if (stream_mode) {
-                expect(
-                    eq(gr::ConnectionResult::SUCCESS,
-                       fg.connect(
-                           *packet_transmitter_pdu.rrc_interp, "out"s, rotator, "in"s)));
+                expect(eq(gr::ConnectionResult::SUCCESS,
+                          fg.connect<"out">(*packet_transmitter_pdu.rrc_interp)
+                              .to<"in">(rotator)));
             } else {
                 auto& pdu_to_stream =
                     fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
@@ -85,27 +83,24 @@ boost::ut::suite LoopbackTests = [] {
                     pdu_to_stream.in.max_samples = max_in_samples;
                 }
                 expect(eq(gr::ConnectionResult::SUCCESS,
-                          fg.connect(*packet_transmitter_pdu.burst_shaper,
-                                     "out"s,
-                                     pdu_to_stream,
-                                     "in"s)));
+                          fg.connect<"out">(*packet_transmitter_pdu.burst_shaper)
+                              .to<"in">(pdu_to_stream)));
                 expect(eq(gr::ConnectionResult::SUCCESS,
                           fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
             }
             expect(
                 eq(ConnectionResult::SUCCESS,
-                   fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
+                   fg.connect<"out">(source).to<"in">(*packet_transmitter_pdu.ingress)));
             expect(eq(ConnectionResult::SUCCESS,
                       fg.connect<"out">(rotator).to<"in0">(add_noise)));
             expect(eq(ConnectionResult::SUCCESS,
                       fg.connect<"out">(noise_source).to<"in1">(add_noise)));
+            expect(eq(ConnectionResult::SUCCESS,
+                      fg.connect<"out">(add_noise).to<"in">(
+                          *packet_receiver.syncword_detection)));
             expect(
                 eq(ConnectionResult::SUCCESS,
-                   fg.connect(
-                       add_noise, "out"s, *packet_receiver.syncword_detection, "in"s)));
-            expect(
-                eq(ConnectionResult::SUCCESS,
-                   fg.connect(*packet_receiver.payload_crc_check, "out"s, sink, "in"s)));
+                   fg.connect<"out">(*packet_receiver.payload_crc_check).to<"in">(sink)));
             scheduler::Simple sched{ std::move(fg) };
             MsgPortOut toScheduler;
             expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));

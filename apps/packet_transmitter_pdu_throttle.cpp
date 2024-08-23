@@ -15,7 +15,6 @@
 int main(int argc, char* argv[])
 {
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     if (argc != 4) {
         fmt::println(stderr, "usage: {} output_file samp_rate stream_mode", argv[0]);
@@ -53,7 +52,7 @@ int main(int argc, char* argv[])
 
     const char* connection_error = "connection error";
 
-    if (fg.connect(source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+    if (fg.connect<"out">(source).to<"in">(*packet_transmitter_pdu.ingress) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
@@ -65,9 +64,8 @@ int main(int argc, char* argv[])
         // gets behind the Throttle block" by these many samples.
         packet_to_stream.out.max_samples = 1000U;
 
-        if (fg.connect(
-                *packet_transmitter_pdu.burst_shaper, "out"s, packet_to_stream, "in"s) !=
-            gr::ConnectionResult::SUCCESS) {
+        if (fg.connect<"out">(*packet_transmitter_pdu.burst_shaper)
+                .to<"in">(packet_to_stream) != gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
         if (fg.connect<"out">(packet_to_stream).to<"in">(throttle) !=
@@ -75,7 +73,7 @@ int main(int argc, char* argv[])
             throw gr::exception(connection_error);
         }
     } else {
-        if (fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, throttle, "in"s) !=
+        if (fg.connect<"out">(*packet_transmitter_pdu.rrc_interp).to<"in">(throttle) !=
             gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
@@ -87,7 +85,7 @@ int main(int argc, char* argv[])
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
-    if (fg.connect(probe_rate, "rate"s, message_debug, "print"s) !=
+    if (fg.connect<"rate">(probe_rate).to<"print">(message_debug) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }

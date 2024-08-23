@@ -21,7 +21,6 @@ int main(int argc, char** argv)
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     expect(fatal(eq(argc, 2)));
     const float freq_error = std::stof(argv[1]);
@@ -67,23 +66,23 @@ int main(int argc, char** argv)
     if (stream_mode) {
         expect(
             eq(gr::ConnectionResult::SUCCESS,
-               fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, rotator, "in"s)));
+               fg.connect<"out">(*packet_transmitter_pdu.rrc_interp).to<"in">(rotator)));
     } else {
         auto& pdu_to_stream = fg.emplaceBlock<gr::packet_modem::PduToTaggedStream<c64>>(
             { { "packet_len_tag_key", "" } });
         if (max_in_samples) {
             pdu_to_stream.in.max_samples = max_in_samples;
         }
-        expect(
-            eq(gr::ConnectionResult::SUCCESS,
-               fg.connect(
-                   *packet_transmitter_pdu.burst_shaper, "out"s, pdu_to_stream, "in"s)));
+        expect(eq(gr::ConnectionResult::SUCCESS,
+                  fg.connect<"out">(*packet_transmitter_pdu.burst_shaper)
+                      .to<"in">(pdu_to_stream)));
         expect(eq(gr::ConnectionResult::SUCCESS,
                   fg.connect<"out">(pdu_to_stream).to<"in">(rotator)));
     }
 
-    expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(vector_source, "out"s, *packet_transmitter_pdu.ingress, "in"s)));
+    expect(
+        eq(gr::ConnectionResult::SUCCESS,
+           fg.connect<"out">(vector_source).to<"in">(*packet_transmitter_pdu.ingress)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(rotator).to<"in0">(add_noise)));
     expect(eq(gr::ConnectionResult::SUCCESS,
@@ -91,12 +90,12 @@ int main(int argc, char** argv)
     expect(
         eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(add_noise).to<"in">(head)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(head, "out"s, *packet_receiver.syncword_detection, "in"s)));
+              fg.connect<"out">(head).to<"in">(*packet_receiver.syncword_detection)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(*packet_receiver.payload_crc_check, "out"s, file_sink, "in"s)));
+              fg.connect<"out">(*packet_receiver.payload_crc_check).to<"in">(file_sink)));
     expect(
         eq(gr::ConnectionResult::SUCCESS,
-           fg.connect(*packet_receiver.payload_crc_check, "out"s, vector_sink, "in"s)));
+           fg.connect<"out">(*packet_receiver.payload_crc_check).to<"in">(vector_sink)));
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)

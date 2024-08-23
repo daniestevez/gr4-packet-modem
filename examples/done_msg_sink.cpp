@@ -90,7 +90,8 @@ int main()
     expect(eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(sink)));
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(zero_source).to<"fake_in">(msg_sink)));
-    expect(eq(gr::ConnectionResult::SUCCESS, source.msg_out.connect(msg_sink.msg_in)));
+    expect(eq(gr::ConnectionResult::SUCCESS,
+              fg.connect<"msg_out">(source).to<"msg_in">(msg_sink)));
     gr::scheduler::Simple sched{ std::move(fg) };
     expect(sched.runAndWait().has_value());
 

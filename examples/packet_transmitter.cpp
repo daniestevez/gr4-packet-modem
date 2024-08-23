@@ -14,7 +14,6 @@ int main(int argc, char* argv[])
 {
     using namespace boost::ut;
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     // The first command line argument of this example indicates the file to
     // write the output to.
@@ -39,13 +38,13 @@ int main(int argc, char* argv[])
     expect(eq(gr::ConnectionResult::SUCCESS,
               fg.connect<"out">(random_source).to<"in">(stream_to_tagged)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(stream_to_tagged, "out"s, *packet_transmitter.ingress, "in"s)));
+              fg.connect<"out">(stream_to_tagged).to<"in">(*packet_transmitter.ingress)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(*packet_transmitter.burst_shaper, "out"s, sink, "in"s)));
+              fg.connect<"out">(*packet_transmitter.burst_shaper).to<"in">(sink)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(*packet_transmitter.burst_shaper, "out"s, probe_rate, "in"s)));
+              fg.connect<"out">(*packet_transmitter.burst_shaper).to<"in">(probe_rate)));
     expect(eq(gr::ConnectionResult::SUCCESS,
-              fg.connect(probe_rate, "rate"s, message_debug, "print"s)));
+              fg.connect<"rate">(probe_rate).to<"print">(message_debug)));
 
     gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
         std::move(fg)

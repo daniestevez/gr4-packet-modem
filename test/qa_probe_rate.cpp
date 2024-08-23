@@ -10,7 +10,6 @@ boost::ut::suite ProbeRateTests = [] {
     using namespace boost::ut;
     using namespace gr;
     using namespace gr::packet_modem;
-    using namespace std::string_literals;
 
     "probe_rate"_test = [] {
         Graph fg;
@@ -26,7 +25,7 @@ boost::ut::suite ProbeRateTests = [] {
         expect(eq(ConnectionResult::SUCCESS,
                   fg.connect<"out">(throttle).to<"in">(probe_rate)));
         expect(eq(ConnectionResult::SUCCESS,
-                  fg.connect(probe_rate, "rate"s, msg_debug, "store"s)));
+                  fg.connect<"rate">(probe_rate).to<"store">(msg_debug)));
         scheduler::Simple sched{ std::move(fg) };
         MsgPortOut toScheduler;
         expect(eq(ConnectionResult::SUCCESS, toScheduler.connect(sched.msgIn)));

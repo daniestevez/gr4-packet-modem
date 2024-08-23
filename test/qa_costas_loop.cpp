@@ -45,6 +45,9 @@ boost::ut::suite CostasLoopTests = [] {
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(source).to<"in">(rotator)));
         expect(
             eq(ConnectionResult::SUCCESS, fg.connect<"out">(rotator).to<"in">(costas)));
+        // for some reason the syntax
+        //  fg.connect<"out">(costas).to<"in">(sink)
+        // gives compile errors
         expect(eq(ConnectionResult::SUCCESS, fg.connect(costas, "out"s, sink, "in"s)));
         scheduler::Simple sched{ std::move(fg) };
         expect(sched.runAndWait().has_value());

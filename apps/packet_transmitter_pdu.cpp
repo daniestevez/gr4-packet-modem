@@ -14,7 +14,6 @@
 int main(int argc, char* argv[])
 {
     using c64 = std::complex<float>;
-    using namespace std::string_literals;
 
     if (argc != 3) {
         fmt::println(stderr, "usage: {} output_file stream_mode", argv[0]);
@@ -45,7 +44,7 @@ int main(int argc, char* argv[])
 
     const char* connection_error = "connection error";
 
-    if (fg.connect(vector_source, "out"s, *packet_transmitter_pdu.ingress, "in"s) !=
+    if (fg.connect<"out">(vector_source).to<"in">(*packet_transmitter_pdu.ingress) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }
@@ -56,9 +55,8 @@ int main(int argc, char* argv[])
         if (max_in_samples) {
             pdu_to_stream.in.max_samples = max_in_samples;
         }
-        if (fg.connect(
-                *packet_transmitter_pdu.burst_shaper, "out"s, pdu_to_stream, "in"s) !=
-            gr::ConnectionResult::SUCCESS) {
+        if (fg.connect<"out">(*packet_transmitter_pdu.burst_shaper)
+                .to<"in">(pdu_to_stream) != gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
         if (fg.connect<"out">(pdu_to_stream).to<"in">(sink) !=
@@ -70,17 +68,17 @@ int main(int argc, char* argv[])
             throw gr::exception(connection_error);
         }
     } else {
-        if (fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, sink, "in"s) !=
+        if (fg.connect<"out">(*packet_transmitter_pdu.rrc_interp).to<"in">(sink) !=
             gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
-        if (fg.connect(*packet_transmitter_pdu.rrc_interp, "out"s, probe_rate, "in"s) !=
+        if (fg.connect<"out">(*packet_transmitter_pdu.rrc_interp).to<"in">(probe_rate) !=
             gr::ConnectionResult::SUCCESS) {
             throw gr::exception(connection_error);
         }
     }
     auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-    if (fg.connect(probe_rate, "rate"s, message_debug, "print"s) !=
+    if (fg.connect<"rate">(probe_rate).to<"print">(message_debug) !=
         gr::ConnectionResult::SUCCESS) {
         throw gr::exception(connection_error);
     }

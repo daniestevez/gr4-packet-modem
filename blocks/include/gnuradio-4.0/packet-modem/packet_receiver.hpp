@@ -40,7 +40,7 @@ public:
                    float syncword_threshold = 9.5)
     {
         using c64 = std::complex<float>;
-        using namespace std::string_literals;
+
         const std::vector<uint8_t> syncword = {
             uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 }, uint8_t{ 0 },
             uint8_t{ 0 }, uint8_t{ 1 }, uint8_t{ 1 }, uint8_t{ 0 }, uint8_t{ 1 },
@@ -147,7 +147,7 @@ public:
 
         if (header_debug) {
             auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
-            if (fg.connect(header_parser, "metadata"s, message_debug, "print"s) !=
+            if (fg.connect<"metadata">(header_parser).to<"print">(message_debug) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
