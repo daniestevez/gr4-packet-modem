@@ -42,7 +42,7 @@ public:
                          const gr::property_map& /* new_settings */)
     {
         if (num_inputs == 0) {
-            throw gr::exception(fmt::format("num_inputs cannot be zero", this->name));
+            throw gr::exception("num_inputs cannot be zero");
         }
         in.resize(num_inputs);
     }
@@ -116,7 +116,7 @@ public:
                          const gr::property_map& /* new_settings */)
     {
         if (num_inputs == 0) {
-            throw gr::exception(fmt::format("num_inputs cannot be zero", this->name));
+            throw gr::exception("num_inputs cannot be zero");
         }
         in.resize(num_inputs);
     }
