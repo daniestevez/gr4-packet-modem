@@ -15,4 +15,14 @@ sudo ip -n gr4_rx link set v_rx up
 sudo ip -n gr4_rx addr add 192.168.10.2/24 dev v_rx
 sudo ip netns exec gr4_rx sysctl -w net.ipv4.conf.gr4_tun_rx.rp_filter=0
 sudo ip netns exec gr4_tx sysctl -w net.ipv4.conf.v_tx.rp_filter=0
+# See https://sysctl-explorer.net/net/ipv4/rp_filter/
+#
+# The max value from conf/{all,interface}/rp_filter is used when doing source
+# validation on the {interface}.
+#
+# Some distributions set all.rp_filter to something other than 0, so for the
+# above rp_filter=0 to work as expected, we also need to force all.rp_filter to
+# 0.
+sudo ip netns exec gr4_rx sysctl -w net.ipv4.conf.all.rp_filter=0
+sudo ip netns exec gr4_tx sysctl -w net.ipv4.conf.all.rp_filter=0
 sudo ip -n gr4_tx link set dev gr4_tun_tx txqueuelen 10
