@@ -117,6 +117,11 @@ installed in other systems.
 - A modern C++ compiler that can build GNU Radio 4.0. The possible choices are
   GCC 13, GCC 14 and Clang 18.
 
+- ZeroMQ. In Ubuntu, install the `libzmq3-dev` package.
+
+- SoapySDR. In Ubuntu, install the following packages:
+  `libsoapysdr-dev soapysdr-module-all soapysdr-tools`.
+
 The gr4-packet-modem repository includes
 [gnuradio4](https://github.com/daniestevez/ldpc-toolbox) as a submodule. If you
 have not cloned the git repository using `--recursive`, you will need to run
