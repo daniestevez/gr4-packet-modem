@@ -105,6 +105,23 @@ docker images.
 
 ## Building
 
+The following build dependencies need to be installed in the system. They are
+already installed in the Docker images listed above, but may need to be
+installed in other systems.
+
+- The Rust toolchain, since gr4-packet-modem uses
+  [ldpc-toolbox](https://github.com/daniestevez/ldpc-toolbox) to decode the LDPC
+  code used in the packet header. The easiest way to install it is with
+  [rustup](https://rustup.rs/).
+  
+- A modern C++ compiler that can build GNU Radio 4.0. The possible choices are
+  GCC 13, GCC 14 and Clang 18.
+
+The gr4-packet-modem repository includes
+[gnuradio4](https://github.com/daniestevez/ldpc-toolbox) as a submodule. If you
+have not cloned the git repository using `--recursive`, you will need to run
+`git submodule init` and `git submodule update` to checkout the submodule.
+
 gr4-packet-modem is built with CMake. It can be built from a git checkout as follows:
 
 ```
@@ -116,7 +133,8 @@ make -j$(nproc)
 
 Depending on the CPU count and RAM of the machine, there might not be enough RAM
 to build with `$(nproc)` processes in parallel, so the `-j` argument of `make`
-might need to be adjusted.
+might need to be adjusted. It is recommended to have at least 4GB of RAM for
+each build process.
 
 Most of the blocks have some prints for trace-like debugging that are gated
 under `#ifdef TRACE`. Trace printing can be enabled by running `cmake` like so:
