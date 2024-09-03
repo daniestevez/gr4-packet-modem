@@ -164,7 +164,7 @@ public:
         }
 
         for (auto tag : pdu.tags) {
-            tag.index *= static_cast<typeof(tag.index)>(interpolation);
+            tag.index *= static_cast<decltype(tag.index)>(interpolation);
             pdu_out.tags.push_back(tag);
         }
 
