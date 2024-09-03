@@ -6,6 +6,7 @@
 #include <ldpc_toolbox.h>
 #include <algorithm>
 #include <array>
+#include <ranges>
 
 namespace gr::packet_modem {
 
@@ -310,10 +311,10 @@ public:
 
         auto in_item = inSpan.begin();
         auto out_item = outSpan.begin();
-        for (size_t j = 0; j < codewords; ++j) {
+        for (auto _ : std::views::iota(0UZ, codewords)) {
             // accumulate LLRs for repetition coding
             std::copy_n(in_item, header_ldpc_n, _llrs.begin());
-            for (size_t k = 0; k < header_ldpc_n; ++k) {
+            for (const auto k : std::views::iota(0UZ, header_ldpc_n)) {
                 _llrs[k] += in_item[static_cast<ssize_t>(header_ldpc_n + k)];
             }
             in_item += header_num_llrs;
@@ -333,9 +334,9 @@ public:
             }
 
             // Pack bits into output
-            for (size_t k = 0; k < header_num_bytes; ++k) {
+            for (const auto k : std::views::iota(0UZ, header_num_bytes)) {
                 uint8_t byte = 0;
-                for (size_t n = 0; n < 8; ++n) {
+                for (const auto n : std::views::iota(0UZ, 8UZ)) {
                     byte = static_cast<uint8_t>(byte << 1) | _bits[8 * k + n];
                 }
                 *out_item++ = byte;

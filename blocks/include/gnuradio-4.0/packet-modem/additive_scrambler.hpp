@@ -110,7 +110,7 @@ public:
             this->mergedInputTag().map.contains(reset_tag_key)) {
             reset_lfsr();
         }
-        for (size_t j = 0; j < inSpan.size(); ++j) {
+        for (const auto j : std::views::iota(0UZ, inSpan.size())) {
             if (count != 0 && _current_count == count) {
                 reset_lfsr();
             }

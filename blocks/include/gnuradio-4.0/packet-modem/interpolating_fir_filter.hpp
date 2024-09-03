@@ -6,6 +6,7 @@
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <numeric>
+#include <ranges>
 #include <vector>
 
 namespace gr::packet_modem {
@@ -65,8 +66,9 @@ public:
         // fill history with zeros to avoid problems with undefined history contents
         new_history.push_back_bulk(std::views::repeat(TIn{ 0 }, capacity));
         // move old history items to the new history
-        for (ssize_t j = static_cast<ssize_t>(_history.size()) - 1; j >= 0; --j) {
-            new_history.push_back(_history[static_cast<size_t>(j)]);
+        for (const auto j :
+             std::views::iota(0UZ, _history.size()) | std::views::reverse) {
+            new_history.push_back(_history[j]);
         }
         _history = new_history;
     }
@@ -143,8 +145,9 @@ public:
         // fill history with zeros to avoid problems with undefined history contents
         new_history.push_back_bulk(std::views::repeat(TIn{ 0 }, capacity));
         // move old history items to the new history
-        for (ssize_t j = static_cast<ssize_t>(_history.size()) - 1; j >= 0; --j) {
-            new_history.push_back(_history[static_cast<size_t>(j)]);
+        for (const auto j :
+             std::views::iota(0UZ, _history.size()) | std::views::reverse) {
+            new_history.push_back(_history[j]);
         }
         _history = new_history;
     }
@@ -152,9 +155,8 @@ public:
     [[nodiscard]] Pdu<TOut> processOne(const Pdu<TIn>& pdu)
     {
         Pdu<TOut> pdu_out;
-        pdu_out.data.reserve(pdu.data.size() * interpolation);
-        pdu_out.tags.reserve(pdu.tags.size());
 
+        pdu_out.data.reserve(pdu.data.size() * interpolation);
         for (const auto& in_item : pdu.data) {
             _history.push_back(in_item);
             for (const auto& branch : _taps_polyphase) {
@@ -163,10 +165,11 @@ public:
             }
         }
 
-        for (auto tag : pdu.tags) {
+        pdu_out.tags.resize(pdu.tags.size());
+        std::ranges::transform(pdu.tags, pdu_out.tags.begin(), [&](gr::Tag tag) {
             tag.index *= static_cast<decltype(tag.index)>(interpolation);
-            pdu_out.tags.push_back(tag);
-        }
+            return tag;
+        });
 
         return pdu_out;
     }

@@ -14,6 +14,8 @@
 
 #include <cmath>
 #include <numbers>
+#include <numeric>
+#include <ranges>
 #include <vector>
 
 namespace gr::packet_modem::firdes {
@@ -31,8 +33,7 @@ constexpr std::vector<T> root_raised_cosine(
 
     const double spb = sampling_freq / symbol_rate; // samples per bit/symbol
     std::vector<double> taps(ntaps);
-    double scale = 0.0;
-    for (size_t i = 0; i < ntaps; i++) {
+    std::ranges::transform(std::views::iota(0UZ, ntaps), taps.begin(), [&](size_t i) {
         const double xindx = static_cast<double>(static_cast<ssize_t>(i) -
                                                  static_cast<ssize_t>(ntaps) / 2);
         const double x1 = std::numbers::pi * xindx / spb;
@@ -51,9 +52,7 @@ constexpr std::vector<T> root_raised_cosine(
             den = x3 * std::numbers::pi;
         } else {
             if (alpha == 1.0) {
-                taps[i] = -1.0;
-                scale += -1.0;
-                continue;
+                return -1.0;
             }
             x3 = (1.0 - alpha) * x1;
             x2 = (1.0 + alpha) * x1;
@@ -63,17 +62,15 @@ constexpr std::vector<T> root_raised_cosine(
                    std::sin(x3) * spb * spb / (4.0 * alpha * xindx * xindx));
             den = -32.0 * std::numbers::pi * alpha * alpha * xindx / spb;
         }
-        const double tap = 4.0 * alpha * num / den;
-        taps[i] = tap;
-        scale += tap;
-    }
+        return 4.0 * alpha * num / den;
+    });
 
-    std::vector<T> taps_T;
-    taps_T.reserve(ntaps);
-    for (auto& tap : taps) {
-        taps_T.push_back(static_cast<T>(tap * gain / scale));
-    }
+    const double scale = std::accumulate(taps.cbegin(), taps.cend(), 0.0);
 
+    std::vector<T> taps_T(ntaps);
+    std::ranges::transform(taps, taps_T.begin(), [&](double tap) {
+        return static_cast<T>(tap * gain / scale);
+    });
     return taps_T;
 }
 

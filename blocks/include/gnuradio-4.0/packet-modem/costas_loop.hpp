@@ -8,6 +8,7 @@
 #include <cmath>
 #include <complex>
 #include <numbers>
+#include <ranges>
 
 namespace gr::packet_modem {
 
@@ -109,7 +110,7 @@ public:
                      constellation,
                      _phase);
 #endif
-        for (size_t j = 0; j < inSpan.size(); ++j) {
+        for (const auto j : std::views::iota(0UZ, inSpan.size())) {
             const std::complex<T> lo = { std::cos(static_cast<T>(_phase)),
                                          -std::sin(static_cast<T>(_phase)) };
             const std::complex<T> z_out = inSpan[j] * lo;
