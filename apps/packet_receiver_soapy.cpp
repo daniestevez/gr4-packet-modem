@@ -25,9 +25,9 @@ int main(int argc, char** argv)
         std::exit(1);
     }
     const double rf_freq = std::stod(argv[1]);
-    const float samp_rate = argc >= 3 ? std::stof(argv[2]) : 3.2e6;
+    const float samp_rate = argc >= 3 ? std::stof(argv[2]) : 3.2e6f;
     const int syncword_freq_bins = argc >= 4 ? std::stoi(argv[3]) : 4;
-    const float syncword_threshold = argc >= 5 ? std::stof(argv[4]) : 9.5;
+    const float syncword_threshold = argc >= 5 ? std::stof(argv[4]) : 9.5f;
 
     gr::Graph fg;
     auto& soapy_source = fg.emplaceBlock<gr::blocks::soapy::SoapyBlock<c64, 1UZ>>(

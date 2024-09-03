@@ -24,7 +24,7 @@ int main(int argc, char** argv)
         std::exit(1);
     }
     const int syncword_freq_bins = argc >= 3 ? std::stoi(argv[2]) : 4;
-    const float syncword_threshold = argc >= 4 ? std::stof(argv[3]) : 9.5;
+    const float syncword_threshold = argc >= 4 ? std::stof(argv[3]) : 9.5f;
 
     gr::Graph fg;
     auto& file_source =

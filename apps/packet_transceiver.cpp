@@ -40,10 +40,10 @@ int main(int argc, char** argv)
     const double esn0_db = std::stod(argv[1]);
     const float freq_error = std::stof(argv[2]);
     const float sfo_ppm = std::stof(argv[3]);
-    const bool stream_mode = std::stod(argv[4]) != 0;
+    const bool stream_mode = std::stoi(argv[4]) != 0;
     const double samp_rate = argc >= 6 ? std::stod(argv[5]) : 3.2e6;
     const int syncword_freq_bins = argc >= 7 ? std::stoi(argv[6]) : 4;
-    const float syncword_threshold = argc >= 8 ? std::stof(argv[7]) : 9.5;
+    const float syncword_threshold = argc >= 8 ? std::stof(argv[7]) : 9.5f;
 
     const double tx_power = 0.32; // measured from packet_transmitter_pdu output
     const size_t samples_per_symbol = 4U;

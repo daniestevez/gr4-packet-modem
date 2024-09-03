@@ -231,9 +231,11 @@ public:
         std::vector<c64> samples_fft;
         std::vector<c64> samples_fft_prod(fft_size);
         std::vector<std::vector<c64>> correlation(num_freq_bins);
-        const size_t stride = fft_size - _syncword_samples_size + 1;
+        // this is called _stride rather than stride because stride is already a
+        // member of Block
+        const size_t _stride = fft_size - _syncword_samples_size + 1;
         size_t j;
-        for (j = 0; j + fft_size <= inSpan.size(); j += stride) {
+        for (j = 0; j + fft_size <= inSpan.size(); j += _stride) {
             samples_fft =
                 _fft.compute(inSpan | std::views::drop(j) | std::views::take(fft_size),
                              std::move(samples_fft));
@@ -262,7 +264,7 @@ public:
             fft_noise_power /=
                 static_cast<float>(fft_size / 2) * static_cast<float>(fft_size);
 
-            for (size_t k = 0; k < stride; ++k) {
+            for (size_t k = 0; k < _stride; ++k) {
                 const uint64_t curr_idx = _items_consumed + j + k;
                 if (curr_idx - _best_idx > time_threshold) {
                     // check if the value _best / power_threshold is above the

@@ -34,7 +34,7 @@ int main()
     using namespace boost::ut;
 
     gr::Graph fg;
-    auto& block = fg.emplaceBlock<TestRequiredSamples<int>>();
+    fg.emplaceBlock<TestRequiredSamples<int>>();
     gr::scheduler::Simple sched{ std::move(fg) };
     expect(sched.runAndWait().has_value());
 

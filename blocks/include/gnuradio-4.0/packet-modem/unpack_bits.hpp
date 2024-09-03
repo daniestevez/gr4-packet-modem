@@ -186,7 +186,7 @@ public:
         }
 
         for (auto tag : pdu.tags) {
-            tag.index *= outputs_per_input;
+            tag.index *= static_cast<typeof(tag.index)>(outputs_per_input);
             pdu_out.tags.push_back(tag);
         }
 

@@ -200,7 +200,7 @@ public:
         }
 
         for (auto tag : pdu.tags) {
-            tag.index /= inputs_per_output;
+            tag.index /= static_cast<typeof(tag.index)>(inputs_per_output);
             pdu_out.tags.push_back(tag);
         }
 

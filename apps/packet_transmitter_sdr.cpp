@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
         std::exit(1);
     }
     const std::string filename = argv[1];
-    const bool stream_mode = std::stod(argv[2]) != 0;
+    const bool stream_mode = std::stoi(argv[2]) != 0;
 
     gr::Graph fg;
     auto& source = fg.emplaceBlock<gr::packet_modem::TunSource>(

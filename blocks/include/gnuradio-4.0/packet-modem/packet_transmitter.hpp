@@ -5,7 +5,6 @@
 #include <gnuradio-4.0/packet-modem/additive_scrambler.hpp>
 #include <gnuradio-4.0/packet-modem/burst_shaper.hpp>
 #include <gnuradio-4.0/packet-modem/crc_append.hpp>
-#include <gnuradio-4.0/packet-modem/firdes.hpp>
 #include <gnuradio-4.0/packet-modem/glfsr_source.hpp>
 #include <gnuradio-4.0/packet-modem/header_fec_encoder.hpp>
 #include <gnuradio-4.0/packet-modem/header_formatter.hpp>
@@ -16,6 +15,7 @@
 #include <gnuradio-4.0/packet-modem/pack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/packet_ingress.hpp>
 #include <gnuradio-4.0/packet-modem/packet_mux.hpp>
+#include <gnuradio-4.0/packet-modem/packet_transmitter_rrc_taps.hpp>
 #include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/stream_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
@@ -198,23 +198,7 @@ public:
             }
         }
 
-        const size_t ntaps = samples_per_symbol * 11U;
-        auto rrc_taps = firdes::root_raised_cosine(
-            1.0, static_cast<double>(samples_per_symbol), 1.0, 0.35, ntaps);
-        // scale rrc_taps for maximum power using [-1, 1] DAC range
-        std::vector<float> rrc_taps_sum_abs(samples_per_symbol);
-        for (size_t j = 0; j < samples_per_symbol; ++j) {
-            for (size_t k = j; k < rrc_taps.size(); k += samples_per_symbol) {
-                rrc_taps_sum_abs[j] += std::abs(rrc_taps[k]);
-            }
-        }
-        const float rrc_taps_sum_abs_max =
-            *std::max_element(rrc_taps_sum_abs.cbegin(), rrc_taps_sum_abs.cend());
-        // used to avoid reaching DAC full scale
-        const float scale = 0.9f;
-        for (auto& x : rrc_taps) {
-            x *= scale / rrc_taps_sum_abs_max;
-        }
+        const auto rrc_taps = packet_transmitter_rrc_taps(samples_per_symbol);
         auto& rrc_interp = fg.emplaceBlock<InterpolatingFirFilter<c64, c64, float>>(
             { { "interpolation", samples_per_symbol }, { "taps", rrc_taps } });
         auto& _rrc_interp_mult_tag = fg.emplaceBlock<MultiplyPacketLenTag<c64>>(

@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
         std::exit(1);
     }
 
-    const bool stream_mode = std::stod(argv[2]) != 0;
+    const bool stream_mode = std::stoi(argv[2]) != 0;
 
     gr::Graph fg;
     const uint64_t packet_length = 1500;

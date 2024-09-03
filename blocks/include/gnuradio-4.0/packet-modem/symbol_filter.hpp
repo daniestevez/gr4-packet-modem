@@ -103,8 +103,8 @@ public:
 
         // _reset_clock_phase = -delay `mod` sps
         // (typically this will be zero)
-        _reset_clock_phase = static_cast<size_t>(
-            (samples_per_symbol - (delay % samples_per_symbol)) % samples_per_symbol);
+        _reset_clock_phase =
+            (samples_per_symbol - (delay % samples_per_symbol)) % samples_per_symbol;
     }
 
     void start() { _clock_phase = 0; }
