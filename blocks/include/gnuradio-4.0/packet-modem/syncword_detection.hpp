@@ -152,8 +152,8 @@ public:
         }
 
         std::vector<c64> syncword_samples(_syncword_samples_size);
-        for (size_t j = 0; j < syncword.size(); ++j) {
-            for (size_t k = 0; k < rrc_taps.size(); ++k) {
+        for (const size_t j : std::views::iota(0UZ, syncword.size())) {
+            for (const size_t k : std::views::iota(0UZ, rrc_taps.size())) {
                 syncword_samples[j * samples_per_symbol + k] +=
                     constellation[syncword[j]] * rrc_taps[k];
             }
@@ -163,7 +163,7 @@ public:
             _syncword_self_corr += x.real() * x.real() + x.imag() * x.imag();
         }
 
-        for (int freq_bin = min_freq_bin; freq_bin <= max_freq_bin; ++freq_bin) {
+        for (const int freq_bin : std::views::iota(min_freq_bin, max_freq_bin + 1)) {
             // shift syncword samples in frequency; each frequency bin is 1/2 of
             // the coherent integration interval
             double phase = 0.0;
@@ -243,8 +243,8 @@ public:
             //
             // The IFFT is computed as an FFT, so the sign of its time axis is
             // flipped.
-            for (size_t nfreq = 0; nfreq < num_freq_bins; ++nfreq) {
-                for (size_t k = 0; k < fft_size; ++k) {
+            for (const size_t nfreq : std::views::iota(0UZ, num_freq_bins)) {
+                for (const size_t k : std::views::iota(0UZ, fft_size)) {
                     samples_fft_prod[k] = samples_fft[k] * _syncword_fft_conj[nfreq][k];
                 }
                 correlation[nfreq] =
@@ -255,7 +255,7 @@ public:
             // bin (note that there is no fftshift, so the outermost 1/2 is
             // actually the central 1/2)
             float fft_noise_power = 0.0f;
-            for (size_t k = fft_size / 4; k < 3 * fft_size / 4; ++k) {
+            for (const size_t k : std::views::iota(fft_size / 4, 3 * fft_size / 4)) {
                 const auto z = samples_fft[k];
                 fft_noise_power += z.real() * z.real() + z.imag() * z.imag();
             }
@@ -264,14 +264,14 @@ public:
             fft_noise_power /=
                 static_cast<float>(fft_size / 2) * static_cast<float>(fft_size);
 
-            for (size_t k = 0; k < _stride; ++k) {
+            for (const size_t k : std::views::iota(0UZ, _stride)) {
                 const uint64_t curr_idx = _items_consumed + j + k;
                 if (curr_idx - _best_idx > time_threshold) {
                     // check if the value _best / power_threshold is above the
                     // history median by counting if more than half of the
                     // history items are below this value
                     size_t below_threshold = 0;
-                    for (size_t u = 0; u < _history_size; ++u) {
+                    for (const size_t u : std::views::iota(0UZ, _history_size)) {
                         if (_history[u].correlation_power < _best / power_threshold) {
                             ++below_threshold;
                         }
@@ -302,7 +302,7 @@ public:
                 c64 z;
                 float zpow = -1.0;
                 // Find best frequency bin
-                for (size_t nfreq = 0; nfreq < num_freq_bins; ++nfreq) {
+                for (const size_t nfreq : std::views::iota(0UZ, num_freq_bins)) {
                     const c64 zz = correlation[nfreq][z_idx];
                     const float zzpow = zz.real() * zz.real() + zz.imag() * zz.imag();
                     if (zzpow > zpow) {

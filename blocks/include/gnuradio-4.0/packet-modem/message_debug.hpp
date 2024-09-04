@@ -22,7 +22,7 @@ Messages received in the `print` port are printed. Messages received in the
 )"">;
 
 public:
-    std::vector<gr::Message> d_messages;
+    std::vector<gr::Message> _messages;
 
 public:
     gr::MsgPortInNamed<"print"> print;
@@ -44,10 +44,10 @@ public:
     void processMessages(gr::MsgPortInNamed<"store">&,
                          std::span<const gr::Message> messages)
     {
-        std::ranges::copy(messages, std::back_inserter(d_messages));
+        std::ranges::copy(messages, std::back_inserter(_messages));
     }
 
-    std::vector<gr::Message> messages() { return d_messages; }
+    std::vector<gr::Message> messages() { return _messages; }
 
     // If I don't include this 'fake_in' port and 'processOne' method, I get the
     // following compile errors:

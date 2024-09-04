@@ -5,6 +5,8 @@
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <algorithm>
+#include <numeric>
+#include <ranges>
 
 namespace gr::packet_modem {
 
@@ -88,7 +90,7 @@ public:
 
         auto in_item = inSpan.begin();
         auto out_item = outSpan.begin();
-        for (size_t j = 0; j < codewords; ++j) {
+        for (auto _ : std::views::iota(0UZ, codewords)) {
             // systematic coding
             std::copy_n(in_item, 4, out_item);
 
@@ -97,9 +99,9 @@ public:
                                   (static_cast<uint32_t>(in_item[1]) << 16) |
                                   (static_cast<uint32_t>(in_item[2]) << 8) |
                                   static_cast<uint32_t>(in_item[3]);
-            for (int k = 0; k < 12; ++k) {
+            for (const int k : std::views::iota(0, 12)) {
                 uint8_t parity_bits = 0;
-                for (int l = 0; l < 8; ++l) {
+                for (const int l : std::views::iota(0, 8)) {
                     const uint32_t row = _generator[8 * k + l];
                     const uint8_t parity =
                         static_cast<uint8_t>(__builtin_parity(info & row));
@@ -147,9 +149,9 @@ public:
                               (static_cast<uint32_t>(header.data[1]) << 16) |
                               (static_cast<uint32_t>(header.data[2]) << 8) |
                               static_cast<uint32_t>(header.data[3]);
-        for (int k = 0; k < 12; ++k) {
+        for (const int k : std::views::iota(0, 12)) {
             uint8_t parity_bits = 0;
-            for (int l = 0; l < 8; ++l) {
+            for (const int l : std::views::iota(0, 8)) {
                 const uint32_t row = HeaderFecEncoder<uint8_t>::_generator[8 * k + l];
                 const uint8_t parity = static_cast<uint8_t>(__builtin_parity(info & row));
                 parity_bits = static_cast<uint8_t>(parity_bits << 1) | parity;

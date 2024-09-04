@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <random>
+#include <numeric>
 
 namespace gr::packet_modem {
 
@@ -35,7 +36,7 @@ private:
         std::uniform_int_distribution<T> dist(min, max);
         std::vector<T> data;
         data.reserve(size);
-        for (size_t j = 0; j < size; ++j) {
+        for (auto _ : std::views::iota(0UZ, size)) {
             data.push_back(dist(e));
         }
         return data;

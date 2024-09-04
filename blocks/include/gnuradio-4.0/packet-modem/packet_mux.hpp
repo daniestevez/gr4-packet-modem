@@ -4,6 +4,7 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <numeric>
 #include <ranges>
 #include <vector>
 
@@ -142,10 +143,10 @@ public:
         const auto n = outSpan.size();
         assert(n > 0);
 
-        for (size_t j = 0; j < n; ++j) {
+        for (const size_t j : std::views::iota(0UZ, n)) {
             outSpan[j].data = inSpans[0][j].data;
             outSpan[j].tags = inSpans[0][j].tags;
-            for (size_t k = 1; k < inSpans.size(); ++k) {
+            for (const size_t k : std::views::iota(1UZ, inSpans.size())) {
                 const ssize_t tag_offset = std::ssize(outSpan[j].data);
                 outSpan[j].data.insert(outSpan[j].data.end(),
                                        inSpans[k][j].data.cbegin(),

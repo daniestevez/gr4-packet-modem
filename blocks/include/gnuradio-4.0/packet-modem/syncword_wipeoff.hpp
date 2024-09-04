@@ -4,6 +4,7 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <complex>
+#include <numeric>
 #include <vector>
 
 namespace gr::packet_modem {
@@ -65,7 +66,7 @@ public:
         if (_in_syncword) {
             const auto n = std::min(inSpan.size(), syncword.size() - _position);
             std::copy_n(in_item, n, out_item);
-            for (size_t j = 0; j < n; ++j) {
+            for (auto _ : std::views::iota(0UZ, n)) {
                 *out_item++ = *in_item++ * syncword[_position++];
             }
             if (_position == syncword.size()) {

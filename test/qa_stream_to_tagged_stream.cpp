@@ -38,7 +38,7 @@ boost::ut::suite StreamToTaggedStreamTests = [] {
         for (const auto& tag : tags) {
             expect(eq(tag.index, index));
             expect(tag.map == expected_tag);
-            index += static_cast<size_t>(packet_len);
+            index += static_cast<ssize_t>(static_cast<size_t>(packet_len));
         }
     };
 };

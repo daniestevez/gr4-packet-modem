@@ -5,6 +5,8 @@
 #include <gnuradio-4.0/packet-modem/endianness.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <algorithm>
+#include <numeric>
 #include <ranges>
 #include <stdexcept>
 
@@ -121,7 +123,7 @@ public:
         for (auto& out_item : outSpan) {
             TOut join = TOut{ 0 };
             TOut shift = TOut{ 0 };
-            for (size_t j = 0; j < inputs_per_output; ++j) {
+            for (auto _ : std::views::iota(0UZ, inputs_per_output)) {
                 const TOut chunk = static_cast<TOut>(*in_item++) & _mask;
                 if constexpr (kEndianness == Endianness::MSB) {
                     join = static_cast<TOut>(join << static_cast<TOut>(bits_per_input)) |
@@ -185,7 +187,7 @@ public:
         while (in_item != pdu.data.cend()) {
             TOut join = TOut{ 0 };
             TOut shift = TOut{ 0 };
-            for (size_t j = 0; j < inputs_per_output; ++j) {
+            for (auto _ : std::views::iota(0UZ, inputs_per_output)) {
                 const TOut chunk = static_cast<TOut>(*in_item++) & _mask;
                 if constexpr (kEndianness == Endianness::MSB) {
                     join = static_cast<TOut>(join << static_cast<TOut>(bits_per_input)) |
@@ -199,10 +201,11 @@ public:
             pdu_out.data.push_back(join);
         }
 
-        for (auto tag : pdu.tags) {
-            tag.index /= static_cast<decltype(tag.index)>(inputs_per_output);
-            pdu_out.tags.push_back(tag);
-        }
+        std::ranges::transform(
+            pdu.tags, std::back_inserter(pdu_out.tags), [&](gr::Tag tag) {
+                tag.index /= static_cast<decltype(tag.index)>(inputs_per_output);
+                return tag;
+            });
 
         return pdu_out;
     }

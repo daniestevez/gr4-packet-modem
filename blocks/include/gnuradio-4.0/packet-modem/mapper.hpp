@@ -4,6 +4,8 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <algorithm>
+#include <ranges>
 #include <vector>
 
 namespace gr::packet_modem {
@@ -85,11 +87,10 @@ public:
 
     [[nodiscard]] constexpr Pdu<TOut> processOne(const Pdu<TIn>& pdu) const
     {
-        Pdu<TOut> pdu_out = { {}, pdu.tags };
-        pdu_out.data.reserve(pdu.data.size());
-        for (size_t j = 0; j < pdu.data.size(); ++j) {
-            pdu_out.data.push_back(map[static_cast<size_t>(pdu.data[j]) & _mask]);
-        }
+        Pdu<TOut> pdu_out = { std::vector<TOut>(pdu.data.size()), pdu.tags };
+        std::ranges::transform(pdu.data, pdu_out.data.begin(), [&](TIn a) {
+            return map[static_cast<size_t>(a) & _mask];
+        });
         return pdu_out;
     }
 };

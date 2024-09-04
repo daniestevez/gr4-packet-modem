@@ -5,6 +5,8 @@
 #include <gnuradio-4.0/packet-modem/endianness.hpp>
 #include <gnuradio-4.0/packet-modem/pdu.hpp>
 #include <gnuradio-4.0/reflection.hpp>
+#include <algorithm>
+#include <numeric>
 #include <ranges>
 #include <stdexcept>
 
@@ -111,14 +113,14 @@ public:
         for (auto& in_item : inSpan) {
             if constexpr (kEndianness == Endianness::MSB) {
                 TIn shift = bits_per_output * static_cast<TIn>(outputs_per_input - 1U);
-                for (size_t j = 0; j < outputs_per_input; ++j) {
+                for (auto _ : std::views::iota(0UZ, outputs_per_input)) {
                     *out_item++ = static_cast<TOut>((in_item >> shift) & _mask);
                     shift -= bits_per_output;
                 }
             } else {
                 static_assert(kEndianness == Endianness::LSB);
                 TIn item = in_item;
-                for (size_t j = 0; j < outputs_per_input; ++j) {
+                for (auto _ : std::views::iota(0UZ, outputs_per_input)) {
                     *out_item++ = static_cast<TOut>(item & _mask);
                     item >>= bits_per_output;
                 }
@@ -171,24 +173,25 @@ public:
         for (const auto& in_item : pdu.data) {
             if constexpr (kEndianness == Endianness::MSB) {
                 TIn shift = bits_per_output * static_cast<TIn>(outputs_per_input - 1U);
-                for (size_t j = 0; j < outputs_per_input; ++j) {
+                for (auto _ : std::views::iota(0UZ, outputs_per_input)) {
                     pdu_out.data.push_back(static_cast<TOut>((in_item >> shift) & _mask));
                     shift -= bits_per_output;
                 }
             } else {
                 static_assert(kEndianness == Endianness::LSB);
                 TIn item = in_item;
-                for (size_t j = 0; j < outputs_per_input; ++j) {
+                for (auto _ : std::views::iota(0UZ, outputs_per_input)) {
                     pdu_out.data.push_back(static_cast<TOut>(item & _mask));
                     item >>= bits_per_output;
                 }
             }
         }
 
-        for (auto tag : pdu.tags) {
-            tag.index *= static_cast<decltype(tag.index)>(outputs_per_input);
-            pdu_out.tags.push_back(tag);
-        }
+        std::ranges::transform(
+            pdu.tags, std::back_inserter(pdu_out.tags), [&](gr::Tag tag) {
+                tag.index *= static_cast<decltype(tag.index)>(outputs_per_input);
+                return tag;
+            });
 
         return pdu_out;
     }
