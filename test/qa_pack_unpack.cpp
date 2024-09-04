@@ -227,7 +227,7 @@ boost::ut::suite PackUnpackTests = [] {
         std::vector<uint8_t> expected;
         expected.reserve(input_data.size());
         for (const auto in : input_data) {
-            expected.push_back(in & ((1U << bits_per_nibble) - 1));
+            expected.push_back(static_cast<uint8_t>(in & ((1U << bits_per_nibble) - 1)));
         }
         expect(eq(input_data.size(), num_items));
         expect(eq(sink_msb.data(), expected));

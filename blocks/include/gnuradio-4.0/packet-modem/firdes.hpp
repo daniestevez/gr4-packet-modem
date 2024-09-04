@@ -12,6 +12,7 @@
 #ifndef _GR4_PACKET_MODEM_INTERPOLATING_FIRDES
 #define _GR4_PACKET_MODEM_INTERPOLATING_FIRDES
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <numeric>
