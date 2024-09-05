@@ -4,8 +4,8 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <gnuradio-4.0/reflection.hpp>
-#include <random>
 #include <numeric>
+#include <random>
 
 namespace gr::packet_modem {
 
