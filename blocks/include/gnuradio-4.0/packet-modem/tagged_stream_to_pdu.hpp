@@ -48,12 +48,13 @@ public:
     {
 #ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = "
-                     "{}), _remaining = {}, _pdu.data.size() = {}",
+                     "{}), _remaining = {}, _pdu.data.size() = {}, _pdu.tags.size() = {}",
                      this->name,
                      inSpan.size(),
                      outSpan.size(),
                      _remaining,
-                     _pdu.data.size());
+                     _pdu.data.size(),
+                     _pdu.tags.size());
         if (this->input_tags_present()) {
             const auto tag = this->mergedInputTag();
             fmt::println("{} tags: index = {}, map = {}", this->name, tag.index, tag.map);
