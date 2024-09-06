@@ -50,7 +50,9 @@ int main(int argc, char* argv[])
 
     auto& source = fg.emplaceBlock<NullSource<T>>();
     auto& test_block = fg.emplaceBlock<TestBlock<T>>();
+    test_block.out.streamWriter()._debug = true;
     auto& sink = fg.emplaceBlock<NullSink<T>>();
+    sink.in.streamReader()._debug = true;
 
     expect(fatal(eq(gr::ConnectionResult::SUCCESS,
                     fg.connect<"out">(source).to<"in">(test_block))));
