@@ -35,6 +35,7 @@ public:
     gr::PortOut<T, gr::Async> out;
     gr::PortOut<gr::Message, gr::Async, gr::Optional> count;
     std::string packet_len_tag_key = "packet_len";
+    bool enable_count = false;
 
     constexpr static gr::TagPropagationPolicy tag_policy =
         gr::TagPropagationPolicy::TPP_CUSTOM;
@@ -68,7 +69,7 @@ public:
         auto out_item = outSpan.begin();
         auto count_item = countSpan.begin();
         while (in_item != inSpan.end() && out_item != outSpan.end() &&
-               count_item != countSpan.end()) {
+               (!enable_count || count_item != countSpan.end())) {
             if (_index == 0) {
                 const uint64_t packet_len = in_item->data.size();
                 if (packet_len == 0) {
@@ -85,10 +86,12 @@ public:
 #endif
                     out.publishTag(map, index);
                 }
-                ++_packet_count;
-                gr::Message msg;
-                msg.data = gr::property_map{ { "packet_count", _packet_count } };
-                *count_item++ = std::move(msg);
+                if (enable_count) {
+                    ++_packet_count;
+                    gr::Message msg;
+                    msg.data = gr::property_map{ { "packet_count", _packet_count } };
+                    *count_item++ = std::move(msg);
+                }
             }
             const auto n =
                 std::min(std::ssize(in_item->data) - _index, outSpan.end() - out_item);
@@ -113,7 +116,9 @@ public:
 
         std::ignore = inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()));
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
-        countSpan.publish(static_cast<size_t>(count_item - countSpan.begin()));
+        if (enable_count) {
+            countSpan.publish(static_cast<size_t>(count_item - countSpan.begin()));
+        }
 #ifdef TRACE
         fmt::println("{} consumed = {}, published = {}, published countSpan = {}",
                      this->name,
@@ -129,7 +134,11 @@ public:
 
 } // namespace gr::packet_modem
 
-ENABLE_REFLECTION_FOR_TEMPLATE(
-    gr::packet_modem::PduToTaggedStream, in, out, count, packet_len_tag_key);
+ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PduToTaggedStream,
+                               in,
+                               out,
+                               count,
+                               packet_len_tag_key,
+                               enable_count);
 
 #endif // _GR4_PACKET_MODEM_PDU_TO_TAGGED_STREAM
