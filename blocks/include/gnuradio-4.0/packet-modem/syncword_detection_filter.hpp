@@ -14,7 +14,20 @@ public:
     using Description = Doc<R""(
 @brief Syncword Detection Filter.
 
-TODO
+The Syncword Detection Filter is used to filter out false syncword detections
+that may occur mid-packet if some of the scrambled packet payload correlates
+strongly with the syncword. Without this block, such a false syncword detection
+will likely prevent correct packet decoding by setting the Coarse Frequency
+Correction to a wrong frequency mid-packet.
+
+The Syncword Detection Filter detects the beginning of a packet by looking at
+the syncword_ tags inserted by Syncword Detection. When a packet begins, the
+block only lets the samples of the syncword and header, plus some small margin
+go through. It waits to receive a header decode that either indicates the packet
+length or an invalid header decode (in which case it immediately considers that
+the packet has finished after the header). In this way, the Syncword Detection
+Filter keeps track of wheter a particular sample is inside of a packet or
+not. If syncword_ tags are received inside a packet, they are dropped.
 
 )"">;
 
