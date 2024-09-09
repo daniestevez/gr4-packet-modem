@@ -38,6 +38,7 @@ public:
 
 public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
+    gr::PortIn<gr::Message, gr::Async> ignored_syncword;
     gr::PortIn<T> in;
     gr::PortOut<T> out;
     size_t samples_per_symbol = 4;
@@ -51,22 +52,25 @@ public:
     void start() { _in_packet = false; }
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& headerSpan,
+                                 const gr::ConsumableSpan auto& ignoredSpan,
                                  const gr::ConsumableSpan auto& inSpan,
                                  gr::PublishableSpan auto& outSpan)
     {
         using namespace std::string_literals;
 
 #ifdef TRACE
-        fmt::println("{}::processBulk(headerSpan.size() = {}, inSpan.size() = {}, "
-                     "outSpan.size() = {}), _in_packet = {}, _position = {}, "
-                     "_block_until = {}",
-                     this->name,
-                     headerSpan.size(),
-                     inSpan.size(),
-                     outSpan.size(),
-                     _in_packet,
-                     _position,
-                     _block_until);
+        fmt::println(
+            "{}::processBulk(headerSpan.size() = {}, ignoredSpan.size() = {}, "
+            "inSpan.size() = {}, outSpan.size() = {}), _in_packet = {}, _position = {}, "
+            "_block_until = {}",
+            this->name,
+            headerSpan.size(),
+            ignoredSpan.size(),
+            inSpan.size(),
+            outSpan.size(),
+            _in_packet,
+            _position,
+            _block_until);
 #endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
@@ -106,6 +110,9 @@ public:
             if (!headerSpan.consume(0)) {
                 throw gr::exception("headerSpan.consume(0) failed");
             }
+            if (!ignoredSpan.consume(0)) {
+                throw gr::exception("ignoredSpan.consume(0) failed");
+            }
             if (!inSpan.consume(n)) {
                 throw gr::exception(fmt::format("inSpan.consume({}) failed", n));
             }
@@ -142,6 +149,13 @@ public:
             }
         }
 
+        size_t ignored_consumed = 0;
+
+        if (_block_until == 0 && ignoredSpan.size() > 0) {
+            ignored_consumed = 1;
+            _block_until = 1;
+        }
+
         size_t consumed = 0;
 
         const size_t allowed =
@@ -173,6 +187,9 @@ public:
         if (!headerSpan.consume(header_consumed)) {
             throw gr::exception(fmt::format("headerSpan.consume({})", header_consumed));
         }
+        if (!ignoredSpan.consume(ignored_consumed)) {
+            throw gr::exception(fmt::format("ignoredSpan.consume({})", ignored_consumed));
+        }
         outSpan.publish(consumed);
         // TODO: not sure why this is needed here, since some output is being
         // published
@@ -191,6 +208,7 @@ public:
 
 ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::SyncwordDetectionFilter,
                                parsed_header,
+                               ignored_syncword,
                                in,
                                out,
                                samples_per_symbol,

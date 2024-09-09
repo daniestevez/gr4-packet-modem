@@ -57,6 +57,7 @@ public:
     gr::PortIn<gr::Message, gr::Async> parsed_header;
     gr::PortIn<T> in;
     gr::PortOut<T> out;
+    gr::PortOut<gr::Message, gr::Async> ignored_syncword;
     size_t syncword_size = 64;
     size_t header_size = 128;
     double syncword_costas_loop_bandwidth = 0.02;
@@ -75,20 +76,23 @@ public:
 
     gr::work::Status processBulk(const gr::ConsumableSpan auto& headerSpan,
                                  const gr::ConsumableSpan auto& inSpan,
-                                 gr::PublishableSpan auto& outSpan)
+                                 gr::PublishableSpan auto& outSpan,
+                                 gr::PublishableSpan auto& ignoredSpan)
     {
 #ifdef TRACE
-        fmt::println("{}::processBulk(headerSpan.size() = {}, inSpan.size() = {}, "
-                     "outSpan.size() = {}), _in_packet = {}, _position = {}, "
-                     "_payload_symbols = {}",
+        fmt::println("{}::processBulk(headerSpan.size() = {}, ignoredSpan.size(), "
+                     "inSpan.size() = {}, outSpan.size() = {}), _in_packet = {}, "
+                     "_position = {}, _payload_symbols = {}",
                      this->name,
                      headerSpan.size(),
+                     ignoredSpan.size(),
                      inSpan.size(),
                      outSpan.size(),
                      _in_packet,
                      _position,
                      _payload_symbols);
 #endif
+        size_t ignored_published = 0;
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
             if (tag.map.contains(syncword_amplitude_key)) {
@@ -130,6 +134,14 @@ public:
                                      pmtv::cast<int>(tag.map["syncword_freq_bin"]),
                                      pmtv::cast<float>(tag.map["syncword_esn0_db"]),
                                      pmtv::cast<float>(tag.map["syncword_time_est"]));
+                        // an empty message is enough, since the recipient does
+                        // not care about the contents
+                        if (ignoredSpan.size() == 0) {
+                            throw gr::exception(
+                                "ignoredSpan is empty but we need to use it");
+                        }
+                        ignoredSpan[0] = {};
+                        ignored_published = 1;
                     }
                 }
             }
@@ -142,6 +154,7 @@ public:
             if (!inSpan.consume(inSpan.size())) {
                 throw gr::exception("consume failed");
             }
+            ignoredSpan.publish(ignored_published);
             outSpan.publish(0);
             if (inSpan.size() != 0) {
                 // Clear input tags. This is needed because the block doesn't
@@ -269,6 +282,7 @@ public:
         if (!inSpan.consume(static_cast<size_t>(in_item - inSpan.begin()))) {
             throw gr::exception("consume failed");
         }
+        ignoredSpan.publish(ignored_published);
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
 
         // TODO: not sure why this is needed here, since some output is being
@@ -294,6 +308,7 @@ ENABLE_REFLECTION_FOR_TEMPLATE(gr::packet_modem::PayloadMetadataInsert,
                                parsed_header,
                                in,
                                out,
+                               ignored_syncword,
                                syncword_size,
                                header_size,
                                syncword_costas_loop_bandwidth,

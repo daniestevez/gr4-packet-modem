@@ -246,6 +246,11 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
+        if (fg.connect<"ignored_syncword">(payload_metadata_insert)
+                .to<"ignored_syncword">(syncword_detection_filter) !=
+            ConnectionResult::SUCCESS) {
+            throw std::runtime_error(connection_error);
+        }
         if (fg.connect<"payload">(header_payload_split).to<"in">(payload_slicer) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
