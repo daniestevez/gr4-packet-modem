@@ -89,7 +89,6 @@ public:
             }
             if (new_in_packet) {
                 _in_packet = true;
-                _in_packet = true;
                 _position = 0;
                 _block_until = 0; // packet size yet unknown
             }
@@ -158,7 +157,9 @@ public:
         if (_position >= allowed && _block_until != 0) {
             // packet size already known
             const size_t n = std::min(inSpan.size(), outSpan.size()) - consumed;
-            std::copy_n(inSpan.begin(), n, outSpan.begin());
+            std::copy_n(inSpan.begin() + static_cast<ssize_t>(consumed),
+                        n,
+                        outSpan.begin() + static_cast<ssize_t>(consumed));
             _position += n;
             consumed += n;
             if (_position >= _block_until) {
