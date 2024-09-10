@@ -48,7 +48,7 @@ public:
                                  gr::PublishableSpan auto& headerSpan,
                                  gr::PublishableSpan auto& payloadSpan)
     {
-#ifdef TRACE
+      //#ifdef TRACE
         fmt::println("{}::processBulk(inSpan.size() = {}, headerSpan.size() = {}, "
                      "payloadSpan.size() = {}), _in_payload = {}, _position = {}, "
                      "_payload_items = {}",
@@ -59,9 +59,16 @@ public:
                      _in_payload,
                      _position,
                      _payload_items);
-#endif
+        //#endif
         if (this->input_tags_present()) {
             auto tag = this->mergedInputTag();
+            //#ifdef TRACE
+            fmt::println("{} mergedInputTag().map = {}", this->name, tag.map);
+            fmt::println("{} in.getMergedTag().map = {}", this->name, in.getMergedTag().map);
+            for (const auto& t : in.tags) {
+                fmt::println("tag.index = {}, tag.map = {}", t.index, t.map);
+            }
+            //#endif
             if (tag.map.contains(payload_length_key)) {
                 if (_in_payload || _position != header_size) {
                     throw gr::exception(
@@ -101,9 +108,9 @@ public:
             }
             headerSpan.publish(n);
             payloadSpan.publish(0);
-#ifdef TRACE
+            //#ifdef TRACE
             fmt::println("{} published header = {}", this->name, n);
-#endif
+            //#endif
         } else {
             const auto n = std::min(
                 { inSpan.size(), payloadSpan.size(), _payload_items - _position });
@@ -114,9 +121,9 @@ public:
             }
             headerSpan.publish(0);
             payloadSpan.publish(n);
-#ifdef TRACE
+            //#ifdef TRACE
             fmt::println("{} published payload = {}", this->name, n);
-#endif
+            //#endif
             if (_position >= _payload_items) {
                 _in_payload = false;
                 _position = 0;

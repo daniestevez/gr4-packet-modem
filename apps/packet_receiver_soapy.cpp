@@ -71,7 +71,7 @@ int main(int argc, char** argv)
         throw gr::exception(connection_error);
     }
 
-    gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded> sched{
+    gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::multiThreaded> sched{
         std::move(fg)
     };
     const auto ret = sched.runAndWait();
