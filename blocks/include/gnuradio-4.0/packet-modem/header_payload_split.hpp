@@ -73,9 +73,9 @@ public:
                 tag.map[packet_len_tag_key] = pmtv::pmt(_payload_items);
             }
             if (_in_payload) {
-                payload.publishTag(tag.map);
+                payload.publishTag(tag.map, 0);
             } else {
-                header.publishTag(tag.map);
+                header.publishTag(tag.map, 0);
             }
         }
 
@@ -93,7 +93,7 @@ public:
             if (n > 0 && _position == 0) {
                 const property_map tag = { { packet_len_tag_key,
                                              static_cast<uint64_t>(header_size) } };
-                header.publishTag(tag);
+                header.publishTag(tag, 0);
             }
             _position += n;
             if (!inSpan.consume(n)) {

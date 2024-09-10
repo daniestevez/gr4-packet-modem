@@ -39,7 +39,7 @@ public:
 #ifdef TRACE
             fmt::println("{} publishing tag: map = {}", this->name, tag.map);
 #endif
-            out.publishTag(tag.map);
+            out.publishTag(tag.map, 0);
         }
         return a;
     }

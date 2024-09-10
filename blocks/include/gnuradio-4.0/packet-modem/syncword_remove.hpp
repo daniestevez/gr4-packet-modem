@@ -58,7 +58,7 @@ public:
                 _position = 0;
             } else {
                 // pass tag to output
-                out.publishTag(tag.map);
+                out.publishTag(tag.map, 0);
             }
         }
 

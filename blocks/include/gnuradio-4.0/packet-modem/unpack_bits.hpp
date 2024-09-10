@@ -106,7 +106,7 @@ public:
                 const auto packet_len = pmtv::cast<uint64_t>(tag.map[packet_len_tag_key]);
                 tag.map[packet_len_tag_key] = pmtv::pmt(packet_len * outputs_per_input);
             }
-            out.publishTag(tag.map);
+            out.publishTag(tag.map, 0);
         }
 
         auto out_item = outSpan.begin();

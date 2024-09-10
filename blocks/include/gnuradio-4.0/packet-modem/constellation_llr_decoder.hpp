@@ -95,7 +95,7 @@ public:
 #ifdef TRACE
             fmt::println("{} tag = {}, index = {}", this->name, tag.map, tag.index);
 #endif
-            out.publishTag(tag.map);
+            out.publishTag(tag.map, 0);
         }
 
         const auto n = std::min(inSpan.size(), outSpan.size() / this->output_chunk_size);

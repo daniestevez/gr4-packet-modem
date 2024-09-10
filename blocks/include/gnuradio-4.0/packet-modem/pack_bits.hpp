@@ -116,7 +116,7 @@ public:
                 }
                 tag.map[packet_len_tag_key] = pmtv::pmt(packet_len / inputs_per_output);
             }
-            out.publishTag(tag.map);
+            out.publishTag(tag.map, 0);
         }
 
         auto in_item = inSpan.begin();

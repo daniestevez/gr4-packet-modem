@@ -85,7 +85,7 @@ public:
 #ifdef TRACE
             fmt::println("{} publishTag(), map = {}", this->name, tag.map);
 #endif
-            out.publishTag(tag.map);
+            out.publishTag(tag.map, 0);
         }
 
         auto in_item = inSpan.begin();
