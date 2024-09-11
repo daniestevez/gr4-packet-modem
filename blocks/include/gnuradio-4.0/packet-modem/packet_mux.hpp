@@ -26,14 +26,14 @@ required to calculate the output packet-length tag.
 
 )"">;
 
-private:
+public:
     std::vector<size_t> _packet_lens;
     size_t _current_input;
     size_t _remaining;
 
 public:
-    std::vector<gr::PortIn<T>> in;
-    gr::PortOut<T> out;
+    std::vector<gr::PortIn<T, gr::Async>> in;
+    gr::PortOut<T, gr::Async> out;
     size_t num_inputs = 0;
     std::string packet_len_tag = "packet_len";
 
@@ -49,6 +49,22 @@ public:
     }
 
     void start() { _packet_lens.clear(); }
+
+    // function to get the tags at the current read position from a port, since
+    // there doesn't seem to be an appropriate one in Port.hpp
+    gr::property_map _get_tags(gr::PortIn<T, gr::Async>& inPort)
+    {
+        gr::property_map map{};
+        const auto position = inPort.streamReader().position();
+        for (const auto& tag : inPort.getTags(1)) {
+            if (tag.index == position) {
+                for (const auto& [key, value] : tag.map) {
+                    map.insert_or_assign(key, value);
+                }
+            }
+        }
+        return map;
+    }
 
     template <gr::ConsumableSpan TInput>
     gr::work::Status processBulk(const std::span<TInput>& inSpans,
@@ -69,24 +85,88 @@ public:
                                      return span.size();
                                  }));
             if (min_in_size == 0) {
+                for (auto& inSpan : inSpans) {
+                    if (!inSpan.consume(0)) {
+                        throw gr::exception("consume failed");
+                    }
+                }
+                outSpan.publish(0);
                 return gr::work::Status::INSUFFICIENT_INPUT_ITEMS;
             }
-            // TODO: this isn't working, because the tags from all the input
-            // ports get merged an overwritten
-            fmt::println(
-                "{}::input_tags_present() = {}", this->name, this->input_tags_present());
-            if (this->input_tags_present()) {
-                const auto tag = this->mergedInputTag();
-                fmt::print(
-                    "PacketMux::mergedInputTag() = ({}, {})\n", tag.index, tag.map);
-            }
             for (auto& inPort : in) {
-                fmt::println("getting tags for input port");
-                for (const auto& tag : inPort.getTags(min_in_size)) {
-                    fmt::print("tag = ({}, {})\n", tag.index, tag.map);
+                const auto map = _get_tags(inPort);
+#ifdef TRACE
+                fmt::println("map = {}", map);
+#endif
+                if (!map.contains(packet_len_tag)) {
+                    throw gr::exception("expected packet_len tag key not found");
                 }
+                _packet_lens.push_back(pmtv::cast<uint64_t>(map.at(packet_len_tag)));
+            }
+            _current_input = 0;
+            _remaining = _packet_lens[0];
+            const uint64_t total_len = static_cast<uint64_t>(
+                std::accumulate(_packet_lens.cbegin(), _packet_lens.cend(), 0));
+            out.publishTag({ { packet_len_tag, total_len } }, 0);
+        }
+
+        size_t published = 0;
+
+        for (size_t j = 0; j < _current_input; ++j) {
+            if (!inSpans[j].consume(0)) {
+                throw gr::exception("consume failed");
             }
         }
+
+        while (published < outSpan.size()) {
+            // Block doesn't chunk Async inputs based on tags, so we chunk it
+            // here and avoid consuming past the next tag
+            const size_t samples_to_tag =
+                nSamplesUntilNextTag(in[_current_input], 1)
+                    .value_or(std::numeric_limits<std::size_t>::max());
+            const size_t n =
+                std::min({ inSpans[_current_input].size(), samples_to_tag, _remaining });
+#ifdef TRACE
+            fmt::println("{} _current_input = {}, samples_to_tag = {}, n = {}",
+                         this->name,
+                         _current_input,
+                         samples_to_tag,
+                         n);
+#endif
+            std::copy_n(inSpans[_current_input].begin(),
+                        n,
+                        outSpan.begin() + static_cast<ssize_t>(published));
+            auto map = _get_tags(in[_current_input]);
+            map.erase(packet_len_tag);
+            if (!map.empty()) {
+                out.publishTag(map, static_cast<ssize_t>(published));
+            }
+            published += n;
+            if (!inSpans[_current_input].consume(n)) {
+                throw gr::exception("consume failed");
+            }
+            _remaining -= n;
+            if (_remaining == 0) {
+                ++_current_input;
+                if (_current_input == in.size()) {
+                    _packet_lens.clear();
+                    break;
+                }
+                _remaining = _packet_lens[_current_input];
+            } else {
+                for (size_t j = _current_input + 1; j < in.size(); ++j) {
+                    if (!inSpans[j].consume(0)) {
+                        throw gr::exception("consume failed");
+                    }
+                }
+                break;
+            }
+        }
+
+#ifdef TRACE
+        fmt::println("{} outSpan.publish({})", this->name, published);
+#endif
+        outSpan.publish(published);
 
         return gr::work::Status::OK;
     }

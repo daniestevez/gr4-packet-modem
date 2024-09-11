@@ -13,6 +13,58 @@ boost::ut::suite PacketMuxTests = [] {
     using namespace gr::packet_modem;
     using namespace std::string_literals;
 
+    "packet_mux"_test = [] {
+        Graph fg;
+        const uint64_t length0 = 100;
+        std::vector<int> v0(length0);
+        std::iota(v0.begin(), v0.end(), 0);
+        const std::vector<gr::Tag> tags0 = {
+            { 0, { { "packet_len", length0 }, { "foo", "bar" } } },
+            { 27, { { "twenty_seven", 27 } } }
+        };
+        // use repeat in this one to avoid causing a premature end-of-stream in the
+        // mux
+        auto& source0 = fg.emplaceBlock<VectorSource<int>>({ { "repeat", true } });
+        source0.data = v0;
+        source0.tags = tags0;
+        const uint64_t length1 = 200;
+        std::vector<int> v1(length1);
+        std::iota(v1.begin(), v1.end(), 0);
+        const std::vector<gr::Tag> tags1 = {
+            { 0, { { "packet_len", length1 }, { "baz", 0 } } },
+            { 14, { { "fourteen", 14.0 } } }
+        };
+        auto& source1 = fg.emplaceBlock<VectorSource<int>>();
+        source1.data = v1;
+        source1.tags = tags1;
+        auto& mux = fg.emplaceBlock<PacketMux<int>>({ { "num_inputs", 2UZ } });
+        auto& sink = fg.emplaceBlock<VectorSink<int>>();
+        expect(fatal(eq(gr::ConnectionResult::SUCCESS,
+                        fg.connect(source0, "out"s, mux, "in#0"s))));
+        expect(fatal(eq(gr::ConnectionResult::SUCCESS,
+                        fg.connect(source1, "out"s, mux, "in#1"s))));
+        expect(fatal(
+            eq(gr::ConnectionResult::SUCCESS, fg.connect<"out">(mux).to<"in">(sink))));
+
+        gr::scheduler::Simple sched{ std::move(fg) };
+        expect(sched.runAndWait().has_value());
+        const auto sink_data = sink.data();
+        expect(eq(sink_data.size(), length0 + length1));
+        const auto first = sink_data | std::views::take(length0);
+        const std::vector<int> first_v(first.begin(), first.end());
+        expect(eq(first_v, v0));
+        const auto second = sink_data | std::views::drop(length0);
+        const std::vector<int> second_v(second.begin(), second.end());
+        expect(eq(second_v, v1));
+        std::vector<gr::Tag> all_tags = {
+            { 0, { { "packet_len", length0 + length1 }, { "foo", "bar" } } },
+            { 27, { { "twenty_seven", 27 } } },
+            { length0, { { "baz", 0 } } },
+            { length0 + 14, { { "fourteen", 14.0 } } }
+        };
+        expect(sink.tags() == all_tags);
+    };
+
     "pdu_packet_mux"_test = [] {
         Graph fg;
         const Pdu<int> pdu0 = { std::vector{ 1, 2, 3, 4, 5 },
