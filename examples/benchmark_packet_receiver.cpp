@@ -2,9 +2,9 @@
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/message_debug.hpp>
 #include <gnuradio-4.0/packet-modem/null_sink.hpp>
+#include <gnuradio-4.0/packet-modem/null_source.hpp>
 #include <gnuradio-4.0/packet-modem/packet_receiver.hpp>
 #include <gnuradio-4.0/packet-modem/probe_rate.hpp>
-#include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <complex>
 #include <cstdint>
 #include <cstdlib>
