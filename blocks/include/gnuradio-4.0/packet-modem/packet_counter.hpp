@@ -66,7 +66,7 @@ public:
                 countSpan.publish(0);
             }
             if (!drop_tags) {
-              out.publishTag(tag.map, 0);
+                out.publishTag(tag.map, 0);
             }
         } else {
             countSpan.publish(0);
