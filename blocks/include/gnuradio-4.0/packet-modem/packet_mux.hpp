@@ -52,7 +52,7 @@ public:
 
     // function to get the tags at the current read position from a port, since
     // there doesn't seem to be an appropriate one in Port.hpp
-    gr::property_map _get_tags(gr::PortIn<T, gr::Async>& inPort)
+    static inline gr::property_map _get_tags(const gr::PortIn<T, gr::Async>& inPort)
     {
         gr::property_map map{};
         const auto position = inPort.streamReader().position();
@@ -64,6 +64,25 @@ public:
             }
         }
         return map;
+    }
+
+    // similar to Port::nSamplesUntilNextTag, but does not call tagData.consume(0UZ)
+    static inline constexpr std::optional<std::size_t>
+    _samples_to_next_tag(const gr::PortIn<T, gr::Async>& inPort, ssize_t offset)
+    {
+        const gr::ConsumableSpan auto tag_data = inPort.tagReader().get();
+        if (tag_data.empty()) {
+            return std::nullopt;
+        }
+        const auto read_position = inPort.streamReader().position();
+        const auto match = std::ranges::find_if(tag_data, [&](const auto& tag) {
+            return tag.index >= read_position + offset;
+        });
+        if (match != tag_data.end()) {
+            return static_cast<std::size_t>(match->index - read_position);
+        } else {
+            return std::nullopt;
+        }
     }
 
     template <gr::ConsumableSpan TInput>
@@ -122,7 +141,7 @@ public:
             // Block doesn't chunk Async inputs based on tags, so we chunk it
             // here and avoid consuming past the next tag
             const size_t samples_to_tag =
-                nSamplesUntilNextTag(in[_current_input], 1)
+                _samples_to_next_tag(in[_current_input], 1)
                     .value_or(std::numeric_limits<std::size_t>::max());
             const size_t n = std::min({ inSpans[_current_input].size(),
                                         samples_to_tag,
