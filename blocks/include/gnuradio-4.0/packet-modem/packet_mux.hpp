@@ -124,8 +124,10 @@ public:
             const size_t samples_to_tag =
                 nSamplesUntilNextTag(in[_current_input], 1)
                     .value_or(std::numeric_limits<std::size_t>::max());
-            const size_t n =
-                std::min({ inSpans[_current_input].size(), samples_to_tag, _remaining });
+            const size_t n = std::min({ inSpans[_current_input].size(),
+                                        samples_to_tag,
+                                        _remaining,
+                                        outSpan.size() - published });
 #ifdef TRACE
             fmt::println("{} _current_input = {}, samples_to_tag = {}, n = {}",
                          this->name,
