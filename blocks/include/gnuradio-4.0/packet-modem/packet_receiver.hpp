@@ -12,7 +12,7 @@
 #include <gnuradio-4.0/packet-modem/header_fec_decoder.hpp>
 #include <gnuradio-4.0/packet-modem/header_parser.hpp>
 #include <gnuradio-4.0/packet-modem/header_payload_split.hpp>
-#include <gnuradio-4.0/packet-modem/message_debug.hpp>
+#include <gnuradio-4.0/packet-modem/message_debug_stream.hpp>
 #include <gnuradio-4.0/packet-modem/pack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/payload_metadata_insert.hpp>
 #include <gnuradio-4.0/packet-modem/symbol_filter.hpp>
@@ -149,7 +149,7 @@ public:
         constexpr auto connection_error = "connection_error";
 
         if (header_debug) {
-            auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebug>();
+            auto& message_debug = fg.emplaceBlock<gr::packet_modem::MessageDebugStream>();
             if (fg.connect<"metadata">(header_parser).to<"print">(message_debug) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
