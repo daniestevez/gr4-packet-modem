@@ -16,9 +16,7 @@
 #include <gnuradio-4.0/packet-modem/packet_ingress.hpp>
 #include <gnuradio-4.0/packet-modem/packet_mux.hpp>
 #include <gnuradio-4.0/packet-modem/packet_transmitter_rrc_taps.hpp>
-#include <gnuradio-4.0/packet-modem/pdu_to_tagged_stream.hpp>
 #include <gnuradio-4.0/packet-modem/stream_to_tagged_stream.hpp>
-#include <gnuradio-4.0/packet-modem/tagged_stream_to_pdu.hpp>
 #include <gnuradio-4.0/packet-modem/unpack_bits.hpp>
 #include <gnuradio-4.0/packet-modem/vector_source.hpp>
 #include <cstdint>
@@ -58,19 +56,9 @@ public:
             { { "packet_len_tag_key", packet_len_tag_key } });
         // a payload FEC encoder block would be instantiated here
 
-        // TODO: replace by stream PacketMux
-        auto& header_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        header_to_pdu.name = "PacketTransmitter(header_to_pdu)";
-        auto& payload_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<uint8_t>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        payload_to_pdu.name = "PacketTransmitter(payload_to_pdu)";
         auto& header_payload_mux =
-            fg.emplaceBlock<PacketMux<Pdu<uint8_t>>>({ { "num_inputs", 2UZ } });
+            fg.emplaceBlock<PacketMux<uint8_t>>({ { "num_inputs", 2UZ } });
         header_payload_mux.name = "PacketTransmitter(header_payload_mux)";
-        auto& muxed_to_stream = fg.emplaceBlock<PduToTaggedStream<uint8_t>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        muxed_to_stream.name = "PacketTransmitter(muxed_to_stream)";
 
         auto& scrambler_unpack = fg.emplaceBlock<UnpackBits<>>(
             { { "outputs_per_input", 8UZ },
@@ -120,19 +108,9 @@ public:
         auto& syncword_bpsk_modulator =
             fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", bpsk_constellation } });
 
-        // TODO: replace by stream PacketMux
-        auto& syncword_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        syncword_to_pdu.name = "PacketTransmitter(syncword_to_pdu)";
-        auto& payload_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        payload_symbols_to_pdu.name = "PacketTransmitter(payload_symbols_to_pdu)";
-        auto& symbols_mux = fg.emplaceBlock<PacketMux<Pdu<c64>>>(
+        auto& symbols_mux = fg.emplaceBlock<PacketMux<c64>>(
             { { "num_inputs", stream_mode ? 2UZ : 4UZ } });
         symbols_mux.name = "PacketTransmitter(symbols_mux)";
-        auto& symbols_to_stream = fg.emplaceBlock<PduToTaggedStream<c64>>(
-            { { "packet_len_tag_key", packet_len_tag_key } });
-        symbols_to_stream.name = "PacketTransmitter(symbols_to_stream)";
 
         constexpr auto connection_error = "connection_error";
 
@@ -152,16 +130,10 @@ public:
                   { "packet_len_tag_key", packet_len_tag_key } });
             auto& ramp_down_modulator =
                 fg.emplaceBlock<Mapper<uint8_t, c64>>({ { "map", qpsk_constellation } });
-            auto& ramp_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-                { { "packet_len_tag_key", packet_len_tag_key } });
-            ramp_symbols_to_pdu.name = "PacketTransmitter(ramp_symbols_to_pdu)";
 
             auto& rrc_flush_source = fg.emplaceBlock<NullSource<c64>>();
             auto& rrc_flush_tags = fg.emplaceBlock<StreamToTaggedStream<c64>>(
                 { { "packet_length", static_cast<uint64_t>(rrc_flush_nsymbols) } });
-            auto& flush_symbols_to_pdu = fg.emplaceBlock<TaggedStreamToPdu<c64>>(
-                { { "packet_len_tag_key", packet_len_tag_key } });
-            flush_symbols_to_pdu.name = "PacketTransmitter(flush_symbols_to_pdu)";
 
             if (fg.connect<"out">(ramp_down_source).to<"in">(ramp_down_tags) !=
                 ConnectionResult::SUCCESS) {
@@ -175,11 +147,7 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect<"out">(ramp_down_modulator).to<"in">(ramp_symbols_to_pdu) !=
-                ConnectionResult::SUCCESS) {
-                throw std::runtime_error(connection_error);
-            }
-            if (fg.connect(ramp_symbols_to_pdu, "out"s, symbols_mux, "in#2"s) !=
+            if (fg.connect(ramp_down_modulator, "out"s, symbols_mux, "in#2"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -188,11 +156,7 @@ public:
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
-            if (fg.connect<"out">(rrc_flush_tags).to<"in">(flush_symbols_to_pdu) !=
-                ConnectionResult::SUCCESS) {
-                throw std::runtime_error(connection_error);
-            }
-            if (fg.connect(flush_symbols_to_pdu, "out"s, symbols_mux, "in#3"s) !=
+            if (fg.connect(rrc_flush_tags, "out"s, symbols_mux, "in#3"s) !=
                 ConnectionResult::SUCCESS) {
                 throw std::runtime_error(connection_error);
             }
@@ -249,28 +213,16 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(header_fec).to<"in">(header_to_pdu) !=
+        if (fg.connect(header_fec, "out"s, header_payload_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
         // payload FEC connection would go here
-        if (fg.connect<"out">(crc_append).to<"in">(payload_to_pdu) !=
+        if (fg.connect(crc_append, "out"s, header_payload_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(header_to_pdu, "out"s, header_payload_mux, "in#0"s) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect(payload_to_pdu, "out"s, header_payload_mux, "in#1"s) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(header_payload_mux).to<"in">(muxed_to_stream) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(muxed_to_stream).to<"in">(scrambler_unpack) !=
+        if (fg.connect<"out">(header_payload_mux).to<"in">(scrambler_unpack) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
@@ -290,27 +242,15 @@ public:
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(syncword_bpsk_modulator).to<"in">(syncword_to_pdu) !=
+        if (fg.connect(syncword_bpsk_modulator, "out"s, symbols_mux, "in#0"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect<"out">(qpsk_modulator).to<"in">(payload_symbols_to_pdu) !=
+        if (fg.connect(qpsk_modulator, "out"s, symbols_mux, "in#1"s) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
-        if (fg.connect(syncword_to_pdu, "out"s, symbols_mux, "in#0"s) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect(payload_symbols_to_pdu, "out"s, symbols_mux, "in#1"s) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(symbols_mux).to<"in">(symbols_to_stream) !=
-            ConnectionResult::SUCCESS) {
-            throw std::runtime_error(connection_error);
-        }
-        if (fg.connect<"out">(symbols_to_stream).to<"in">(rrc_interp) !=
+        if (fg.connect<"out">(symbols_mux).to<"in">(rrc_interp) !=
             ConnectionResult::SUCCESS) {
             throw std::runtime_error(connection_error);
         }
