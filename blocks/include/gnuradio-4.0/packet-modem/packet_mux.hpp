@@ -56,7 +56,7 @@ public:
     {
         gr::property_map map{};
         const auto position = inPort.streamReader().position();
-        for (const auto& tag : inPort.getTags(1)) {
+        for (const auto& tag : inPort.tags) {
             if (tag.index == position) {
                 for (const auto& [key, value] : tag.map) {
                     map.insert_or_assign(key, value);
