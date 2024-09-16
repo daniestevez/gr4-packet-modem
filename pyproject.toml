@@ -1,0 +1,23 @@
+[build-system]
+requires = ["scikit-build-core>=0.3.3", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+
+[project]
+name = "gr4_packet_modem"
+version = "0.0.1"
+description="gr4-packet-modem (proof of concept of Python bindings)"
+readme = "README.md"
+authors = [
+  { name = "Daniel Estevez", email = "daniel@destevez.net" },
+]
+requires-python = ">=3.7"
+
+
+[tool.scikit-build]
+wheel.expand-macos-universal-tags = true
+
+[tool.scikit-build.cmake.define]
+ENABLE_PYTHON = "ON"
+ENABLE_TESTING = "OFF"
+ENABLE_APPS = "OFF"

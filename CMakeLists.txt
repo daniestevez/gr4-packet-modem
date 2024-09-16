@@ -31,6 +31,14 @@ list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake/Modules)
 # Some blocks use ZMQ
 find_package(ZeroMQ MODULE REQUIRED)
 
+option(ENABLE_PYTHON "Enable Python package" OFF)
+if (ENABLE_PYTHON)
+  # Find the module development requirements (requires FindPython from 3.17 or
+  # scikit-build-core's built-in backport)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+  find_package(pybind11 CONFIG REQUIRED)
+endif ()
+
 set(CMAKE_EXT_DEP_WARNING_GUARD "")
 if(DISABLE_EXTERNAL_DEPS_WARNINGS) # enable warnings for external dependencies
     set(CMAKE_EXT_DEP_WARNING_GUARD SYSTEM)
@@ -94,10 +102,45 @@ endif ()
 # Mainly for FMT
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
-enable_testing()
+option(ENABLE_TESTING "Enable Test Builds" ON)
+if (ENABLE_TESTING)
+  enable_testing()
+  add_subdirectory(test)
+endif ()
 
-add_subdirectory(apps)
 add_subdirectory(blocks)
-add_subdirectory(examples)
 add_subdirectory(gnuradio4)
-add_subdirectory(test)
+
+option(ENABLE_APPS "Enable applications and examples" ON)
+if (ENABLE_APPS)
+  add_subdirectory(apps)
+  add_subdirectory(examples)
+endif ()
+
+if (ENABLE_PYTHON)
+  # Add a library using FindPython's tooling (pybind11 also provides a helper like
+  # this)
+  python_add_library(gr4_packet_modem_python MODULE python/main.cpp WITH_SOABI)
+  target_link_libraries(gr4_packet_modem_python
+    PUBLIC
+    gr4-packet-modem-blocks
+    gnuradio-options
+    gnuradio-core
+    gr-soapy
+    fmt::fmt
+    refl-cpp
+    magic_enum
+    ut
+    PRIVATE
+    pybind11::headers)
+  if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+    # also link against LLVM's libc++
+    target_link_libraries(gr4_packet_modem_python PUBLIC c++)
+  endif()
+
+  # This is passing in the version as a define just as an example
+  target_compile_definitions(gr4_packet_modem_python PRIVATE VERSION_INFO=${PROJECT_VERSION})
+
+  # The install directory is the output (wheel) directory
+  install(TARGETS gr4_packet_modem_python DESTINATION gr4_packet_modem)
+endif ()
