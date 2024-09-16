@@ -11,6 +11,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libzmq3-dev libsoapysdr-dev soapysdr-module-all soapysdr-tools \
+    python3-dev pybind11-dev \
     && \
     rm -rf /var/lib/apt/lists/*
 
