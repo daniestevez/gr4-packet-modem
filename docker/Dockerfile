@@ -8,18 +8,21 @@ ENV CC=clang-18
 ENV CXX=clang++-18
 USER 0
 
+ADD pmtv-meson.patch /tmp/pmtv-meson.patch
+
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path && \
     ln -sf /usr/bin/gcc /usr/local/bin/cc && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libzmq3-dev libsoapysdr-dev soapysdr-module-all soapysdr-tools \
-    python3-dev pybind11-dev python3-numpy meson libfmt9 libfmt-dev \
+    python3-dev pybind11-dev python3-numpy meson \
     && \
     git clone https://github.com/gnuradio/pmt/ && \
     cd pmt && \
-    mkdir build && \
+    git apply /tmp/pmtv-meson.patch && \
+    rm -rf /tmp/pmtv-meson.patch && \
     meson wrap install gtest && \
-    meson setup build && \
+    CXXFLAGS="-stdlib=libc++" meson setup build && \
     cd build && \
     ninja && \
     ninja install && \
