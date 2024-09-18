@@ -31,8 +31,8 @@ list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake/Modules)
 # Some blocks use ZMQ
 find_package(ZeroMQ MODULE REQUIRED)
 
-option(ENABLE_PYTHON "Enable Python package" OFF)
-if (ENABLE_PYTHON)
+option(ENABLE_PACKET_MODEM_PYTHON "Enable gr4_packet_modem Python package" OFF)
+if (ENABLE_PACKET_MODEM_PYTHON)
   # Find the module development requirements (requires FindPython from 3.17 or
   # scikit-build-core's built-in backport)
   find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
@@ -102,8 +102,8 @@ endif ()
 # Mainly for FMT
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
-option(ENABLE_TESTING "Enable Test Builds" ON)
-if (ENABLE_TESTING)
+option(ENABLE_PACKET_MODEM_TESTING "Enable gr4-packet-modem QA tests" ON)
+if (ENABLE_PACKET_MODEM_TESTING)
   enable_testing()
   add_subdirectory(test)
 endif ()
@@ -111,13 +111,13 @@ endif ()
 add_subdirectory(blocks)
 add_subdirectory(gnuradio4)
 
-option(ENABLE_APPS "Enable applications and examples" ON)
-if (ENABLE_APPS)
+option(ENABLE_PACKET_MODEM_APPS "Enable gr4-packet-modem applications and examples" ON)
+if (ENABLE_PACKET_MODEM_APPS)
   add_subdirectory(apps)
   add_subdirectory(examples)
 endif ()
 
-if (ENABLE_PYTHON)
+if (ENABLE_PACKET_MODEM_PYTHON)
   # Add a library using FindPython's tooling (pybind11 also provides a helper like
   # this)
   python_add_library(gr4_packet_modem_python MODULE python/main.cpp WITH_SOABI)
