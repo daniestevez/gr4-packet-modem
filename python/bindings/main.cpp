@@ -221,7 +221,13 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
 
     // Settings.hpp
 
-    py::class_<gr::SettingsBase>(m, "SettingsBase");
+    py::class_<gr::SettingsCtx>(m, "SettingsCtx").def(py::init());
+
+    py::class_<gr::SettingsBase>(m, "SettingsBase")
+        .def("getStoredAll", &gr::SettingsBase::getStoredAll)
+        .def("stagedParameters", &gr::SettingsBase::stagedParameters)
+        .def("defaultParameters", &gr::SettingsBase::defaultParameters)
+        .def("activeParameters", &gr::SettingsBase::defaultParameters);
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

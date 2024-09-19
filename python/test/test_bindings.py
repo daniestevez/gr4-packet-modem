@@ -33,6 +33,20 @@ class TestBindings(unittest.TestCase):
         meta = block.metaInformation()
         settings = block.settings()
 
+    def test_simple_flowgraph(self):
+        sched = gr4_packet_modem.SchedulerSimpleSingleThreaded()
+        fg = sched.graph()
+        type_ = 'signed int'
+        source = fg.emplaceBlock('gr::packet_modem::NullSource', type_, {})
+        num_items = 100_000
+        head = fg.emplaceBlock(
+            'gr::packet_modem::Head', type_,
+            {'num_items': gr4_packet_modem.pmt_from_uint64_t(num_items)})
+        sink = fg.emplaceBlock('gr::packet_modem::NullSink', type_, {})
+        fg.connect(source, 'out', head, 'in')
+        fg.connect(head, 0, sink, 0)
+        sched.runAndWait()
+
 
 if __name__ == '__main__':
     unittest.main()
