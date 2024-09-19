@@ -16,6 +16,7 @@ requires-python = ">=3.7"
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
+wheel.packages = ["python/bindings/gr4_packet_modem"]
 
 [tool.scikit-build.cmake.define]
 ENABLE_PACKET_MODEM_PYTHON = "ON"
