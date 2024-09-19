@@ -1,3 +1,4 @@
 /build
 *~
 /gr3/flowgraphs/*.py
+__pycache__

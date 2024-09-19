@@ -3,6 +3,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <gnuradio-4.0/BlockModel.hpp>
+#include <gnuradio-4.0/BlockRegistry.hpp>
 #include <gnuradio-4.0/Graph.hpp>
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/packet-modem/head.hpp>
@@ -92,7 +94,56 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
 
     )pbdoc";
 
-    py::class_<gr::BlockModel>(m, "BlockModel");
+    // PMT constructors that are not defined in pmtv
+
+    m.def("pmt_from_uint64_t", [](uint64_t val) { return pmtv::pmt(val); });
+
+    // BlockModel.hpp
+
+    py::class_<gr::BlockModel>(m, "BlockModel")
+        .def("name", &gr::BlockModel::name)
+        .def("typeName", &gr::BlockModel::typeName)
+        .def("setName", &gr::BlockModel::setName, py::arg("name"))
+        // TODO: modifications from Python to the returned object do not
+        // propagate the C++ BlockModel
+        .def(
+            "metaInformation",
+            [](gr::BlockModel& model) { return model.metaInformation(); },
+            py::return_value_policy::reference_internal)
+        .def("uniqueName", &gr::BlockModel::uniqueName)
+        .def(
+            "settings",
+            [](gr::BlockModel& model) -> gr::SettingsBase& { return model.settings(); },
+            py::return_value_policy::reference_internal);
+
+    // BlockRegistry.hpp
+
+    py::class_<gr::BlockRegistry>(m, "BlockRegistry")
+        .def(py::init())
+        // providedBlocks() returns std::span<std::string>, but for Python it is
+        // more idiomatic to convert this to std::vector<std::string>, thus
+        // copying to transfer ownership. Therefore, the providedBlocks() Python
+        // method ends up doing the same as the knownBlocks() method.
+        .def("providedBlocks", &gr::BlockRegistry::knownBlocks)
+        .def("knownBlocks", &gr::BlockRegistry::knownBlocks)
+        .def("createBlock",
+             &gr::BlockRegistry::createBlock,
+             py::arg("name"),
+             py::arg("type"),
+             py::arg("params"))
+        .def("isBlockKnown", &gr::BlockRegistry::isBlockKnown, py::arg("block"))
+        .def("knownBlockParameterizations",
+             &gr::BlockRegistry::knownBlockParameterizations,
+             py::arg("block"));
+
+    // gr::globalBlockRegistry returns a reference to a singleton object with a
+    // static lifetime, so return_value_policy::reference is appropriate, as the
+    // C++ object is never deallocated.
+    m.def("globalBlockRegistry",
+          &gr::globalBlockRegistry,
+          py::return_value_policy::reference);
+
+    // Graph.hpp
 
     // In C++, the user is supposed to instantiate a gr::Graph, emplace blocks
     // in the graph, make connections, and then move the graph into a
@@ -115,31 +166,46 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
                gr::property_map initialSettings) -> gr::BlockModel& {
                 return fg.emplaceBlock(type, parameters, initialSettings);
             },
+            py::arg("type"),
+            py::arg("parameters"),
+            py::arg("initialSettings"),
             py::return_value_policy::reference_internal)
         // connection using port names as strings
-        .def("connect",
-             [](gr::Graph& fg,
-                gr::BlockModel& source,
-                std::string source_port,
-                gr::BlockModel& destination,
-                std::string destination_port) {
-                 if (fg.connect(source, source_port, destination, destination_port) !=
-                     gr::ConnectionResult::SUCCESS) {
-                     throw std::runtime_error("could not make port connection");
-                 }
-             })
+        .def(
+            "connect",
+            [](gr::Graph& fg,
+               gr::BlockModel& source,
+               std::string source_port,
+               gr::BlockModel& destination,
+               std::string destination_port) {
+                if (fg.connect(source, source_port, destination, destination_port) !=
+                    gr::ConnectionResult::SUCCESS) {
+                    throw std::runtime_error("could not make port connection");
+                }
+            },
+            py::arg("source"),
+            py::arg("source_port"),
+            py::arg("destination"),
+            py::arg("destination_port"))
         // connection using port indices as integers
-        .def("connect",
-             [](gr::Graph& fg,
-                gr::BlockModel& source,
-                size_t source_port,
-                gr::BlockModel& destination,
-                size_t destination_port) {
-                 if (fg.connect(source, source_port, destination, destination_port) !=
-                     gr::ConnectionResult::SUCCESS) {
-                     throw std::runtime_error("could not make port connection");
-                 }
-             });
+        .def(
+            "connect",
+            [](gr::Graph& fg,
+               gr::BlockModel& source,
+               size_t source_port,
+               gr::BlockModel& destination,
+               size_t destination_port) {
+                if (fg.connect(source, source_port, destination, destination_port) !=
+                    gr::ConnectionResult::SUCCESS) {
+                    throw std::runtime_error("could not make port connection");
+                }
+            },
+            py::arg("source"),
+            py::arg("source_port"),
+            py::arg("destination"),
+            py::arg("destination_port"));
+
+    // Scheduler.hpp
 
     // bind all schedulers in gnuradio4/core
     bind_scheduler<gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded>>(
@@ -153,8 +219,9 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
         gr::scheduler::BreadthFirst<gr::scheduler::ExecutionPolicy::multiThreaded>>(
         m, "SchedulerBreadthFirstMultiThreaded");
 
-    // PMT constructors that are not defined in pmtv
-    m.def("pmt_from_uint64_t", [](uint64_t val) { return pmtv::pmt(val); });
+    // Settings.hpp
+
+    py::class_<gr::SettingsBase>(m, "SettingsBase");
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
