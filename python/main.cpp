@@ -116,6 +116,7 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
                 return fg.emplaceBlock(type, parameters, initialSettings);
             },
             py::return_value_policy::reference_internal)
+        // connection using port names as strings
         .def("connect",
              [](gr::Graph& fg,
                 gr::BlockModel& source,
@@ -126,12 +127,31 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
                      gr::ConnectionResult::SUCCESS) {
                      throw std::runtime_error("could not make port connection");
                  }
+             })
+        // connection using port indices as integers
+        .def("connect",
+             [](gr::Graph& fg,
+                gr::BlockModel& source,
+                size_t source_port,
+                gr::BlockModel& destination,
+                size_t destination_port) {
+                 if (fg.connect(source, source_port, destination, destination_port) !=
+                     gr::ConnectionResult::SUCCESS) {
+                     throw std::runtime_error("could not make port connection");
+                 }
              });
 
+    // bind all schedulers in gnuradio4/core
     bind_scheduler<gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::singleThreaded>>(
         m, "SchedulerSimpleSingleThreaded");
     bind_scheduler<gr::scheduler::Simple<gr::scheduler::ExecutionPolicy::multiThreaded>>(
         m, "SchedulerSimpleMultiThreaded");
+    bind_scheduler<
+        gr::scheduler::BreadthFirst<gr::scheduler::ExecutionPolicy::singleThreaded>>(
+        m, "SchedulerBreadthFirstSingleThreaded");
+    bind_scheduler<
+        gr::scheduler::BreadthFirst<gr::scheduler::ExecutionPolicy::multiThreaded>>(
+        m, "SchedulerBreadthFirstMultiThreaded");
 
     // PMT constructors that are not defined in pmtv
     m.def("pmt_from_uint64_t", [](uint64_t val) { return pmtv::pmt(val); });
