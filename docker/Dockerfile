@@ -15,7 +15,8 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libzmq3-dev libsoapysdr-dev soapysdr-module-all soapysdr-tools \
-    python3-dev pybind11-dev python3-numpy meson \
+    python3-dev pybind11-dev python3-numpy python3-build python3-venv \
+    meson \
     && \
     git clone https://github.com/gnuradio/pmt/ && \
     cd pmt && \
