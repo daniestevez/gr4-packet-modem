@@ -54,3 +54,23 @@ jobs:
         run: |          
           cd build
           ctest --output-on-failure
+  python:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/daniestevez/gr4-packet-modem:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build
+        run: CMAKE_BUILD_PARALLEL_LEVEL=4 python3 -mbuild .
+      - name: Install in venv and import
+        # --system-site-packages is needed because gr4_packet_modem
+        # requires pmtv, which depends on the system numpy (as it
+        # was built against it)
+        run: |
+          python3 -mvenv --system-site-packages env
+          source env/bin/activate
+          pip install numpy
+          pip install dist/gr4_packet_modem*.whl
+          python3 -c 'import gr4_packet_modem'
