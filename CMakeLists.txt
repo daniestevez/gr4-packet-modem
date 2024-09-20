@@ -120,7 +120,7 @@ endif ()
 if (ENABLE_PACKET_MODEM_PYTHON)
   # Add a library using FindPython's tooling (pybind11 also provides a helper like
   # this)
-  python_add_library(gr4_packet_modem_python MODULE python/bindings/main.cpp WITH_SOABI)
+  python_add_library(gr4_packet_modem_python MODULE python/bindings/python_bindings.cpp WITH_SOABI)
   target_link_libraries(gr4_packet_modem_python
     PUBLIC
     gr4-packet-modem-blocks
