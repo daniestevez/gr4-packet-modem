@@ -61,7 +61,8 @@ public:
 #ifdef TRACE
         fmt::println("{}::processBulk(outSpan.size() = {})", this->name, outSpan.size());
 #endif
-        if constexpr (std::is_same_v<T, std::complex<float>>) {
+        if constexpr (std::is_same_v<T, std::complex<float>> ||
+                      std::is_same_v<T, std::complex<double>>) {
             switch (_noise_type) {
             case NoiseType::UNIFORM:
                 for (auto& x : outSpan) {

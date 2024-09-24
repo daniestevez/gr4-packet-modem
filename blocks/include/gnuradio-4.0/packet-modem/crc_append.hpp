@@ -64,9 +64,9 @@ public:
     // These defaults correspond to CRC-32, which is also the default in the GNU
     // Radio 3.10 block
     unsigned num_bits = 32;
-    CrcType poly = 0x4C11DB7;
-    CrcType initial_value = 0xFFFFFFFF;
-    CrcType final_xor = 0xFFFFFFFF;
+    CrcType poly = static_cast<CrcType>(0x4C11DB7);
+    CrcType initial_value = static_cast<CrcType>(0xFFFFFFFF);
+    CrcType final_xor = static_cast<CrcType>(0xFFFFFFFF);
     bool input_reflected = true;
     bool result_reflected = true;
     bool swap_endianness = false;
@@ -226,9 +226,9 @@ public:
     // These defaults correspond to CRC-32, which is also the default in the GNU
     // Radio 3.10 block
     unsigned num_bits = 32;
-    CrcType poly = 0x4C11DB7;
-    CrcType initial_value = 0xFFFFFFFF;
-    CrcType final_xor = 0xFFFFFFFF;
+    CrcType poly = static_cast<CrcType>(0x4C11DB7);
+    CrcType initial_value = static_cast<CrcType>(0xFFFFFFFF);
+    CrcType final_xor = static_cast<CrcType>(0xFFFFFFFF);
     bool input_reflected = true;
     bool result_reflected = true;
     bool swap_endianness = false;

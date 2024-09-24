@@ -52,9 +52,9 @@ private:
 #ifdef TRACE
         fmt::println("{}::set_freq({})", this->name, freq);
 #endif
-        _exp = { std::cos(freq * static_cast<float>(delay)),
-                 -std::sin(freq * static_cast<float>(delay)) };
-        _exp_incr = { std::cos(freq), -std::sin(freq) };
+        _exp = { static_cast<T>(std::cos(freq * static_cast<float>(delay))),
+                 static_cast<T>(-std::sin(freq * static_cast<float>(delay))) };
+        _exp_incr = { static_cast<T>(std::cos(freq)), static_cast<T>(-std::sin(freq)) };
         _counter = 0;
     }
 

@@ -32,7 +32,7 @@ private:
     static constexpr char syncword_phase_key[] = "syncword_phase";
     static constexpr char constellation_key[] = "constellation";
 
-    void set_phase(T phase)
+    void set_phase(TPhase phase)
     {
 #ifdef TRACE
         fmt::println("{}::set_phase({})", this->name, phase);

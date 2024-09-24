@@ -5,6 +5,7 @@
 #include <gnuradio-4.0/Block.hpp>
 #include <gnuradio-4.0/reflection.hpp>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <thread>
 

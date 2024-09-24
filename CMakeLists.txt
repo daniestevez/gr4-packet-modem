@@ -120,7 +120,41 @@ endif ()
 if (ENABLE_PACKET_MODEM_PYTHON)
   # Add a library using FindPython's tooling (pybind11 also provides a helper like
   # this)
-  python_add_library(gr4_packet_modem_python MODULE python/bindings/python_bindings.cpp WITH_SOABI)
+  python_add_library(gr4_packet_modem_python MODULE
+    python/bindings/python_bindings.cpp
+    python/bindings/register_blocks.cpp
+    python/bindings/register_add.cpp
+    python/bindings/register_additive_scrambler.cpp
+    python/bindings/register_binary_slicer.cpp
+    python/bindings/register_burst_shaper.cpp
+    python/bindings/register_coarse_frequency_correction.cpp
+    python/bindings/register_constellation_llr_decoder.cpp
+    python/bindings/register_costas_loop.cpp
+    python/bindings/register_crc_append.cpp
+    python/bindings/register_crc_check.cpp
+    python/bindings/register_file_sink.cpp
+    python/bindings/register_file_source.cpp
+    python/bindings/register_glfsr_source.cpp
+    python/bindings/register_head.cpp
+    python/bindings/register_header_fec_decoder.cpp
+    python/bindings/register_header_fec_encoder.cpp
+    python/bindings/register_header_formatter.cpp
+    python/bindings/register_header_parser.cpp
+    python/bindings/register_header_payload_split.cpp
+    python/bindings/register_interpolating_fir_filter.cpp
+    python/bindings/register_item_strobe.cpp
+    python/bindings/register_mapper.cpp
+    python/bindings/register_message_debug.cpp
+    python/bindings/register_message_strobe.cpp
+    python/bindings/register_multiply_packet_len_tag.cpp
+    python/bindings/register_noise_source.cpp
+    python/bindings/register_null_sink.cpp
+    python/bindings/register_null_source.cpp
+    python/bindings/register_pack_bits.cpp
+    python/bindings/register_packet_counter.cpp
+    python/bindings/register_packet_ingress.cpp
+    python/bindings/register_packet_limiter.cpp
+    WITH_SOABI)
   target_link_libraries(gr4_packet_modem_python
     PUBLIC
     gr4-packet-modem-blocks

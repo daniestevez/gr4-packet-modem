@@ -48,7 +48,7 @@ private:
         ret = word & 1;
         for (unsigned i = 1; i < d_num_bits; ++i) {
             word >>= 1;
-            ret = (ret << 1) | (word & 1);
+            ret = static_cast<T>(ret << 1) | (word & T{ 1 });
         }
         return ret;
     }
@@ -71,7 +71,8 @@ public:
         bool input_reflected = false,
         bool result_reflected = 0)
         : d_num_bits(num_bits),
-          d_mask(num_bits == 8 * sizeof(T) ? ~T{ 0 } : (T{ 1 } << num_bits) - 1),
+          d_mask(num_bits == 8 * sizeof(T) ? static_cast<T>(~T{ 0 })
+                                           : static_cast<T>((T{ 1 } << num_bits) - 1)),
           d_initial_value(initial_value & d_mask),
           d_final_xor(final_xor & d_mask),
           d_input_reflected(input_reflected),
@@ -100,12 +101,12 @@ public:
                 i >>= 1;
             } while (i > 0UZ);
         } else {
-            const T msb = T{ 1 } << (num_bits - 1);
+            const T msb = static_cast<T>(T{ 1 } << (num_bits - 1));
             auto crc = msb;
             size_t i = 1UZ;
             do {
                 if (crc & msb) {
-                    crc = (crc << 1) ^ poly;
+                    crc = static_cast<T>(crc << 1) ^ poly;
                 } else {
                     crc <<= 1;
                 }

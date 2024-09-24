@@ -19,7 +19,7 @@ public:
     gr::PortIn<T> in1;
     gr::PortOut<T> out;
 
-    [[nodiscard]] constexpr auto processOne(T a, T b) const noexcept { return a + b; }
+    [[nodiscard]] constexpr T processOne(T a, T b) const noexcept { return a + b; }
 };
 
 } // namespace gr::packet_modem

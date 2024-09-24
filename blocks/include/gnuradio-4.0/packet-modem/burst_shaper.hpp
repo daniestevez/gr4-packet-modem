@@ -146,7 +146,8 @@ public:
 
     [[nodiscard]] Pdu<TOut> processOne(const Pdu<TIn>& pdu) const
     {
-        Pdu<TOut> pdu_out = pdu;
+        Pdu<TOut> pdu_out{ std::vector<TOut>(pdu.data.cbegin(), pdu.data.cend()),
+                           pdu.tags };
 
         // multiply samples by leading shape
         size_t n = std::min(leading_shape.size(), pdu.data.size());

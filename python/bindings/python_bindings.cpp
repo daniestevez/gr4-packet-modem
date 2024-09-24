@@ -12,61 +12,18 @@
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/Settings.hpp>
 #include <gnuradio-4.0/Tag.hpp>
-#include <gnuradio-4.0/packet-modem/head.hpp>
-#include <gnuradio-4.0/packet-modem/null_sink.hpp>
-#include <gnuradio-4.0/packet-modem/null_source.hpp>
-#include <cstdint>
 #include <stdexcept>
+
+void register_blocks();
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
-
-static void register_blocks()
-{
-    using namespace gr::packet_modem;
-
-    gr::registerBlock<NullSource,
-                      double,
-                      float,
-                      int64_t,
-                      int32_t,
-                      int16_t,
-                      int8_t,
-                      uint64_t,
-                      uint32_t,
-                      uint16_t,
-                      uint8_t>(gr::globalBlockRegistry());
-    gr::registerBlock<NullSink,
-                      double,
-                      float,
-                      int64_t,
-                      int32_t,
-                      int16_t,
-                      int8_t,
-                      uint64_t,
-                      uint32_t,
-                      uint16_t,
-                      uint8_t>(gr::globalBlockRegistry());
-    gr::registerBlock<Head,
-                      double,
-                      float,
-                      int64_t,
-                      int32_t,
-                      int16_t,
-                      int8_t,
-                      uint64_t,
-                      uint32_t,
-                      uint16_t,
-                      uint8_t>(gr::globalBlockRegistry());
-}
 
 namespace py = pybind11;
 
 template <typename BlockT>
 static void bind_block_crtp(py::class_<BlockT>& block)
 {
-    // block.def_readwrite("msgIn", &BlockT::msgIn).def_readwrite("msgOut",
-    // &BlockT::msgOut);
     block.def_readonly("msgIn", &BlockT::msgIn);
 }
 
