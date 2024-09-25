@@ -180,6 +180,9 @@ This repository is organized in directories in the following way.
   only thing in this directory is [gr3/flowgraphs](gr3/flowgraphs), which
   contains some GNU Radio 3.10 flowgraphs that can be used in combination with
   gr4-packet-modem.
+  
+* [python](python). This contains the Python bindings and some Python unit tests
+  and examples.
 
 * [scripts](scripts). Contains some utility scripts.
 
@@ -188,3 +191,41 @@ This repository is organized in directories in the following way.
   the functionality of a particular block is tested. As in gnuradio4, the tests
   use [boost/ut](https://github.com/boost-ext/ut) and are run usting `ctest`.
 
+# Python bindings
+
+gr4-packet-modem includes a proof of concept of Python bindings in GNU Radio 4.0
+using pybind11. The basic objects of the GNU Radio 4.0 runtime such as `Graph`,
+`Scheduler`, etc., and all the blocks in gr4-packet-modem are included in these
+Python bindings.
+
+The Python bindings are built and installed as a regular Python package called
+`gr4_packet_modem`. This uses
+[scikit-build-core](https://github.com/scikit-build/scikit-build-core) to build
+a Python module with CMake.
+
+The Python package can be built and installed from the gr4-packet-modem
+directory by doing the following.
+
+```
+CMAKE_BUILD_PARALLEL_LEVEL=4 pip install --break-system-packages .
+```
+
+The value of the `CMAKE_BUILD_PARALLEL_LEVEL` environment variable defines the
+number of jobs that CMake uses in parallel and should be adjusted according to
+the RAM in the system (a conservative estimate is 4 GiB per job). Note the
+potential problems associated with `--break-system-packages` when installing the
+package in this way.
+
+The [pmtv](https://github.com/gnuradio/pmt/) library needs to be built and
+installed as a Python package using the same compiler and settings that are used
+to build gr4-packet-modem.
+
+The `ghcr.io/daniestevez/gr4-packet-modem` Docker image already contains `pmtv`
+already built with clang and installed. The default `CC` and `CXX` environment
+variables in this image can build a compatible `gr4_packet_modem` Python
+package. The `ghcr.io/daniestevez/gr4-packet-modem-built` Docker image has both
+`pmtv` and `gr4_packet_modem` built and installed.
+
+The examples in [python/examples](python/examples) and unit tests in
+[python/test](python/test) can serve as a guide for how to use the Python
+bindings.
