@@ -94,7 +94,7 @@ public:
         const auto capacity = std::bit_ceil(arm_size);
         auto new_history = gr::HistoryBuffer<TIn>(capacity);
         // fill history with zeros to avoid problems with undefined history contents
-        new_history.push_back_bulk(std::views::repeat(TIn{ 0 }, capacity));
+        new_history.push_back_bulk(std::views::repeat(TIn{}, capacity));
         // move old history items to the new history
         for (ssize_t j = static_cast<ssize_t>(_history.size()) - 1; j >= 0; --j) {
             new_history.push_back(_history[static_cast<size_t>(j)]);
@@ -162,7 +162,7 @@ public:
                     *out_item = _scale * std::inner_product(_taps[_pfb_arm].cbegin(),
                                                             _taps[_pfb_arm].cend(),
                                                             _history.cbegin(),
-                                                            TOut{ 0 });
+                                                            TOut{});
                     // Check to see if we need to output a tag. Tags go on the
                     // "nearest" possible output sample, which means when their
                     // index is in the interval [sps/2, sps/2).
@@ -211,7 +211,7 @@ public:
                 *out_item = _scale * std::inner_product(_taps[_pfb_arm].cbegin(),
                                                         _taps[_pfb_arm].cend(),
                                                         _history.cbegin(),
-                                                        TOut{ 0 });
+                                                        TOut{});
                 // Check to see if we need to output a tag. Tags go on the
                 // "nearest" possible output sample, which means when their
                 // index is in the interval [sps/2, sps/2).

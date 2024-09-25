@@ -1,3 +1,15 @@
+/*
+ * This file contains code adapted from GNU Radio 4.0, which is licensed as
+ * follows:
+ *
+ * Copyright (C) 2001-September 2020 GNU Radio Project -- managed by Free Software Foundation, Inc.
+ * Copyright (C) September 2020-2024 GNU Radio Project -- managed by SETI Institute
+ * Copyright (C) 2018-2024 FAIR -- Facility for Antiproton & Ion Research, Darmstadt, Germany
+ *
+ * SPDX-License-Identifier: LGPL-3.0-linking-exception
+ *
+ */
+
 #ifndef _GR4_PACKET_MODEM_REGISTER_HELPERS
 #define _GR4_PACKET_MODEM_REGISTER_HELPERS
 
@@ -51,6 +63,27 @@ inline constexpr int registerBlock(TRegisterInstance& registerInstance)
                                  typename Type::template at<2>>;
         static_assert(meta::is_instantiation_of<Type, BlockParameters>);
         static_assert(Type::size == 3);
+        registerInstance.template addBlockType<ThisBlock>(
+            detail::blockBaseName<ThisBlock>(), Type::toString());
+    };
+    ((addBlockType.template operator()<TBlockParameters>()), ...);
+    return {};
+}
+
+// adapted from gnuradio-4.0/Block.hpp
+template <template <typename, typename, typename, typename> typename TBlock,
+          typename... TBlockParameters,
+          typename TRegisterInstance>
+inline constexpr int registerBlock(TRegisterInstance& registerInstance)
+{
+    using namespace gr;
+    auto addBlockType = [&]<typename Type> {
+        using ThisBlock = TBlock<typename Type::template at<0>,
+                                 typename Type::template at<1>,
+                                 typename Type::template at<2>,
+                                 typename Type::template at<3>>;
+        static_assert(meta::is_instantiation_of<Type, BlockParameters>);
+        static_assert(Type::size == 4);
         registerInstance.template addBlockType<ThisBlock>(
             detail::blockBaseName<ThisBlock>(), Type::toString());
     };

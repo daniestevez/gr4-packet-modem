@@ -154,6 +154,31 @@ if (ENABLE_PACKET_MODEM_PYTHON)
     python/bindings/register_packet_counter.cpp
     python/bindings/register_packet_ingress.cpp
     python/bindings/register_packet_limiter.cpp
+    python/bindings/register_packet_mux.cpp
+    python/bindings/register_packet_strobe.cpp
+    python/bindings/register_packet_to_stream.cpp
+    python/bindings/register_packet_type_filter.cpp
+    python/bindings/register_payload_metadata_insert.cpp
+    python/bindings/register_pdu_to_tagged_stream.cpp
+    python/bindings/register_pfb_arb_resampler.cpp
+    python/bindings/register_probe_rate.cpp
+    python/bindings/register_random_source.cpp
+    python/bindings/register_rotator.cpp
+    python/bindings/register_stream_to_pdu.cpp
+    python/bindings/register_stream_to_tagged_stream.cpp
+    python/bindings/register_symbol_filter.cpp
+    python/bindings/register_syncword_detection.cpp
+    python/bindings/register_syncword_detection_filter.cpp
+    python/bindings/register_syncword_wipeoff.cpp
+    python/bindings/register_tag_gate.cpp
+    python/bindings/register_tagged_stream_to_pdu.cpp
+    python/bindings/register_throttle.cpp
+    python/bindings/register_tun_sink.cpp
+    python/bindings/register_tun_source.cpp
+    python/bindings/register_unpack_bits.cpp
+    python/bindings/register_vector_sink.cpp
+    python/bindings/register_vector_source.cpp
+    python/bindings/register_zmq_pdu_pub_sink.cpp
     WITH_SOABI)
   target_link_libraries(gr4_packet_modem_python
     PUBLIC
