@@ -2,9 +2,11 @@
  * This file contains code adapted from GNU Radio 4.0, which is licensed as
  * follows:
  *
- * Copyright (C) 2001-September 2020 GNU Radio Project -- managed by Free Software Foundation, Inc.
+ * Copyright (C) 2001-September 2020 GNU Radio Project -- managed by Free Software
+ * Foundation, Inc.
  * Copyright (C) September 2020-2024 GNU Radio Project -- managed by SETI Institute
- * Copyright (C) 2018-2024 FAIR -- Facility for Antiproton & Ion Research, Darmstadt, Germany
+ * Copyright (C) 2018-2024 FAIR -- Facility for Antiproton & Ion Research, Darmstadt,
+ * Germany
  *
  * SPDX-License-Identifier: LGPL-3.0-linking-exception
  *
