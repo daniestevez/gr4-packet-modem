@@ -191,6 +191,7 @@ if (ENABLE_PACKET_MODEM_PYTHON)
     magic_enum
     ut
     PRIVATE
+    ZeroMQ::ZeroMQ
     pybind11::headers)
   if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     # also link against LLVM's libc++
