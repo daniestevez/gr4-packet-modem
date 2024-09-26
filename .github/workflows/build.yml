@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           find apps/ blocks/ examples/ python/ -name '*.cpp' -o -name '*.hpp' | \
-          xargs -exec clang-format -Werror --dry-run
+          xargs -exec clang-format-18 -Werror --dry-run
   build:
     runs-on: ubuntu-latest
     container:
