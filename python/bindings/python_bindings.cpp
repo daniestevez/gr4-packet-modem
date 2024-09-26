@@ -12,6 +12,10 @@
 #include <gnuradio-4.0/Scheduler.hpp>
 #include <gnuradio-4.0/Settings.hpp>
 #include <gnuradio-4.0/Tag.hpp>
+#include <gnuradio-4.0/packet-modem/firdes.hpp>
+#include <gnuradio-4.0/packet-modem/mapper.hpp>
+#include <gnuradio-4.0/packet-modem/packet_transmitter_rrc_taps.hpp>
+#include <gnuradio-4.0/packet-modem/pfb_arb_taps.hpp>
 #include <stdexcept>
 
 void register_blocks();
@@ -209,7 +213,9 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
 
     // PMT constructors that are not defined in pmtv
 
+    m.def("pmt_from_uint8_t", [](uint8_t val) { return pmtv::pmt(val); });
     m.def("pmt_from_uint64_t", [](uint64_t val) { return pmtv::pmt(val); });
+    m.def("pmt_from_size_t", [](size_t val) { return pmtv::pmt(val); });
 
     // Block.hpp
 
@@ -499,6 +505,36 @@ PYBIND11_MODULE(gr4_packet_modem_python, m)
             },
             py::arg("key"),
             py::arg("value"));
+
+    // functions and constants in gr4-packet-modem
+
+    m.def("root_raised_cosine",
+          &gr::packet_modem::firdes::root_raised_cosine<double>,
+          py::arg("gain"),
+          py::arg("sampling_freq"),
+          py::arg("symbol_rate"),
+          py::arg("alpha"),
+          py::arg("ntaps"));
+
+    m.def("packet_transmitter_rrc_taps",
+          &gr::packet_modem::packet_transmitter_rrc_taps,
+          py::arg("samples_per_symbol"));
+
+    m.attr("pfb_arb_taps") = gr::packet_modem::pfb_arb_taps;
+
+    // hack to set the map of Mapper block
+    //
+    // this does very nasty stuff if the given BlockModel does not correspond to
+    // a Mapper<uint8_t, c64>
+    m.def(
+        "set_mapper_u8_c64_map",
+        [](gr::BlockModel& block, std::vector<std::complex<float>>& map) {
+            reinterpret_cast<gr::packet_modem::Mapper<uint8_t, std::complex<float>>*>(
+                block.raw())
+                ->map = map;
+        },
+        py::arg("block"),
+        py::arg("map"));
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

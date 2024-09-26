@@ -27,7 +27,7 @@ namespace gr::packet_modem::firdes {
 // `gr::filter::firdes::root_raised_cosine()` function and the results are numerically
 // equivalent.
 template <typename T = float>
-constexpr std::vector<T> root_raised_cosine(
+inline constexpr std::vector<T> root_raised_cosine(
     double gain, double sampling_freq, double symbol_rate, double alpha, size_t ntaps)
 {
     ntaps |= 1; // ensure that ntaps is odd

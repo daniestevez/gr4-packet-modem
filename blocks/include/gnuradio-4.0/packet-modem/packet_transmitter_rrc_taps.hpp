@@ -5,7 +5,7 @@
 
 namespace gr::packet_modem {
 
-constexpr std::vector<float> packet_transmitter_rrc_taps(size_t samples_per_symbol)
+inline constexpr std::vector<float> packet_transmitter_rrc_taps(size_t samples_per_symbol)
 {
     const size_t ntaps = samples_per_symbol * 11U;
     auto rrc_taps = firdes::root_raised_cosine(
