@@ -111,9 +111,10 @@ endif ()
 add_subdirectory(blocks)
 add_subdirectory(gnuradio4)
 
-option(ENABLE_PACKET_MODEM_APPS "Enable gr4-packet-modem applications and examples" ON)
+option(ENABLE_PACKET_MODEM_APPS "Enable gr4-packet-modem applications, benchmarks and examples" ON)
 if (ENABLE_PACKET_MODEM_APPS)
   add_subdirectory(apps)
+  add_subdirectory(benchmarks)
   add_subdirectory(examples)
 endif ()
 

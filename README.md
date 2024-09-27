@@ -164,6 +164,9 @@ This repository is organized in directories in the following way.
   that gets built to an executable. The applications contain either the TX or
   the RX part of the modem, or both, in different configurations.
 
+* [benchmarks](benchmark). This contains some benchmark flowgraphs and benchmark
+  results.
+
 * [blocks](blocks). This contains all the GNU Radio 4.0 blocks implemented in
   this repository. All the blocks are `.hpp` headers, with one file per block
   (and another supporting headers which do not define blocks).
