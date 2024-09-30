@@ -92,7 +92,11 @@ public:
             throw gr::exception("consume failed");
         }
 
-        // TODO: not sure why this is needed here, since some output is being published
+        // _mergedInputTag.map.clear() only gets called automatically by the
+        // block forwardTags() whenever the block consumes some samples on all
+        // inputs and produces some samples on all outputs. Here it needs to be
+        // called manually, because the block might have not published any
+        // samples.
         if (in_item != inSpan.begin()) {
             this->_mergedInputTag.map.clear();
         }

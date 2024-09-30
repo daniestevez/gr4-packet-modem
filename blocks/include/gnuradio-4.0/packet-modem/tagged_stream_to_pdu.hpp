@@ -146,9 +146,11 @@ public:
 #endif
         } else {
             outSpan.publish(0);
-            // Clear input tags. This is needed because the block doesn't
-            // publish anything, so the input tags don't get cleared by the
-            // runtime.
+            // _mergedInputTag.map.clear() only gets called automatically by the
+            // block forwardTags() whenever the block consumes some samples on
+            // all inputs and produces some samples on all outputs. Here it
+            // needs to be called manually, because the block isn't publishing
+            // any output.
             this->_mergedInputTag.map.clear();
 #ifdef TRACE
             fmt::println("{} consume = {}, publish = 0, _remaining = {}, "

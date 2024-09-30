@@ -117,8 +117,11 @@ public:
                 throw gr::exception(fmt::format("inSpan.consume({}) failed", n));
             }
             outSpan.publish(n);
-            // TODO: not sure why this is needed here, since some output is being
-            // published
+            // _mergedInputTag.map.clear() only gets called automatically by the
+            // block forwardTags() whenever the block consumes some samples on
+            // all inputs and produces some samples on all outputs. Here it
+            // needs to be called manually, because the block hasn't consumed
+            // samples in ignoredSpan or headerSpan.
             this->_mergedInputTag.map.clear();
 #ifdef TRACE
             fmt::println("{} consumed = {}, header_consumed = 0", this->name, n, 0);
@@ -191,8 +194,11 @@ public:
             throw gr::exception(fmt::format("ignoredSpan.consume({})", ignored_consumed));
         }
         outSpan.publish(consumed);
-        // TODO: not sure why this is needed here, since some output is being
-        // published
+        // _mergedInputTag.map.clear() only gets called automatically by the
+        // block forwardTags() whenever the block consumes some samples on all
+        // inputs and produces some samples on all outputs. Here it needs to be
+        // called manually, because the block might have not consumed samples in
+        // ignoredSpan or headerSpan.
         this->_mergedInputTag.map.clear();
 #ifdef TRACE
         fmt::println("{} consumed = {}, header_consumed = {}",

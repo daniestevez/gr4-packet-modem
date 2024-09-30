@@ -123,7 +123,11 @@ public:
             }
         }
 
-        // TODO: not sure why this is needed here, since some output is being published
+        // _mergedInputTag.map.clear() only gets called automatically by the
+        // block forwardTags() whenever the block consumes some samples on all
+        // inputs and produces some samples on all outputs, so we need to call
+        // it manually here, because this block either produces output in
+        // headerSpan or in payloadSpan, but not simultaneously.
         this->_mergedInputTag.map.clear();
 
         return gr::work::Status::OK;

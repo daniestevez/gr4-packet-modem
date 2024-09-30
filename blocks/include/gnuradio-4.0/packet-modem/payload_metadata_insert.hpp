@@ -157,9 +157,11 @@ public:
             ignoredSpan.publish(ignored_published);
             outSpan.publish(0);
             if (inSpan.size() != 0) {
-                // Clear input tags. This is needed because the block doesn't
-                // publish anything, so the input tags don't get cleared by the
-                // runtime.
+                // _mergedInputTag.map.clear() only gets called automatically by
+                // the block forwardTags() whenever the block consumes some
+                // samples on all inputs and produces some samples on all
+                // outputs. Here the block isn't publishing anything, so we need
+                // to call it manually.
                 this->_mergedInputTag.map.clear();
             }
             return gr::work::Status::OK;
@@ -285,8 +287,11 @@ public:
         ignoredSpan.publish(ignored_published);
         outSpan.publish(static_cast<size_t>(out_item - outSpan.begin()));
 
-        // TODO: not sure why this is needed here, since some output is being
-        // published
+        // _mergedInputTag.map.clear() only gets called automatically by the
+        // block forwardTags() whenever the block consumes some samples on all
+        // inputs and produces some samples on all outputs. Here it is possible
+        // that input from parsed_header was not consumed, so the
+        // _mergedInputTag map needs to be cleared manually.
         if (in_item != inSpan.begin()) {
             this->_mergedInputTag.map.clear();
         }
