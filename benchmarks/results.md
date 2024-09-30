@@ -21,10 +21,14 @@ interval in the results.
 
 ## Packet transmitter benchmark
 
-| **Benchmark**                      | **packet mode** | **packet mode** `-march=native` | **stream mode** | **stream mode** `-march=native` |
-|------------------------------------|-----------------|---------------------------------|-----------------|---------------------------------|
-| `benchmark_packet_transmitter_pdu` | 156-167 Msps    | 172-180 Msps                    | 65-72 Msps      | 100-125 Msps                    |
-| `benchmark_packet_transmitter`     | aborts          | aborts                          | aborts          | aborts                          |
+The `benchmark_packet_transmitter` has been built against the
+[tags-consume](ttps://github.com/daniestevez/gnuradio4/tree/tags-consume) branch
+of gnuradio4.
+
+| **Benchmark**                      | **burst mode** | **burst mode** `-march=native` | **stream mode** | **stream mode** `-march=native` |
+|------------------------------------|----------------|--------------------------------|-----------------|---------------------------------|
+| `benchmark_packet_transmitter_pdu` | 156-167 Msps   | 172-180 Msps                   | 65-72 Msps      | 100-125 Msps                    |
+| `benchmark_packet_transmitter`     | 92-106 Msps    | 102-109 Msps                   | 100-106 Msps    | 65-67 Msps                      |
 
 ## Syncword detection benchmark
 

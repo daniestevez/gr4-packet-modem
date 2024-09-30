@@ -40,8 +40,11 @@ mode or burst mode in the transmitter.
 This is a variant of the packet transmitter benchmark that uses the packet
 transmitter implemented using `"packet_len"` tags to delimit packet
 boundaries. Its performance is bad due to some current performance issues of GNU
-Radio 4.0 regarding tag processing. Currently this flowgraph aborts due to a bug
-(although the similar `packet_transmitter` example flowgraph does not crash).
+Radio 4.0 regarding tag processing. Currently this flowgraph aborts when built
+against the gnuradio4 main branch due to an issue with tag consumption. It needs
+to be built against the
+[tags-consume](https://github.com/daniestevez/gnuradio4/tree/tags-consume)
+branch instead.
 
 ### `benchmark_syncword_detection`
 
