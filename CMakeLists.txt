@@ -173,6 +173,7 @@ if (ENABLE_PACKET_MODEM_PYTHON)
     python/bindings/register_syncword_wipeoff.cpp
     python/bindings/register_tag_gate.cpp
     python/bindings/register_tagged_stream_to_pdu.cpp
+    python/bindings/register_test_complex_settings.cpp
     python/bindings/register_throttle.cpp
     python/bindings/register_tun_sink.cpp
     python/bindings/register_tun_source.cpp

@@ -75,6 +75,7 @@ void register_syncword_detection_filter();
 void register_syncword_wipeoff();
 void register_tag_gate();
 void register_tagged_stream_to_pdu();
+void register_test_complex_settings();
 void register_throttle();
 void register_tun_sink();
 void register_tun_source();
@@ -134,6 +135,7 @@ void register_blocks()
     register_syncword_wipeoff();
     register_tag_gate();
     register_tagged_stream_to_pdu();
+    register_test_complex_settings();
     register_throttle();
     register_tun_sink();
     register_tun_source();
