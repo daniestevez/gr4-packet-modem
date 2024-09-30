@@ -74,59 +74,23 @@ public:
         _current_count = 0;
     }
 
-    // processOne() disabled temporarily because it is giving problems with tag
-    // propagation. Sometimes all the processOne() calls for the same work() see
-    // the tag and reset the LFSR (only the first call should see the tag).
-
-    // [[nodiscard]] constexpr T processOne(T a) noexcept
-    // {
-    //     if ((!reset_tag_key.empty() && this->input_tags_present() &&
-    //          this->mergedInputTag().map.contains(reset_tag_key)) ||
-    //         (count != 0 && _current_count == count)) {
-    //         reset_lfsr();
-    //     }
-    //     const uint8_t lfsr_bit = _reg & 1;
-    //     const uint64_t shift_in = static_cast<uint64_t>(__builtin_parityl(_reg &
-    //     mask)); _reg = (shift_in << length) | (_reg >> 1);
-    //     ++_current_count;
-
-    //     if constexpr (is_hard_symbol) {
-    //         return a ^ lfsr_bit;
-    //     } else {
-    //         return lfsr_bit ? -a : a;
-    //     }
-    // }
-
-    gr::work::Status processBulk(const gr::ConsumableSpan auto& inSpan,
-                                 gr::PublishableSpan auto& outSpan)
+    [[nodiscard]] constexpr T processOne(T a) noexcept
     {
-#ifdef TRACE
-        fmt::println("{}::processBulk(inSpan.size() = {}, outSpan.size() = {})",
-                     this->name,
-                     inSpan.size(),
-                     outSpan.size());
-#endif
-        if (!reset_tag_key.empty() && this->input_tags_present() &&
-            this->mergedInputTag().map.contains(reset_tag_key)) {
+        if ((!reset_tag_key.empty() && this->input_tags_present() &&
+             this->mergedInputTag().map.contains(reset_tag_key)) ||
+            (count != 0 && _current_count == count)) {
             reset_lfsr();
         }
-        for (const auto j : std::views::iota(0UZ, inSpan.size())) {
-            if (count != 0 && _current_count == count) {
-                reset_lfsr();
-            }
-            const uint8_t lfsr_bit = _reg & 1;
-            const uint64_t shift_in =
-                static_cast<uint64_t>(__builtin_parityl(_reg & mask));
-            _reg = (shift_in << length) | (_reg >> 1);
-            ++_current_count;
+        const uint8_t lfsr_bit = _reg & 1;
+        const uint64_t shift_in = static_cast<uint64_t>(__builtin_parityl(_reg & mask));
+        _reg = (shift_in << length) | (_reg >> 1);
+        ++_current_count;
 
-            if constexpr (is_hard_symbol) {
-                outSpan[j] = inSpan[j] ^ lfsr_bit;
-            } else {
-                outSpan[j] = lfsr_bit ? -inSpan[j] : inSpan[j];
-            }
+        if constexpr (is_hard_symbol) {
+            return a ^ lfsr_bit;
+        } else {
+            return lfsr_bit ? -a : a;
         }
-        return gr::work::Status::OK;
     }
 };
 
